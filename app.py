@@ -286,7 +286,7 @@ def export_pdf(data):
         f"- Khoa phòng: {data['khoa_phong']}\n"
         f"- Địa chỉ: {data['dia_chi']}\n"
         f"- Ngày giờ vào viện: {data['ngay_vao_vien']}\n"
-        f"- Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}"
+        f"- Sinh viên thực hiện: {data['sinh_vien']}"
     )
     pdf.add_body_text(hc_text)
 
