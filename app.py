@@ -596,11 +596,11 @@ with tab1:
     with st.expander("XIV. ĐIỀU TRỊ", expanded=True):
         c_dt1, c_dt2, c_dt3 = st.columns(3)
         with c_dt1:
-            st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=110)
+            st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=250)
         with c_dt2:
-            st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=110)
+            st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=250)
         with c_dt3:
-            st.text_area("3. Theo dõi sau điều trị:", key="dt_theo_doi", height=110)
+            st.text_area("3. Theo dõi sau điều trị:", key="dt_theo_doi", height=250)
 
     # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
