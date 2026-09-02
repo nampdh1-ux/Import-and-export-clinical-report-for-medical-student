@@ -503,10 +503,10 @@ with tab1:
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
         st.caption("Lưu ý: Tất cả các ô thăm khám khi nhấn xuống dòng sẽ tự động tạo gạch đầu dòng trong tập tin xuất ra.")
         st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
+        st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=160, label_visibility="collapsed")
         
         st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=90, label_visibility="collapsed")
+        st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=120, label_visibility="collapsed")
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         c_cq1, c_cq2 = st.columns(2)
