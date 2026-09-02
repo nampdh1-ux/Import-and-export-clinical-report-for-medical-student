@@ -450,8 +450,8 @@ with st.sidebar:
                 st.error(f"Không thể đọc file: {e}")
 
 # --- GIAO DIỆN CHÍNH ---
-st.title("Công cụ Nhập và Xuất Bệnh Án Lâm Sàng")
-st.caption("Cấu trúc bệnh án phân tích chuyên sâu phục vụ học tập, giao ban và thực hành lâm sàng.")
+st.title("Bệnh Án Lâm Sàng")
+st.caption("Cấu trúc bệnh án phục vụ học tập, giao ban và thực hành lâm sàng.")
 
 tab1, tab2 = st.tabs(["Nhập liệu hồ sơ", "Xem trước và Xuất tập tin"])
 
