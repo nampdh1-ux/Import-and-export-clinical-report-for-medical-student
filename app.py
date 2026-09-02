@@ -4,6 +4,11 @@ from datetime import datetime
 import os
 import tempfile
 import json
+import io
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
 st.set_page_config(page_title="Công cụ làm Bệnh án Lâm sàng", layout="wide")
@@ -11,18 +16,14 @@ st.set_page_config(page_title="Công cụ làm Bệnh án Lâm sàng", layout="w
 # --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
 st.markdown("""
 <style>
-    /* Khung expander tổng thể */
     div[data-testid="stExpander"] {
         border: 1px solid #d4eaf0;
         border-radius: 6px;
         margin-bottom: 12px;
         background-color: #ffffff;
     }
-    
-    /* Thanh tiêu đề expander: Màu nền xanh AMBOSS (#EBF7F9) + Viền kép HMU */
     div[data-testid="stExpander"] > details > summary {
         background-color: #ebf7f9 !important;
-        /* Vạch kép HMU: 4px hồng đậm (#c2185b) và 4px xanh navy (#0d47a1) */
         box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1 !important;
         border-left: none !important;
         border-radius: 5px 5px 0 0;
@@ -31,13 +32,10 @@ st.markdown("""
         color: #06445c !important;
         font-size: 1.05rem !important;
     }
-    
     div[data-testid="stExpander"] > details > summary:hover {
         background-color: #ddf2f5 !important;
         color: #032b3b !important;
     }
-
-    /* Khối đề mục ở sidebar theo tone AMBOSS */
     .sidebar-header-amboss {
         background-color: #ebf7f9;
         box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1;
@@ -48,8 +46,6 @@ st.markdown("""
         color: #06445c;
         margin-bottom: 8px;
     }
-
-    /* Tiểu mục con bên trong các expander: Tone xanh pastel nhạt dịu mắt */
     .sub-section-header {
         background-color: #f2fafb;
         box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1;
@@ -61,8 +57,6 @@ st.markdown("""
         font-weight: 600;
         color: #0c4d63;
     }
-
-    /* Chữ đỏ đậm y khoa cho chẩn đoán xác định */
     .highlight-dx {
         color: #b40000;
         font-weight: bold;
@@ -132,7 +126,7 @@ class BenhAnPDF(FPDF):
             self.set_font("Roboto-Bold", "", 15)
             self.cell(0, 8, "BỆNH ÁN LÂM SÀNG", align="C", new_x="LMARGIN", new_y="NEXT")
             self.set_font("Roboto", "", 8)
-            self.cell(0, 4, f"Thời gian làm bệnh án: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
+            self.cell(0, 4, f"Thời gian lập hồ sơ: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
             self.ln(3)
 
     def footer(self):
@@ -199,12 +193,10 @@ class BenhAnPDF(FPDF):
         
         self.set_font("Roboto-Bold", "", 9.5)
         self.set_fill_color(230, 235, 245)
-        start_x = self.get_x()
         start_y = self.get_y()
         
         if start_y > 260:
             self.add_page()
-            start_y = self.get_y()
             
         self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
         self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
@@ -273,6 +265,7 @@ class BenhAnPDF(FPDF):
                     except:
                         pass
 
+# --- HÀM XUẤT FILE PDF ---
 def export_pdf(data):
     pdf = BenhAnPDF()
     pdf.alias_nb_pages()
@@ -286,7 +279,7 @@ def export_pdf(data):
         f"- Khoa phòng: {data['khoa_phong']}\n"
         f"- Địa chỉ: {data['dia_chi']}\n"
         f"- Ngày giờ vào viện: {data['ngay_vao_vien']}\n"
-        f"- Sinh viên thực hiện: {data['sinh_vien']}"
+        f"- Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}"
     )
     pdf.add_body_text(hc_text)
 
@@ -385,21 +378,692 @@ def export_pdf(data):
     pdf.add_subsection_header("3. Theo dõi sau điều trị:")
     pdf.add_body_text(format_bullet_points(data['dt_theo_doi']))
 
-    # XV. TIÊN LƯỢNG (CHỈ HIỆN KHI CÓ NHẬP NỘI DUNG)
+    # XV. TIÊN LƯỢNG
     noi_dung_tien_luong = str(data.get("tien_luong", "")).strip()
     if noi_dung_tien_luong:
         pdf.add_section_header("XV. TIÊN LƯỢNG")
         pdf.add_body_text(format_bullet_points(noi_dung_tien_luong))
 
-    # XVI. TƯ VẤN (CHỈ HIỆN KHI CÓ NHẬP NỘI DUNG)
+    # XVI. TƯ VẤN
     noi_dung_tu_van = str(data.get("tu_van", "")).strip()
     if noi_dung_tu_van:
-        # Nếu có mục Tiên lượng thì đề mục là XVI, nếu không có thì đẩy lên thành XV
         ten_de_muc_tu_van = "XVI. TƯ VẤN" if noi_dung_tien_luong else "XV. TƯ VẤN"
         pdf.add_section_header(ten_de_muc_tu_van)
         pdf.add_body_text(format_bullet_points(noi_dung_tu_van))
 
     return bytes(pdf.output())
+
+# --- HÀM XUẤT FILE POWERPOINT (PPTX) ---
+# --- HÀM XUẤT FILE POWERPOINT (PPTX) ĐÃ ĐƯỢC LÀM NỔI BẬT ĐỀ MỤC ---
+def export_pptx(data):
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank_layout = prs.slide_layouts[6]
+
+    COLOR_PRIMARY = RGBColor(13, 71, 161)    # Xanh navy chuẩn HMU
+    COLOR_ACCENT = RGBColor(194, 24, 91)     # Hồng sẫm HMU
+    COLOR_TEXT = RGBColor(30, 41, 59)        # Màu chữ nội dung
+    COLOR_RED = RGBColor(180, 0, 0)          # Màu đỏ đậm chẩn đoán xác định
+
+    def add_slide_with_header(title_text):
+        slide = prs.slides.add_slide(blank_layout)
+        header_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(11.733), Inches(0.9))
+        tf = header_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Calibri"
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.color.rgb = COLOR_PRIMARY
+
+        # Vạch trang trí kép nhận diện HMU
+        line_rose = slide.shapes.add_shape(1, Inches(0.8), Inches(1.3), Inches(0.6), Inches(0.06))
+        line_rose.fill.solid()
+        line_rose.fill.fore_color.rgb = COLOR_ACCENT
+        line_rose.line.fill.background()
+
+        line_blue = slide.shapes.add_shape(1, Inches(1.45), Inches(1.3), Inches(11.083), Inches(0.06))
+        line_blue.fill.solid()
+        line_blue.fill.fore_color.rgb = COLOR_PRIMARY
+        line_blue.line.fill.background()
+
+        return slide
+
+    def add_content_with_overflow(title_text, items_list, is_red=False):
+        """
+        Nhận vào danh sách tuple: (text, is_header)
+        is_header=True -> Tự động IN ĐẬM, GẠCH CHÂN và đổi sang màu xanh thương hiệu.
+        """
+        if not items_list:
+            return
+            
+        MAX_LINES_PER_SLIDE = 7
+        total_chunks = [items_list[i:i + MAX_LINES_PER_SLIDE] for i in range(0, len(items_list), MAX_LINES_PER_SLIDE)]
+
+        for idx, chunk in enumerate(total_chunks):
+            current_title = title_text if idx == 0 else f"{title_text} (tiếp theo)"
+            slide = add_slide_with_header(current_title)
+            
+            box = slide.shapes.add_textbox(Inches(0.8), Inches(1.6), Inches(11.733), Inches(5.2))
+            tf = box.text_frame
+            tf.word_wrap = True
+            
+            for line_idx, item in enumerate(chunk):
+                text, is_sub_header = item
+                p = tf.paragraphs[0] if line_idx == 0 else tf.add_paragraph()
+                p.text = text
+                p.font.name = "Calibri"
+                
+                if is_sub_header:
+                    # NỔI BẬT: IN ĐẬM + GẠCH CHÂN
+                    p.font.size = Pt(19)
+                    p.font.bold = True
+                    p.font.underline = True
+                    p.font.color.rgb = COLOR_PRIMARY
+                    p.space_after = Pt(6)
+                else:
+                    p.font.size = Pt(16.5)
+                    p.font.bold = is_red
+                    p.font.underline = False
+                    p.font.color.rgb = COLOR_RED if is_red else COLOR_TEXT
+                    p.space_after = Pt(10)
+
+    # --- SLIDE 1: TRANG TIÊU ĐỀ BỆNH ÁN ---
+    title_slide = prs.slides.add_slide(blank_layout)
+    t_box = title_slide.shapes.add_textbox(Inches(1.0), Inches(2.0), Inches(11.333), Inches(3.5))
+    tf_t = t_box.text_frame
+    tf_t.word_wrap = True
+    p1 = tf_t.paragraphs[0]
+    p1.text = "BỆNH ÁN LÂM SÀNG"
+    p1.font.size = Pt(38)
+    p1.font.bold = True
+    p1.font.color.rgb = COLOR_PRIMARY
+    p1.alignment = PP_ALIGN.CENTER
+    p1.space_after = Pt(16)
+
+    p2 = tf_t.add_paragraph()
+    p2.text = f"Bệnh nhân: {str(data['ho_ten']).upper()} | {data['tuoi']} tuổi | Giới tính: {data['gioi_tinh']}"
+    p2.font.size = Pt(20)
+    p2.font.color.rgb = COLOR_TEXT
+    p2.alignment = PP_ALIGN.CENTER
+    p2.space_after = Pt(8)
+
+    p3 = tf_t.add_paragraph()
+    p3.text = f"Khoa phòng: {data['khoa_phong']} | Người thực hiện: {data['sinh_vien']}"
+    p3.font.size = Pt(16)
+    p3.font.color.rgb = RGBColor(100, 116, 139)
+    p3.alignment = PP_ALIGN.CENTER
+
+    # --- SLIDE: I. HÀNH CHÍNH ---
+    hc_items = [
+        (f"Họ và tên: {str(data['ho_ten']).upper()}", False),
+        (f"Tuổi: {data['tuoi']}   |   Giới tính: {data['gioi_tinh']}   |   Dân tộc: {data['dan_tok']}", False),
+        (f"Nghề nghiệp: {data['nghe_nghiep']}", False),
+        (f"Khoa / Phòng: {data['khoa_phong']}", False),
+        (f"Địa chỉ: {data['dia_chi']}", False),
+        (f"Ngày giờ vào viện: {data['ngay_vao_vien']}", False),
+        (f"Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}", False)
+    ]
+    add_content_with_overflow("I. PHẦN HÀNH CHÍNH", hc_items)
+
+    # --- SLIDE: II & III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ ---
+    bs_items = [("1. Lý do vào viện:", True)]
+    bs_items.append((f"- {data['ly_do_vao_vien']}", False))
+    
+    bs_text_lines = [l.strip() for l in str(data['benh_su']).split("\n") if l.strip()]
+    if bs_text_lines:
+        bs_items.append(("2. Bệnh sử:", True))
+        for l in bs_text_lines:
+            bs_items.append((f"- {l}" if not l.startswith("-") else l, False))
+    add_content_with_overflow("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", bs_items)
+
+    # --- SLIDE: IV. TIỀN SỬ ---
+    ts_items = []
+    for label, key in [("1. Tiền sử nội khoa:", "ts_noi_khoa"),
+                       ("2. Tiền sử ngoại khoa & dị ứng:", "ts_ngoai_khoa"),
+                       ("3. Lối sống & thói quen:", "ts_loi_song"),
+                       ("4. Tiền sử gia đình:", "ts_gia_dinh")]:
+        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if lines:
+            ts_items.append((label, True))
+            for l in lines:
+                ts_items.append((f"- {l}" if not l.startswith("-") else l, False))
+    if ts_items:
+        add_content_with_overflow("IV. TIỀN SỬ", ts_items)
+
+    # --- SLIDE: V. THĂM KHÁM LÂM SÀNG ---
+    tk_items = []
+    if str(data.get("kham_vao_vien", "")).strip():
+        tk_items.append(("1. Khám lúc vào viện:", True))
+        for l in str(data['kham_vao_vien']).split("\n"):
+            if l.strip():
+                tk_items.append((f"- {l.strip()}", False))
+                
+    if str(data.get("kham_toan_than", "")).strip():
+        tk_items.append(("2. Thăm khám hiện tại - Toàn thân:", True))
+        for l in str(data['kham_toan_than']).split("\n"):
+            if l.strip():
+                tk_items.append((f"- {l.strip()}", False))
+    
+    cq_list = [("Tuần hoàn", "kham_tuan_hoan"), ("Hô hấp", "kham_ho_hap"), ("Tiêu hóa", "kham_tieu_hoa"),
+               ("Thần kinh", "kham_than_kinh"), ("Thận - Tiết niệu", "kham_tiet_nieu"), ("Cơ xương khớp", "kham_co_xuong_khop")]
+    cq_has_data = any(str(data.get(k, "")).strip() for _, k in cq_list)
+    if cq_has_data:
+        tk_items.append(("3. Thăm khám hiện tại - Các cơ quan:", True))
+        for name, key in cq_list:
+            val = str(data.get(key, "")).strip()
+            if val:
+                tk_items.append((f"- {name}: {val}", False))
+    if tk_items:
+        add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_items)
+
+    # --- SLIDE: VI. TÓM TẮT BỆNH ÁN ---
+    tt_items = []
+    lines_tt = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
+    if lines_tt:
+        tt_items.append(("Tóm tắt diễn biến ca bệnh:", True))
+        for l in lines_tt:
+            tt_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow("VI. TÓM TẮT BỆNH ÁN", tt_items)
+
+    # --- SLIDE: VII & VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT ---
+    cd_items = []
+    if str(data.get("chan_doan_so_bo", "")).strip():
+        cd_items.append(("Chẩn đoán sơ bộ:", True))
+        for l in str(data['chan_doan_so_bo']).split("\n"):
+            if l.strip():
+                cd_items.append((f"- {l.strip()}", False))
+                
+    if str(data.get("chan_doan_phan_biet", "")).strip():
+        cd_items.append(("Chẩn đoán phân biệt:", True))
+        for l in str(data['chan_doan_phan_biet']).split("\n"):
+            if l.strip():
+                cd_items.append((f"- {l.strip()}", False))
+    if cd_items:
+        add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
+
+    # --- SLIDE: IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ ---
+    bl_items = []
+    lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
+    if lines_bl:
+        bl_items.append(("Biện luận lâm sàng:", True))
+        for l in lines_bl:
+            bl_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", bl_items)
+
+    # --- SLIDE: X. ĐỀ XUẤT CẬN LÂM SÀNG ---
+    cls_items = []
+    for label, key in [("1. Phục vụ chẩn đoán xác định:", "cls_dx_xac_dinh"),
+                       ("2. Phục vụ điều trị:", "cls_dx_dieu_tri"),
+                       ("3. Cận lâm sàng khác:", "cls_dx_khac")]:
+        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if lines:
+            cls_items.append((label, True))
+            for l in lines:
+                cls_items.append((f"- {l}" if not l.startswith("-") else l, False))
+    if cls_items:
+        add_content_with_overflow("X. ĐỀ XUẤT CẬN LÂM SÀNG", cls_items)
+
+    # --- SLIDE: XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG & HÌNH ẢNH) ---
+    cls_rows = []
+    so_hang = data.get("so_hang_cls", 3)
+    for i in range(so_hang):
+        kq = data.get(f"cls_kq_{i}", "").strip()
+        pg = data.get(f"cls_pg_{i}", "").strip()
+        img = data.get(f"cls_img_{i}", None)
+        if kq or pg or img:
+            cls_rows.append((kq, pg, img))
+
+    if cls_rows:
+        rows_text_only = [item for item in cls_rows if not item[2]]
+        rows_with_img = [item for item in cls_rows if item[2]]
+
+        # Bảng các cận lâm sàng dạng chữ
+        if rows_text_only:
+            MAX_ROWS_PER_SLIDE = 3
+            table_chunks = [rows_text_only[i:i + MAX_ROWS_PER_SLIDE] for i in range(0, len(rows_text_only), MAX_ROWS_PER_SLIDE)]
+            for c_idx, chunk in enumerate(table_chunks):
+                t_title = "XI. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else "XI. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)"
+                slide = add_slide_with_header(t_title)
+                
+                rows_cnt = len(chunk) + 1
+                table_shape = slide.shapes.add_table(rows_cnt, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
+                table = table_shape.table
+                table.columns[0].width = Inches(5.866)
+                table.columns[1].width = Inches(5.866)
+
+                table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
+                table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
+                for col_i in range(2):
+                    cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
+                    cell_p.font.bold = True
+                    cell_p.font.size = Pt(14)
+                    cell_p.font.color.rgb = COLOR_PRIMARY
+
+                for r_i, (kq, pg, _) in enumerate(chunk):
+                    table.cell(r_i + 1, 0).text = kq if kq else "-"
+                    table.cell(r_i + 1, 1).text = pg if pg else "-"
+                    for col_i in range(2):
+                        cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
+                        cell_p.font.size = Pt(13)
+                        cell_p.font.color.rgb = COLOR_TEXT
+
+        # Các cận lâm sàng có hình ảnh
+        temp_img_files = []
+        try:
+            for kq, pg, img in rows_with_img:
+                slide = add_slide_with_header("XI. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
+                suffix = os.path.splitext(img.name)[1]
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
+                    t_img.write(img.getbuffer())
+                    temp_path = t_img.name
+                    temp_img_files.append(temp_path)
+
+                try:
+                    slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
+                except Exception:
+                    pass
+
+                right_box = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0))
+                tf_r = right_box.text_frame
+                tf_r.word_wrap = True
+
+                p_kq_title = tf_r.paragraphs[0]
+                p_kq_title.text = "Kết quả ghi nhận:"
+                p_kq_title.font.bold = True
+                p_kq_title.font.underline = True
+                p_kq_title.font.size = Pt(16)
+                p_kq_title.font.color.rgb = COLOR_PRIMARY
+                p_kq_title.space_after = Pt(4)
+
+                p_kq = tf_r.add_paragraph()
+                p_kq.text = kq if kq else "Hình ảnh xét nghiệm đính kèm"
+                p_kq.font.size = Pt(14.5)
+                p_kq.font.color.rgb = COLOR_TEXT
+                p_kq.space_after = Pt(16)
+
+                p_pg_title = tf_r.add_paragraph()
+                p_pg_title.text = "Biện giải / Phiên giải:"
+                p_pg_title.font.bold = True
+                p_pg_title.font.underline = True
+                p_pg_title.font.size = Pt(16)
+                p_pg_title.font.color.rgb = COLOR_PRIMARY
+                p_pg_title.space_after = Pt(4)
+
+                p_pg = tf_r.add_paragraph()
+                p_pg.text = pg if pg else "-"
+                p_pg.font.size = Pt(14.5)
+                p_pg.font.color.rgb = COLOR_TEXT
+        finally:
+            for p in temp_img_files:
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except:
+                        pass
+
+    # --- SLIDE: XII. CHẨN ĐOÁN XÁC ĐỊNH (IN ĐỎ ĐẬM) ---
+    cdxd_items = []
+    lines_cdxd = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
+    if lines_cdxd:
+        cdxd_items.append(("Chẩn đoán xác định:", True))
+        for l in lines_cdxd:
+            cdxd_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", cdxd_items, is_red=True)
+
+    # --- SLIDE: XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH ---
+    blxd_items = []
+    lines_blxd = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
+    if lines_blxd:
+        blxd_items.append(("Biện luận chẩn đoán xác định:", True))
+        for l in lines_blxd:
+            blxd_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", blxd_items)
+
+    # --- SLIDE: XIV. ĐIỀU TRỊ ---
+    dt_items = []
+    for label, key in [("1. Mục tiêu điều trị:", "dt_muc_tieu"),
+                       ("2. Điều trị cụ thể:", "dt_cu_the"),
+                       ("3. Theo dõi sau điều trị:", "dt_theo_doi")]:
+        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if lines:
+            dt_items.append((label, True))
+            for l in lines:
+                dt_items.append((f"- {l}" if not l.startswith("-") else l, False))
+    if dt_items:
+        add_content_with_overflow("XIV. ĐIỀU TRỊ", dt_items)
+
+    # --- SLIDE: XV. TIÊN LƯỢNG (CHỈ TẠO KHI CÓ DỮ LIỆU) ---
+    lines_tl = [l.strip() for l in str(data.get("tien_luong", "")).split("\n") if l.strip()]
+    if lines_tl:
+        tl_items = [("Đánh giá tiên lượng bệnh nhân:", True)]
+        for l in lines_tl:
+            tl_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow("XV. TIÊN LƯỢNG", tl_items)
+
+    # --- SLIDE: XVI. TƯ VẤN (CHỈ TẠO KHI CÓ DỮ LIỆU) ---
+    lines_tv = [l.strip() for l in str(data.get("tu_van", "")).split("\n") if l.strip()]
+    if lines_tv:
+        t_label = "XVI. TƯ VẤN" if lines_tl else "XV. TƯ VẤN"
+        tv_items = [("Hướng dẫn và tư vấn cho người bệnh:", True)]
+        for l in lines_tv:
+            tv_items.append((f"- {l}" if not l.startswith("-") else l, False))
+        add_content_with_overflow(t_label, tv_items)
+
+    pptx_io = io.BytesIO()
+    prs.save(pptx_io)
+    pptx_io.seek(0)
+    return pptx_io.getvalue()
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank_layout = prs.slide_layouts[6]
+
+    COLOR_PRIMARY = RGBColor(13, 71, 161)
+    COLOR_ACCENT = RGBColor(194, 24, 91)
+    COLOR_TEXT = RGBColor(30, 41, 59)
+    COLOR_RED = RGBColor(180, 0, 0)
+
+    def add_slide_with_header(title_text):
+        slide = prs.slides.add_slide(blank_layout)
+        header_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(11.733), Inches(0.9))
+        tf = header_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Calibri"
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.color.rgb = COLOR_PRIMARY
+
+        line_rose = slide.shapes.add_shape(1, Inches(0.8), Inches(1.3), Inches(0.6), Inches(0.06))
+        line_rose.fill.solid()
+        line_rose.fill.fore_color.rgb = COLOR_ACCENT
+        line_rose.line.fill.background()
+
+        line_blue = slide.shapes.add_shape(1, Inches(1.45), Inches(1.3), Inches(11.083), Inches(0.06))
+        line_blue.fill.solid()
+        line_blue.fill.fore_color.rgb = COLOR_PRIMARY
+        line_blue.line.fill.background()
+
+        return slide
+
+    def add_content_with_overflow(title_text, lines_list, is_red=False):
+        if not lines_list:
+            return
+        MAX_LINES_PER_SLIDE = 7
+        total_chunks = [lines_list[i:i + MAX_LINES_PER_SLIDE] for i in range(0, len(lines_list), MAX_LINES_PER_SLIDE)]
+
+        for idx, chunk in enumerate(total_chunks):
+            current_title = title_text if idx == 0 else f"{title_text} (tiếp theo)"
+            slide = add_slide_with_header(current_title)
+            
+            box = slide.shapes.add_textbox(Inches(0.8), Inches(1.6), Inches(11.733), Inches(5.2))
+            tf = box.text_frame
+            tf.word_wrap = True
+            
+            for line_idx, line in enumerate(chunk):
+                p = tf.paragraphs[0] if line_idx == 0 else tf.add_paragraph()
+                p.text = line
+                p.font.name = "Calibri"
+                p.font.size = Pt(17)
+                p.font.color.rgb = COLOR_RED if is_red else COLOR_TEXT
+                p.font.bold = is_red
+                p.space_after = Pt(12)
+
+    # Slide 1: Bìa
+    title_slide = prs.slides.add_slide(blank_layout)
+    t_box = title_slide.shapes.add_textbox(Inches(1.0), Inches(2.0), Inches(11.333), Inches(3.5))
+    tf_t = t_box.text_frame
+    tf_t.word_wrap = True
+    p1 = tf_t.paragraphs[0]
+    p1.text = "BỆNH ÁN LÂM SÀNG"
+    p1.font.size = Pt(38)
+    p1.font.bold = True
+    p1.font.color.rgb = COLOR_PRIMARY
+    p1.alignment = PP_ALIGN.CENTER
+    p1.space_after = Pt(16)
+
+    p2 = tf_t.add_paragraph()
+    p2.text = f"Bệnh nhân: {str(data['ho_ten']).upper()} | {data['tuoi']} tuổi | Giới tính: {data['gioi_tinh']}"
+    p2.font.size = Pt(20)
+    p2.font.color.rgb = COLOR_TEXT
+    p2.alignment = PP_ALIGN.CENTER
+    p2.space_after = Pt(8)
+
+    p3 = tf_t.add_paragraph()
+    p3.text = f"Khoa phòng: {data['khoa_phong']} | Người thực hiện: {data['sinh_vien']}"
+    p3.font.size = Pt(16)
+    p3.font.color.rgb = RGBColor(100, 116, 139)
+    p3.alignment = PP_ALIGN.CENTER
+
+    # Slide: I. Hành chính
+    hc_lines = [
+        f"Họ và tên: {str(data['ho_ten']).upper()}",
+        f"Tuổi: {data['tuoi']}   |   Giới tính: {data['gioi_tinh']}   |   Dân tộc: {data['dan_tok']}",
+        f"Nghề nghiệp: {data['nghe_nghiep']}",
+        f"Khoa / Phòng: {data['khoa_phong']}",
+        f"Địa chỉ: {data['dia_chi']}",
+        f"Ngày giờ vào viện: {data['ngay_vao_vien']}",
+        f"Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}"
+    ]
+    add_content_with_overflow("I. PHẦN HÀNH CHÍNH", hc_lines)
+
+    # Slide: II & III. Lý do vào viện & Bệnh sử
+    bs_lines = [f"Lý do vào viện:\n- {data['ly_do_vao_vien']}"]
+    bs_text_lines = [l.strip() for l in str(data['benh_su']).split("\n") if l.strip()]
+    if bs_text_lines:
+        bs_lines.append("Bệnh sử:")
+        bs_lines.extend([f"- {l}" if not l.startswith("-") else l for l in bs_text_lines])
+    add_content_with_overflow("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", bs_lines)
+
+    # Slide: IV. Tiền sử
+    ts_lines = []
+    for label, key in [("1. Tiền sử nội khoa", "ts_noi_khoa"),
+                       ("2. Tiền sử ngoại khoa & dị ứng", "ts_ngoai_khoa"),
+                       ("3. Lối sống & thói quen", "ts_loi_song"),
+                       ("4. Tiền sử gia đình", "ts_gia_dinh")]:
+        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if items:
+            ts_lines.append(f"[{label}]")
+            ts_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
+    if ts_lines:
+        add_content_with_overflow("IV. TIỀN SỬ", ts_lines)
+
+    # Slide: V. Thăm khám
+    tk_lines = []
+    if str(data.get("kham_vao_vien", "")).strip():
+        tk_lines.append("[1. Khám lúc vào viện]")
+        tk_lines.extend([f"- {l.strip()}" for l in str(data['kham_vao_vien']).split("\n") if l.strip()])
+    if str(data.get("kham_toan_than", "")).strip():
+        tk_lines.append("[2. Toàn thân]")
+        tk_lines.extend([f"- {l.strip()}" for l in str(data['kham_toan_than']).split("\n") if l.strip()])
+    
+    co_quan = [("Tuần hoàn", "kham_tuan_hoan"), ("Hô hấp", "kham_ho_hap"), ("Tiêu hóa", "kham_tieu_hoa"),
+               ("Thần kinh", "kham_than_kinh"), ("Thận - Tiết niệu", "kham_tiet_nieu"), ("Cơ xương khớp", "kham_co_xuong_khop")]
+    for cq_name, cq_key in co_quan:
+        val = str(data.get(cq_key, "")).strip()
+        if val:
+            tk_lines.append(f"[{cq_name}]: {val}")
+    add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_lines)
+
+    # Slide: VI. Tóm tắt bệnh án
+    tt_lines = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
+    if tt_lines:
+        add_content_with_overflow("VI. TÓM TẮT BỆNH ÁN", tt_lines)
+
+    # Slide: VII & VIII. Chẩn đoán sơ bộ & phân biệt
+    cd_lines = []
+    if str(data.get("chan_doan_so_bo", "")).strip():
+        cd_lines.append("[Chẩn đoán sơ bộ]:")
+        cd_lines.extend([f"- {l.strip()}" for l in str(data['chan_doan_so_bo']).split("\n") if l.strip()])
+    if str(data.get("chan_doan_phan_biet", "")).strip():
+        cd_lines.append("[Chẩn đoán phân biệt]:")
+        cd_lines.extend([f"- {l.strip()}" for l in str(data['chan_doan_phan_biet']).split("\n") if l.strip()])
+    add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_lines)
+
+    # Slide: IX. Biện luận sơ bộ
+    bl_sb_lines = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
+    if bl_sb_lines:
+        add_content_with_overflow("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", bl_sb_lines)
+
+    # Slide: X. Đề xuất cận lâm sàng
+    cls_dx_lines = []
+    for label, key in [("1. Phục vụ chẩn đoán xác định", "cls_dx_xac_dinh"),
+                       ("2. Phục vụ điều trị", "cls_dx_dieu_tri"),
+                       ("3. Cận lâm sàng khác", "cls_dx_khac")]:
+        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if items:
+            cls_dx_lines.append(f"[{label}]")
+            cls_dx_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
+    if cls_dx_lines:
+        add_content_with_overflow("X. ĐỀ XUẤT CẬN LÂM SÀNG", cls_dx_lines)
+
+    # Slide: XI. Cận lâm sàng đã có (Bảng)
+    # --- SLIDE: XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG & ẢNH ĐÍNH KÈM) ---
+    cls_rows = []
+    so_hang = data.get("so_hang_cls", 3)
+    for i in range(so_hang):
+        kq = data.get(f"cls_kq_{i}", "").strip()
+        pg = data.get(f"cls_pg_{i}", "").strip()
+        img = data.get(f"cls_img_{i}", None)
+        if kq or pg or img:
+            cls_rows.append((kq, pg, img))
+
+    if cls_rows:
+        rows_text_only = []
+        rows_with_img = []
+        for item in cls_rows:
+            if item[2]:  # Có ảnh đính kèm
+                rows_with_img.append(item)
+            else:
+                rows_text_only.append(item)
+
+        # 1. Hiển thị các cận lâm sàng dạng chữ (Dạng bảng 2 cột)
+        if rows_text_only:
+            MAX_ROWS_PER_SLIDE = 3
+            table_chunks = [rows_text_only[i:i + MAX_ROWS_PER_SLIDE] for i in range(0, len(rows_text_only), MAX_ROWS_PER_SLIDE)]
+            for c_idx, chunk in enumerate(table_chunks):
+                t_title = "XI. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else "XI. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)"
+                slide = add_slide_with_header(t_title)
+                
+                rows_cnt = len(chunk) + 1
+                table_shape = slide.shapes.add_table(rows_cnt, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
+                table = table_shape.table
+                table.columns[0].width = Inches(5.866)
+                table.columns[1].width = Inches(5.866)
+
+                table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
+                table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
+                for col_i in range(2):
+                    cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
+                    cell_p.font.bold = True
+                    cell_p.font.size = Pt(14)
+                    cell_p.font.color.rgb = COLOR_PRIMARY
+
+                for r_i, (kq, pg, _) in enumerate(chunk):
+                    table.cell(r_i + 1, 0).text = kq if kq else "-"
+                    table.cell(r_i + 1, 1).text = pg if pg else "-"
+                    for col_i in range(2):
+                        cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
+                        cell_p.font.size = Pt(13)
+                        cell_p.font.color.rgb = COLOR_TEXT
+
+        # 2. Hiển thị các cận lâm sàng có kèm ảnh (Mỗi ảnh 1 slide riêng, chia đôi màn hình)
+        temp_img_files = []
+        try:
+            for kq, pg, img in rows_with_img:
+                slide = add_slide_with_header("XI. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
+                
+                # Lưu tạm ảnh để nạp vào slide
+                suffix = os.path.splitext(img.name)[1]
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
+                    t_img.write(img.getbuffer())
+                    temp_path = t_img.name
+                    temp_img_files.append(temp_path)
+
+                # Nửa bên trái: Ảnh (Kích thước tự động tối đa rộng 5.8 inch, cao 5.0 inch)
+                try:
+                    slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
+                except Exception:
+                    pass
+
+                # Nửa bên phải: Kết quả & Biện giải
+                right_box = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0))
+                tf_r = right_box.text_frame
+                tf_r.word_wrap = True
+
+                p_kq_title = tf_r.paragraphs[0]
+                p_kq_title.text = "Kết quả ghi nhận:"
+                p_kq_title.font.bold = True
+                p_kq_title.font.size = Pt(15)
+                p_kq_title.font.color.rgb = COLOR_PRIMARY
+                p_kq_title.space_after = Pt(4)
+
+                p_kq = tf_r.add_paragraph()
+                p_kq.text = kq if kq else "Hình ảnh đính kèm"
+                p_kq.font.size = Pt(14)
+                p_kq.font.color.rgb = COLOR_TEXT
+                p_kq.space_after = Pt(16)
+
+                p_pg_title = tf_r.add_paragraph()
+                p_pg_title.text = "Biện giải / Phiên giải:"
+                p_pg_title.font.bold = True
+                p_pg_title.font.size = Pt(15)
+                p_pg_title.font.color.rgb = COLOR_PRIMARY
+                p_pg_title.space_after = Pt(4)
+
+                p_pg = tf_r.add_paragraph()
+                p_pg.text = pg if pg else "-"
+                p_pg.font.size = Pt(14)
+                p_pg.font.color.rgb = COLOR_TEXT
+        finally:
+            for p in temp_img_files:
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except:
+                        pass
+
+    # Slide: XII. Chẩn đoán xác định (Đỏ đậm)
+    cdxd_lines = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
+    if cdxd_lines:
+        add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", cdxd_lines, is_red=True)
+
+    # Slide: XIII. Biện luận chẩn đoán xác định
+    blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
+    if blxd_lines:
+        add_content_with_overflow("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", blxd_lines)
+
+    # Slide: XIV. Điều trị
+    dt_lines = []
+    for label, key in [("1. Mục tiêu điều trị", "dt_muc_tieu"),
+                       ("2. Điều trị cụ thể", "dt_cu_the"),
+                       ("3. Theo dõi sau điều trị", "dt_theo_doi")]:
+        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+        if items:
+            dt_lines.append(f"[{label}]")
+            dt_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
+    if dt_lines:
+        add_content_with_overflow("XIV. ĐIỀU TRỊ", dt_lines)
+
+    # Slide: XV. Tiên lượng
+    tl_lines = [l.strip() for l in str(data.get("tien_luong", "")).split("\n") if l.strip()]
+    if tl_lines:
+        add_content_with_overflow("XV. TIÊN LƯỢNG", tl_lines)
+
+    # Slide: XVI. Tư vấn
+    tv_lines = [l.strip() for l in str(data.get("tu_van", "")).split("\n") if l.strip()]
+    if tv_lines:
+        t_label = "XVI. TƯ VẤN" if tl_lines else "XV. TƯ VẤN"
+        add_content_with_overflow(t_label, tv_lines)
+
+    pptx_io = io.BytesIO()
+    prs.save(pptx_io)
+    pptx_io.seek(0)
+    return pptx_io.getvalue()
 
 # --- SIDEBAR: XỬ LÝ LƯU & NẠP BẢN NHÁP ---
 with st.sidebar:
@@ -450,8 +1114,8 @@ with st.sidebar:
                 st.error(f"Không thể đọc file: {e}")
 
 # --- GIAO DIỆN CHÍNH ---
-st.title("Bệnh Án Lâm Sàng")
-st.caption("Cấu trúc bệnh án phục vụ học tập, giao ban và thực hành lâm sàng.")
+st.title("Công cụ Nhập và Xuất Bệnh Án Lâm Sàng")
+st.caption("Cấu trúc bệnh án phân tích chuyên sâu phục vụ học tập, giao ban và thực hành lâm sàng.")
 
 tab1, tab2 = st.tabs(["Nhập liệu hồ sơ", "Xem trước và Xuất tập tin"])
 
@@ -503,10 +1167,10 @@ with tab1:
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
         st.caption("Lưu ý: Tất cả các ô thăm khám khi nhấn xuống dòng sẽ tự động tạo gạch đầu dòng trong tập tin xuất ra.")
         st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=160, label_visibility="collapsed")
+        st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
         
         st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=120, label_visibility="collapsed")
+        st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=90, label_visibility="collapsed")
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         c_cq1, c_cq2 = st.columns(2)
@@ -592,7 +1256,7 @@ with tab1:
         st.text_area("XII. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90)
         st.text_area("XIII. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
-    # 8. ĐIỀU TRỊ (EXPANDER)
+    # 8. ĐIỀU TRỊ (EXPANDER) - Chiều cao 250px
     with st.expander("XIV. ĐIỀU TRỊ", expanded=True):
         c_dt1, c_dt2, c_dt3 = st.columns(3)
         with c_dt1:
@@ -610,7 +1274,7 @@ with tab1:
         with c_tv:
             st.text_area("XVI. Tư vấn:", key="tu_van", height=100, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file PDF...")
 
-# Gom dữ liệu từ session_state sang dict để xuất file PDF
+# Gom dữ liệu từ session_state sang dict
 data_benh_an = {k: st.session_state.get(k, "") for k in default_fields}
 data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
 for i in range(data_benh_an["so_hang_cls"]):
@@ -618,6 +1282,7 @@ for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
 data_benh_an.update(uploaded_imgs)
 
+# --- TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN ---
 with tab2:
     st.markdown("<div class='sidebar-header-amboss'>XEM TRƯỚC THÔNG TIN TỔNG QUAN</div>", unsafe_allow_html=True)
     ho_ten_val = str(st.session_state.get("ho_ten", "")).strip()
@@ -636,21 +1301,40 @@ with tab2:
         st.warning("Vui lòng điền thông tin bên tab Nhập liệu hồ sơ.")
 
     st.markdown("---")
-    if st.button("Tạo và tải tập tin PDF bệnh án", type="primary", use_container_width=True):
-        if not ho_ten_val:
-            st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
-        elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"):
-            st.error("Chưa tìm thấy tập tin font 'Roboto-Regular.ttf' và 'Roboto-Bold.ttf' trong cùng thư mục với app.py. Hãy kiểm tra lại!")
-        else:
-            with st.spinner("Đang kết xuất văn bản PDF..."):
-                pdf_bytes = export_pdf(data_benh_an)
-                ten_file = f"Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
-                
-                st.success("Tạo văn bản bệnh án thành công!")
-                st.download_button(
-                    label="Nhấn vào đây để tải tập tin PDF về máy",
-                    data=pdf_bytes,
-                    file_name=ten_file,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+    col_dl_pdf, col_dl_pptx = st.columns(2)
+    
+    with col_dl_pdf:
+        if st.button("Tạo tập tin PDF bệnh án", type="primary", use_container_width=True):
+            if not ho_ten_val:
+                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
+            elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"):
+                st.error("Chưa tìm thấy tập tin font 'Roboto-Regular.ttf' và 'Roboto-Bold.ttf' trong cùng thư mục với app.py!")
+            else:
+                with st.spinner("Đang kết xuất văn bản PDF..."):
+                    pdf_bytes = export_pdf(data_benh_an)
+                    ten_file = f"Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                    st.success("Tạo PDF thành công!")
+                    st.download_button(
+                        label="Nhấn vào đây để tải PDF về máy",
+                        data=pdf_bytes,
+                        file_name=ten_file,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+
+    with col_dl_pptx:
+        if st.button("Tạo tập tin PowerPoint (PPTX)", type="secondary", use_container_width=True):
+            if not ho_ten_val:
+                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
+            else:
+                with st.spinner("Đang kết xuất bản trình chiếu PowerPoint..."):
+                    pptx_bytes = export_pptx(data_benh_an)
+                    ten_file_pptx = f"Trinh_chieu_Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pptx"
+                    st.success("Tạo PowerPoint thành công!")
+                    st.download_button(
+                        label="Nhấn vào đây để tải file PowerPoint (.pptx) về máy",
+                        data=pptx_bytes,
+                        file_name=ten_file_pptx,
+                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                        use_container_width=True
+                    )
