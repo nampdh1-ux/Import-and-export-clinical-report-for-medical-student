@@ -1286,7 +1286,15 @@ with tab1:
 
                         # Tự động nạp Key từ máy chủ (st.secrets)
                         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        # Tự động nạp Key từ máy chủ (st.secrets)
+                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                        
+                        # Tự động dò tìm phiên bản AI Flash nhanh và mới nhất của Google
+                        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                        flash_models = [m for m in available_models if 'flash' in m.lower()]
+                        best_model_name = flash_models[0] if flash_models else available_models[0]
+                        
+                        model = genai.GenerativeModel(best_model_name)
 
                         # Thiết kế Prompt ép AI suy luận như Bác sĩ thực thụ
                         prompt = f"""
