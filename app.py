@@ -1325,9 +1325,9 @@ with tab1:
         with c_mt:
             st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=220)
         with c_ct:
-            st.text_area("2. Điều trị cụ thể (Dược lý & Không dùng thuốc):", key="dt_cu_the", height=220)
+            st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=220)
         with c_td:
-            st.text_area("3. Theo dõi đáp ứng & biến chứng:", key="dt_theo_doi", height=220)
+            st.text_area("3. Theo dõi:", key="dt_theo_doi", height=220)
 
     # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
