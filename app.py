@@ -311,6 +311,39 @@ def export_pdf(data):
     pdf.add_subsection_header("2. Thăm khám hiện tại:")
     pdf.add_body_text("a. Toàn thân:")
     pdf.add_body_text(format_bullet_points(data['kham_toan_than']))
+    # BẢNG SINH HIỆU & THỂ TRẠNG (VITAL SIGNS & ANTHROPOMETRY)
+    mach_val = data.get('sh_mach') or "--"
+    nhiet_val = data.get('sh_nhiet_do') or "--"
+    ha_val = data.get('sh_ha') or "--"
+    nt_val = data.get('sh_nhip_tho') or "--"
+    cn_val = data.get('sh_can_nang') if float(data.get('sh_can_nang', 0)) > 0 else "--"
+    cc_val = data.get('sh_chieu_cao') if float(data.get('sh_chieu_cao', 0)) > 0 else "--"
+    bmi_num = data.get('sh_bmi', '')
+    bmi_txt = data.get('sh_bmi_eval', '')
+
+    pdf.ln(1)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.set_fill_color(245, 247, 250)
+    
+    # Hàng 1: Mạch, Nhiệt độ, Huyết áp, Nhịp thở (chia 4 ô đều nhau)
+    col_w4 = (pdf.w - pdf.l_margin - pdf.r_margin) / 4.0
+    
+    pdf.set_font("Roboto-Bold", size=8.5)
+    pdf.cell(col_w4, 5.5, f"Mạch: {mach_val} ck/phút", border=1, fill=True)
+    pdf.cell(col_w4, 5.5, f"Nhiệt độ: {nhiet_val} °C", border=1, fill=True)
+    pdf.cell(col_w4, 5.5, f"Huyết áp: {ha_val} mmHg", border=1, fill=True)
+    pdf.cell(col_w4, 5.5, f"Nhịp thở: {nt_val} l/phút", border=1, fill=True, ln=True)
+    
+    # Hàng 2: Chiều cao, Cân nặng, BMI & Kết luận thể trạng
+    col_w3_1 = col_w4
+    col_w3_2 = col_w4
+    col_w3_3 = col_w4 * 2.0  # Ô BMI rộng hơn để chứa kết luận
+    
+    bmi_display = f"BMI: {bmi_num} kg/m² ({bmi_txt})" if bmi_num else "BMI: --"
+    pdf.cell(col_w3_1, 5.5, f"Chiều cao: {cc_val} cm", border=1)
+    pdf.cell(col_w3_2, 5.5, f"Cân nặng: {cn_val} kg", border=1)
+    pdf.cell(col_w3_3, 5.5, bmi_display, border=1, ln=True)
+    pdf.ln(2)
     
     pdf.add_body_text("b. Các cơ quan:")
     # Danh mục cơ quan tương ứng với key dữ liệu
@@ -1203,8 +1236,53 @@ with tab1:
         st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
         st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
         
-        st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=90, label_visibility="collapsed")
+        st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Dấu hiệu sinh tồn</div>", unsafe_allow_html=True)
+        
+        col_tt_mo_ta, col_tt_sh = st.columns([1.2, 1])
+        with col_tt_mo_ta:
+            st.markdown("**Mô tả khám toàn thân:**")
+            st.text_area(
+                "Nội dung khám toàn thân:",
+                key="kham_toan_than",
+                height=175,
+                label_visibility="collapsed",
+                placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù..."
+            )
+        
+        with col_tt_sh:
+            st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
+            c_sh1, c_sh2 = st.columns(2)
+            with c_sh1:
+                st.text_input("Mạch (lần/phút):", key="sh_mach", placeholder="VD: 80")
+                st.text_input("Huyết áp (mmHg):", key="sh_ha", placeholder="VD: 120/80")
+                st.number_input("Cân nặng (kg):", key="sh_can_nang", min_value=0.0, max_value=250.0, value=float(st.session_state.get("sh_can_nang", 0.0)), step=0.5)
+            with c_sh2:
+                st.text_input("Nhiệt độ (°C):", key="sh_nhiet_do", placeholder="VD: 37.0")
+                st.text_input("Nhịp thở (lần/phút):", key="sh_nhip_tho", placeholder="VD: 18")
+                st.number_input("Chiều cao (cm):", key="sh_chieu_cao", min_value=0.0, max_value=230.0, value=float(st.session_state.get("sh_chieu_cao", 0.0)), step=1.0)
+            
+            # Tính toán chỉ số khối cơ thể (BMI - Body Mass Index)
+            w = st.session_state.get("sh_can_nang", 0.0)
+            h = st.session_state.get("sh_chieu_cao", 0.0)
+            if w > 0 and h > 0:
+                h_m = h / 100.0
+                bmi_val = round(w / (h_m * h_m), 1)
+                # Phân loại BMI theo tiêu chuẩn WHO cho người Châu Á (WPRO)
+                if bmi_val < 18.5:
+                    bmi_eval = "Gầy / Thiếu cân (Underweight)"
+                elif bmi_val <= 22.9:
+                    bmi_eval = "Bình thường (Normal)"
+                elif bmi_val <= 24.9:
+                    bmi_eval = "Thừa cân / Tiền béo phì (Overweight)"
+                else:
+                    bmi_eval = "Béo phì (Obese)"
+                
+                st.session_state["sh_bmi"] = str(bmi_val)
+                st.session_state["sh_bmi_eval"] = bmi_eval
+                st.caption(f"📊 **BMI:** `{bmi_val} kg/m²` — **Đánh giá:** *{bmi_eval}*")
+            else:
+                st.session_state["sh_bmi"] = ""
+                st.session_state["sh_bmi_eval"] = ""
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
 
@@ -1539,6 +1617,14 @@ with tab1:
 # Gom dữ liệu từ session_state sang dict để chuẩn bị xuất file
 data_benh_an = {k: st.session_state.get(k, "") for k in default_fields}
 data_benh_an["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+data_benh_an["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
+data_benh_an["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
+data_benh_an["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
+data_benh_an["sh_nhip_tho"] = str(st.session_state.get("sh_nhip_tho", "")).strip()
+data_benh_an["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
+data_benh_an["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
+data_benh_an["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
+data_benh_an["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
 data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
