@@ -127,7 +127,7 @@ class BenhAnPDF(FPDF):
             self.set_font("Roboto-Bold", "", 15)
             self.cell(0, 8, "BỆNH ÁN LÂM SÀNG", align="C", new_x="LMARGIN", new_y="NEXT")
             self.set_font("Roboto", "", 8)
-            self.cell(0, 4, f"Thời gian lập hồ sơ: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
+            self.cell(0, 4, f"Thời gian làm bệnh án: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
             self.ln(3)
 
     def footer(self):
@@ -280,7 +280,7 @@ def export_pdf(data):
         f"- Khoa phòng: {data['khoa_phong']}\n"
         f"- Địa chỉ: {data['dia_chi']}\n"
         f"- Ngày giờ vào viện: {data['ngay_vao_vien']}\n"
-        f"- Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}"
+        f"- Sinh viên thực hiện: {data['sinh_vien']}"
     )
     pdf.add_body_text(hc_text)
 
