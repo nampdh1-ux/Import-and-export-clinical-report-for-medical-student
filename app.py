@@ -1288,12 +1288,12 @@ with tab1:
                         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                         
                         # Chỉ định đích danh phiên bản Google yêu cầu trong thông báo lỗi
-                        model = genai.GenerativeModel('gemini-3.6-flash')
+                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
 
                         # Thiết kế Prompt ép AI suy luận như Bác sĩ thực thụ
                         prompt = f"""
                         Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra nội dung cho 2 mục: TIÊN LƯỢNG và TƯ VẤN.
-                        Đảm bảo ưu tiên tính chính xác về mặt khoa học. Đặc biệt, khi xuất hiện các thuật ngữ y khoa chuyên sâu hoặc mới, bắt buộc phải viết kèm thuật ngữ tiếng Anh trong ngoặc đơn bên cạnh. Nội dung áp dụng sát với thực tế lâm sàng.
+                        Đảm bảo ưu tiên tính chính xác về mặt khoa học. Nội dung áp dụng sát với thực tế lâm sàng. Trình bày chỉ cần xuống dòng, không cần gạch đầu dòng.
 
                         Thông tin ca bệnh tóm tắt:
                         {context}
