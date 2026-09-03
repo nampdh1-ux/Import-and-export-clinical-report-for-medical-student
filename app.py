@@ -1184,7 +1184,7 @@ with st.sidebar:
 st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng.")
 
-tab1, tab2,  = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
+tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
     # 1. HÀNH CHÍNH (EXPANDER)
