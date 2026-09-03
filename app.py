@@ -1268,19 +1268,75 @@ with tab1:
 
     # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
+        # Nút bấm tích hợp AI
+        if st.button("🪄 Tự động suy luận Tiên lượng & Tư vấn bằng AI", type="primary"):
+            # Lấy API Key bí mật từ máy chủ Streamlit
+            if "GEMINI_API_KEY" not in st.secrets:
+                st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
+            else:
+                with st.spinner("AI đang phân tích logic lâm sàng của ca bệnh..."):
+                    try:
+                        # Gom nhặt các dữ kiện quan trọng nhất để mớm cho AI
+                        context = f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                        context += f"- Tiền sử: {st.session_state.get('ts_noi_khoa')} {st.session_state.get('ts_ngoai_khoa')}\n"
+                        context += f"- Bệnh sử: {st.session_state.get('benh_su')}\n"
+                        context += f"- Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}\n"
+                        context += f"- Hướng điều trị cụ thể: {st.session_state.get('dt_cu_the')}"
+
+                        # Tự động nạp Key từ máy chủ (st.secrets)
+                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+
+                        # Thiết kế Prompt ép AI suy luận như Bác sĩ thực thụ
+                        prompt = f"""
+                        Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra nội dung cho 2 mục: TIÊN LƯỢNG và TƯ VẤN.
+                        Đảm bảo ưu tiên tính chính xác về mặt khoa học. Đặc biệt, khi xuất hiện các thuật ngữ y khoa chuyên sâu hoặc mới, bắt buộc phải viết kèm thuật ngữ tiếng Anh trong ngoặc đơn bên cạnh. Nội dung áp dụng sát với thực tế lâm sàng.
+
+                        Thông tin ca bệnh tóm tắt:
+                        {context}
+
+                        YÊU CẦU ĐẦU RA:
+                        Trình bày đúng định dạng sau (không viết thêm văn vẻ thừa):
+                        [TIEN_LUONG]
+                        (Viết tiên lượng gần và tiên lượng xa. Dựa vào chẩn đoán, thể trạng và bệnh nền).
+                        [TU_VAN]
+                        (Viết tư vấn cụ thể về chế độ dinh dưỡng, sinh hoạt, phục hồi chức năng, và đặc biệt là các dấu hiệu cảnh báo nguy hiểm cần tái khám ngay. Giải thích dễ hiểu để bệnh nhân có thể áp dụng).
+                        """
+
+                        response = model.generate_content(prompt)
+                        res_text = response.text
+
+                        # Bóc tách kết quả từ AI
+                        if "[TIEN_LUONG]" in res_text and "[TU_VAN]" in res_text:
+                            parts = res_text.split("[TU_VAN]")
+                            tl_part = parts[0].replace("[TIEN_LUONG]", "").strip()
+                            tv_part = parts[1].strip()
+
+                            # Cập nhật trực tiếp vào ô text_area
+                            st.session_state["tien_luong"] = tl_part
+                            st.session_state["tu_van"] = tv_part
+                            st.success("✨ Đã tạo gợi ý thành công! Bạn có thể xem lại và tùy chỉnh nội dung bên dưới.")
+                            st.rerun() # Tải lại giao diện để hiện chữ
+                        else:
+                            st.error("AI trả về sai định dạng, hãy thử bấm lại.")
+                    except Exception as e:
+                        st.error(f"Lỗi khi kết nối với AI: {e}")
+
+        st.caption("Bạn có thể để AI phân tích và gợi ý, sau đó chỉnh sửa lại nội dung trong ô dưới đây sao cho phù hợp nhất với bệnh nhân.")
         c_pl, c_tv = st.columns(2)
         with c_pl:
-            st.text_area("XV. Tiên lượng:", key="tien_luong", height=100, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file PDF...")
+            st.text_area("XV. Tiên lượng:", key="tien_luong", height=250, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file...")
         with c_tv:
-            st.text_area("XVI. Tư vấn:", key="tu_van", height=100, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file PDF...")
+            st.text_area("XVI. Tư vấn:", key="tu_van", height=250, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file...")
 
-# Gom dữ liệu từ session_state sang dict
+# Gom dữ liệu từ session_state sang dict để chuẩn bị xuất file
 data_benh_an = {k: st.session_state.get(k, "") for k in default_fields}
 data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
     data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
 data_benh_an.update(uploaded_imgs)
+
 
 # --- TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN ---
 with tab2:
