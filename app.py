@@ -1224,13 +1224,13 @@ with tab1:
                         # Prompt chuẩn bác sĩ lâm sàng: phân tích logic trước khi chỉ định, chú thích tiếng Anh
                         prompt_cls = f"""
                         Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra các chỉ định CẬN LÂM SÀNG hợp lý, có tính ứng dụng cao, tránh lạm dụng xét nghiệm nhưng không được bỏ sót tổn thương.
-                        Bắt buộc: Khi xuất hiện tên xét nghiệm, kỹ thuật chẩn đoán hình ảnh hoặc thuật ngữ y khoa mới, phải ghi kèm thuật ngữ tiếng Anh trong ngoặc đơn bên cạnh.
+                        
 
                         Dữ kiện ca bệnh:
                         {context_cls}
 
                         YÊU CẦU ĐẦU RA:
-                        Trình bày gạch đầu dòng rõ ràng theo đúng 3 nhóm nhãn sau (không viết thêm lời dẫn thừa):
+                        Vào thẳng vấn đề không cần câu dẫn, các đề xuất viết dưới dạng xuống dòng, đơn giản, không sử dụng gạch đầu dòng đúng 3 nhóm nhãn sau (không viết thêm lời dẫn thừa):
                         [CLS_XAC_DINH]
                         - Các cận lâm sàng phục vụ chẩn đoán xác định nguyên nhân hoặc phân biệt với các chẩn đoán phân biệt.
                         [CLS_DIEU_TRI]
@@ -1354,7 +1354,7 @@ with tab1:
                         Thông tin ca bệnh:
                         {context_dt}
 
-                        YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày rõ ràng từng gạch đầu dòng):
+                        YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày vào thẳng vấn đề không câu dẫn, viết dưới dạng xuống dòng, không sử dụng gạch đầu dòng):
                         [MUC_TIEU]
                         (Nêu mục tiêu ngắn hạn và dài hạn: kiểm soát triệu chứng, ngăn ngừa biến chứng, cải thiện chất lượng sống...)
                         [DIEU_TRI_CU_THE]
