@@ -1201,13 +1201,78 @@ with tab1:
     # 6. CẬN LÂM SÀNG (EXPANDER)
     with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
         st.markdown("<div class='sub-section-header'>X. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
+        
+        # Nút bấm tích hợp AI cho phần Đề xuất Cận lâm sàng
+        if st.button("🪄 Tự động đề xuất Cận lâm sàng bằng AI", type="primary"):
+            if "GEMINI_API_KEY" not in st.secrets:
+                st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
+            else:
+                with st.spinner("Bác sĩ AI đang phân tích lập luận lâm sàng để chỉ định cận lâm sàng tối ưu..."):
+                    try:
+                        # Gom dữ kiện lâm sàng quan trọng để định hướng chỉ định
+                        context_cls = f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                        context_cls += f"- Tiền sử: {st.session_state.get('ts_noi_khoa')} | {st.session_state.get('ts_ngoai_khoa')}\n"
+                        context_cls += f"- Lý do vào viện & Bệnh sử: {st.session_state.get('ly_do_vao_vien')} - {st.session_state.get('benh_su')}\n"
+                        context_cls += f"- Thăm khám lâm sàng: {st.session_state.get('kham_toan_than')} | Tuần hoàn: {st.session_state.get('kham_tuan_hoan')} | Hô hấp: {st.session_state.get('kham_ho_hap')}\n"
+                        context_cls += f"- Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}\n"
+                        context_cls += f"- Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}"
+
+                        # Nạp Key và gọi Model
+                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                        model = genai.GenerativeModel('gemini-3.6-flash')
+
+                        # Prompt chuẩn bác sĩ lâm sàng: phân tích logic trước khi chỉ định, chú thích tiếng Anh
+                        prompt_cls = f"""
+                        Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra các chỉ định CẬN LÂM SÀNG hợp lý, có tính ứng dụng cao, tránh lạm dụng xét nghiệm nhưng không được bỏ sót tổn thương.
+                        Bắt buộc: Khi xuất hiện tên xét nghiệm, kỹ thuật chẩn đoán hình ảnh hoặc thuật ngữ y khoa mới, phải ghi kèm thuật ngữ tiếng Anh trong ngoặc đơn bên cạnh.
+
+                        Dữ kiện ca bệnh:
+                        {context_cls}
+
+                        YÊU CẦU ĐẦU RA:
+                        Trình bày gạch đầu dòng rõ ràng theo đúng 3 nhóm nhãn sau (không viết thêm lời dẫn thừa):
+                        [CLS_XAC_DINH]
+                        - Các cận lâm sàng phục vụ chẩn đoán xác định nguyên nhân hoặc phân biệt với các chẩn đoán phân biệt.
+                        [CLS_DIEU_TRI]
+                        - Các cận lâm sàng đánh giá toàn trạng, chức năng gan thận, bilan tiền phẫu hoặc tiên lượng phục vụ phác đồ điều trị.
+                        [CLS_KHAC]
+                        - Các cận lâm sàng thường quy, theo dõi tiến triển hoặc tầm soát thêm nếu có yếu tố nguy cơ.
+                        """
+
+                        response_cls = model.generate_content(prompt_cls)
+                        res_cls_text = response_cls.text
+
+                        # Bóc tách kết quả đưa vào session_state
+                        if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
+                            p1 = res_cls_text.split("[CLS_DIEU_TRI]")
+                            part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
+                            
+                            if "[CLS_KHAC]" in p1[1]:
+                                p2 = p1[1].split("[CLS_KHAC]")
+                                part_dt = p2[0].strip()
+                                part_khac = p2[1].strip()
+                            else:
+                                part_dt = p1[1].strip()
+                                part_khac = ""
+
+                            st.session_state["cls_dx_xac_dinh"] = part_xd
+                            st.session_state["cls_dx_dieu_tri"] = part_dt
+                            st.session_state["cls_dx_khac"] = part_khac
+                            st.success("✨ Đã gợi ý danh mục cận lâm sàng thành công! Bạn có thể chỉnh sửa trực tiếp bên dưới.")
+                            st.rerun()
+                        else:
+                            st.error("AI trả về không đúng cấu trúc định dạng, vui lòng thử lại.")
+                    except Exception as e:
+                        st.error(f"Lỗi khi kết nối với AI: {e}")
+
+        st.caption("Các cận lâm sàng định hướng sẽ tự động điền vào 3 ô bên dưới, bạn có thể tự do chỉnh sửa theo ý muốn.")
         c_cls1, c_cls2, c_cls3 = st.columns(3)
         with c_cls1:
-            st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=100)
+            st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=130)
         with c_cls2:
-            st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=100)
+            st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=130)
         with c_cls3:
-            st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=100)
+            st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
             
         st.markdown(f"<div class='sub-section-header'>XI. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
         st.caption("Mỗi hàng: Cột trái nhập kết quả hoặc kèm ảnh; Cột phải nhập biện giải tương ứng. Khi xuất PDF sẽ tự động xếp thành bảng 2 cột đối chiếu.")
