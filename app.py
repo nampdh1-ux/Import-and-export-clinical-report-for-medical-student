@@ -12,7 +12,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
-st.set_page_config(page_title="Công cụ làm Bệnh án Lâm sàng", layout="wide")
+st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 
 # --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
 st.markdown("""
