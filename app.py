@@ -1257,15 +1257,77 @@ with tab1:
         st.text_area("XII. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90)
         st.text_area("XIII. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
-    # 8. ĐIỀU TRỊ (EXPANDER) - Chiều cao 250px
-    with st.expander("XIV. ĐIỀU TRỊ", expanded=True):
-        c_dt1, c_dt2, c_dt3 = st.columns(3)
-        with c_dt1:
-            st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=250)
-        with c_dt2:
-            st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=250)
-        with c_dt3:
-            st.text_area("3. Theo dõi sau điều trị:", key="dt_theo_doi", height=250)
+    # 8. ĐIỀU TRỊ (EXPANDER)
+    with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
+        if st.button("🪄 Tự động xây dựng Kế hoạch Điều trị bằng AI", key="btn_ai_dt", type="primary"):
+            if "GEMINI_API_KEY" not in st.secrets:
+                st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
+            else:
+                with st.spinner("AI đang phân tích phác đồ điều trị và cá thể hóa đơn thuốc..."):
+                    try:
+                        # Gom dữ kiện kết quả CLS đã có để điều trị an toàn (chức năng gan/thận...)
+                        cls_da_co_str = ""
+                        so_h = st.session_state.get("so_hang_cls", 3)
+                        for i in range(so_h):
+                            kq_i = st.session_state.get(f"cls_kq_{i}", "").strip()
+                            pg_i = st.session_state.get(f"cls_pg_{i}", "").strip()
+                            if kq_i:
+                                cls_da_co_str += f"+ {kq_i} -> {pg_i}\n"
+
+                        context_dt = f"- Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                        context_dt += f"- Tiền sử / Dị ứng: {st.session_state.get('ts_noi_khoa')} | Dị ứng & Ngoại khoa: {st.session_state.get('ts_ngoai_khoa')}\n"
+                        context_dt += f"- Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}\n"
+                        context_dt += f"- Kết quả CLS quan trọng đã có:\n{cls_da_co_str}"
+
+                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+
+                        prompt_dt = f"""
+                        Bạn là một bác sĩ điều trị lâm sàng chính. Hãy xây dựng một kế hoạch điều trị toàn diện, cá thể hóa cho ca bệnh dưới đây theo đúng các phác đồ y khoa chuẩn mực (Guidelines).
+                        Đặc biệt lưu ý chống chỉ định hoặc chỉnh liều nếu có bệnh nền hoặc bất thường cận lâm sàng.
+
+                        Thông tin ca bệnh:
+                        {context_dt}
+
+                        YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày rõ ràng từng gạch đầu dòng):
+                        [MUC_TIEU]
+                        (Nêu mục tiêu ngắn hạn và dài hạn: kiểm soát triệu chứng, ngăn ngừa biến chứng, cải thiện chất lượng sống...)
+                        [DIEU_TRI_CU_THE]
+                        - Không dùng thuốc (chế độ nghỉ ngơi, dinh dưỡng, lý liệu...)
+                        - Dùng thuốc (hoặc điều trị ngoại khoa nếu cần): Ghi rõ tên hoạt chất (kèm tên thương mại phổ biến nếu có), liều lượng, số lần/ngày, đường dùng, thời điểm uống/tiêm.
+                        
+                        [THEO_DOI]
+                        (Các chỉ số sinh tồn, triệu chứng cơ năng, xét nghiệm cần làm lại và lịch đánh giá lại đáp ứng điều trị)
+                        """
+
+                        resp = model.generate_content(prompt_dt)
+                        txt = resp.text
+
+                        if "[MUC_TIEU]" in txt and "[DIEU_TRI_CU_THE]" in txt and "[THEO_DOI]" in txt:
+                            p1 = txt.split("[DIEU_TRI_CU_THE]")
+                            dt_mt = p1[0].replace("[MUC_TIEU]", "").strip()
+                            p2 = p1[1].split("[THEO_DOI]")
+                            dt_ct = p2[0].strip()
+                            dt_td = p2[1].strip()
+
+                            st.session_state["dt_muc_tieu"] = dt_mt
+                            st.session_state["dt_cu_the"] = dt_ct
+                            st.session_state["dt_theo_doi"] = dt_td
+                            st.success("✨ Đã lên phác đồ điều trị thành công!")
+                            st.rerun()
+                        else:
+                            st.error("AI phản hồi sai cấu trúc, vui lòng thử lại.")
+                    except Exception as e:
+                        st.error(f"Lỗi khi kết nối với AI: {e}")
+
+        st.caption("AI sẽ cá thể hóa phác đồ điều trị dựa trên Chẩn đoán xác định, Bệnh nền và Kết quả xét nghiệm.")
+        c_mt, c_ct, c_td = st.columns(3)
+        with c_mt:
+            st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=220)
+        with c_ct:
+            st.text_area("2. Điều trị cụ thể (Dược lý & Không dùng thuốc):", key="dt_cu_the", height=220)
+        with c_td:
+            st.text_area("3. Theo dõi đáp ứng & biến chứng:", key="dt_theo_doi", height=220)
 
     # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
