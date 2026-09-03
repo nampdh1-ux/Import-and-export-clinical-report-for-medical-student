@@ -334,10 +334,25 @@ def export_pdf(data):
     else:
         render_list = organ_list
 
-    # In tuần tự ra PDF: cơ quan ưu tiên sẽ đứng đầu tiên
+    # In tuần tự ra PDF: cơ quan ưu tiên đứng đầu và có gạch chân bên dưới tên
     for org in render_list:
         content = format_bullet_points(data.get(org["key"], ""))
-        pdf.add_body_text(f"{org['name']}:\n{content}")
+        
+        # 1. In tên cơ quan bằng hàm tiêu đề phụ có sẵn trong PDF của bạn
+        title_text = f"{org['name']}:"
+        pdf.add_subsection_header(title_text)
+        
+        # 2. Vẽ đường gạch chân ngay dưới chân chữ vừa in
+        # Lấy chiều rộng chuỗi text để đường gạch vừa vặn khít với tên cơ quan
+        text_w = pdf.get_string_width(title_text)
+        x = pdf.get_x()
+        y = pdf.get_y() - 1  # Đặt đường kẻ sát chân chữ
+        pdf.set_draw_color(50, 50, 50)  # Màu xám đậm / đen
+        pdf.set_line_width(0.3)         # Độ dày nét gạch chân
+        pdf.line(x, y, x + text_w, y)
+        
+        # 3. In nội dung triệu chứng thăm khám bên dưới
+        pdf.add_body_text(content)
 
     # VI. TÓM TẮT BỆNH ÁN
     pdf.add_section_header("VI. TÓM TẮT BỆNH ÁN")
