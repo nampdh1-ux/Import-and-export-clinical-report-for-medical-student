@@ -1203,7 +1203,7 @@ with tab1:
         st.markdown("<div class='sub-section-header'>X. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
         
         # Nút bấm tích hợp AI cho phần Đề xuất Cận lâm sàng
-        if st.button("🪄 Tự động đề xuất Cận lâm sàng bằng AI", type="primary"):
+        if st.button("🪄 Làm phép", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
             else:
@@ -1324,7 +1324,7 @@ with tab1:
 
     # 8. ĐIỀU TRỊ (EXPANDER)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
-        if st.button("🪄 Tự động xây dựng Kế hoạch Điều trị bằng AI", key="btn_ai_dt", type="primary"):
+        if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
             else:
@@ -1398,7 +1398,7 @@ with tab1:
     # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
         # Nút bấm tích hợp AI
-        if st.button("🪄 Tự động suy luận Tiên lượng & Tư vấn bằng AI", type="primary"):
+        if st.button("🪄 Làm phép", type="primary"):
             # Lấy API Key bí mật từ máy chủ Streamlit
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
