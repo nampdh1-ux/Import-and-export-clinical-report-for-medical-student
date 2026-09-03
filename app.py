@@ -313,13 +313,31 @@ def export_pdf(data):
     pdf.add_body_text(format_bullet_points(data['kham_toan_than']))
     
     pdf.add_body_text("b. Các cơ quan:")
-    pdf.add_body_text(f"Tuần hoàn:\n{format_bullet_points(data['kham_tuan_hoan'])}")
-    pdf.add_body_text(f"Hô hấp:\n{format_bullet_points(data['kham_ho_hap'])}")
-    pdf.add_body_text(f"Tiêu hóa:\n{format_bullet_points(data['kham_tieu_hoa'])}")
-    pdf.add_body_text(f"Thần kinh:\n{format_bullet_points(data['kham_than_kinh'])}")
-    pdf.add_body_text(f"Thận - Tiết niệu:\n{format_bullet_points(data['kham_tiet_nieu'])}")
-    pdf.add_body_text(f"Cơ xương khớp:\n{format_bullet_points(data['kham_co_xuong_khop'])}")
-    pdf.add_body_text(f"Các cơ quan khác:\n{format_bullet_points(data['kham_co_quan_khac'])}")
+    # Danh mục cơ quan tương ứng với key dữ liệu
+    organ_list = [
+        {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
+        {"key": "kham_ho_hap", "name": "Hô hấp"},
+        {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
+        {"key": "kham_than_kinh", "name": "Thần kinh"},
+        {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"},
+        {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"},
+        {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"},
+    ]
+
+    selected_organ = data.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+
+    # Sắp xếp danh sách in ra PDF theo lựa chọn ưu tiên
+    if selected_organ != "Không ưu tiên (Thứ tự mặc định)":
+        fav = next((it for it in organ_list if it["name"] == selected_organ), None)
+        others = [it for it in organ_list if it["name"] != selected_organ]
+        render_list = ([fav] + others) if fav else organ_list
+    else:
+        render_list = organ_list
+
+    # In tuần tự ra PDF: cơ quan ưu tiên sẽ đứng đầu tiên
+    for org in render_list:
+        content = format_bullet_points(data.get(org["key"], ""))
+        pdf.add_body_text(f"{org['name']}:\n{content}")
 
     # VI. TÓM TẮT BỆNH ÁN
     pdf.add_section_header("VI. TÓM TẮT BỆNH ÁN")
@@ -1174,16 +1192,57 @@ with tab1:
         st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=90, label_visibility="collapsed")
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
-        c_cq1, c_cq2 = st.columns(2)
-        with c_cq1:
-            st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
-            st.text_area("Hô hấp:", key="kham_ho_hap", height=85)
-            st.text_area("Tiêu hóa:", key="kham_tieu_hoa", height=85)
-            st.text_area("Thần kinh:", key="kham_than_kinh", height=85)
-        with c_cq2:
-            st.text_area("Thận - Tiết niệu:", key="kham_tiet_nieu", height=85)
-            st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
-            st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
+
+        # Danh mục 7 cơ quan khớp chuẩn với key hiện tại trong dự án của bạn
+        ORGAN_DEF = [
+            {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
+            {"key": "kham_ho_hap", "name": "Hô hấp"},
+            {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
+            {"key": "kham_than_kinh", "name": "Thần kinh"},
+            {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"},
+            {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"},
+            {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"},
+        ]
+
+        organ_names = ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF]
+        selected_organ_name = st.selectbox(
+            "Chọn cơ quan chuyên khoa ưu tiên:",
+            organ_names,
+            index=0,
+            key="uu_tien_co_quan"
+        )
+
+        if selected_organ_name != "Không ưu tiên (Thứ tự mặc định)":
+            fav = next(item for item in ORGAN_DEF if item["name"] == selected_organ_name)
+            others = [item for item in ORGAN_DEF if item["name"] != selected_organ_name]
+
+            # 1. Hiển thị cơ quan trọng điểm lên đầu
+            st.markdown(f"**1. {fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
+            st.text_area(f"Khám {fav['name']}:", key=fav["key"], height=130, placeholder=f"Mô tả chi tiết khám chuyên khoa {fav['name']}...")
+            st.markdown("---")
+            st.markdown("**Các cơ quan khác:**")
+
+            # 2. Hiển thị 6 cơ quan còn lại theo dạng 2 cột
+            c_cq1, c_cq2 = st.columns(2)
+            half = len(others) // 2 + len(others) % 2
+            with c_cq1:
+                for idx, org in enumerate(others[:half]):
+                    st.text_area(f"{idx + 2}. {org['name']}:", key=org["key"], height=85)
+            with c_cq2:
+                for idx, org in enumerate(others[half:]):
+                    st.text_area(f"{idx + 2 + half}. {org['name']}:", key=org["key"], height=85)
+        else:
+            # Thứ tự mặc định 2 cột như ban đầu
+            c_cq1, c_cq2 = st.columns(2)
+            with c_cq1:
+                st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
+                st.text_area("Hô hấp:", key="kham_ho_hap", height=85)
+                st.text_area("Tiêu hóa:", key="kham_tieu_hoa", height=85)
+                st.text_area("Thần kinh:", key="kham_than_kinh", height=85)
+            with c_cq2:
+                st.text_area("Thận - Tiết niệu:", key="kham_tiet_nieu", height=85)
+                st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
+                st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
     # 5. TỔNG HỢP & BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (EXPANDER)
     with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
@@ -1464,6 +1523,7 @@ with tab1:
 
 # Gom dữ liệu từ session_state sang dict để chuẩn bị xuất file
 data_benh_an = {k: st.session_state.get(k, "") for k in default_fields}
+data_benh_an["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
 data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
