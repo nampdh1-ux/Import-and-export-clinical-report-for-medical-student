@@ -1354,12 +1354,13 @@ with tab1:
                         Thông tin ca bệnh:
                         {context_dt}
 
-                        YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày vào thẳng vấn đề không câu dẫn, viết dưới dạng xuống dòng, không sử dụng gạch đầu dòng):
+                        YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày vào thẳng vấn đề không câu dẫn, ngắn gọn, viết dưới dạng xuống dòng, không sử dụng gạch đầu dòng):
                         [MUC_TIEU]
                         (Nêu mục tiêu ngắn hạn và dài hạn: kiểm soát triệu chứng, ngăn ngừa biến chứng, cải thiện chất lượng sống...)
                         [DIEU_TRI_CU_THE]
                         - Không dùng thuốc (chế độ nghỉ ngơi, dinh dưỡng, lý liệu...)
                         - Dùng thuốc (hoặc điều trị ngoại khoa nếu cần): Ghi rõ tên hoạt chất (kèm tên thương mại phổ biến nếu có), liều lượng, số lần/ngày, đường dùng, thời điểm uống/tiêm.
+                        - Có điều trị bằng ngoại khoa không, nếu có thì ghi luôn phương án điều trị. 
                         
                         [THEO_DOI]
                         (Các chỉ số sinh tồn, triệu chứng cơ năng, xét nghiệm cần làm lại và lịch đánh giá lại đáp ứng điều trị)
@@ -1420,7 +1421,7 @@ with tab1:
                         # Thiết kế Prompt ép AI suy luận như Bác sĩ thực thụ
                         prompt = f"""
                         Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra nội dung cho 2 mục: TIÊN LƯỢNG và TƯ VẤN.
-                        Đảm bảo ưu tiên tính chính xác về mặt khoa học. Nội dung áp dụng sát với thực tế lâm sàng. Trình bày chỉ cần xuống dòng, không cần gạch đầu dòng.
+                        Đảm bảo ưu tiên tính chính xác về mặt khoa học. Nội dung áp dụng sát với thực tế lâm sàng. Trình bày ngắn gọn, đủ, chỉ cần xuống dòng, không cần gạch đầu dòng.
 
                         Thông tin ca bệnh tóm tắt:
                         {context}
