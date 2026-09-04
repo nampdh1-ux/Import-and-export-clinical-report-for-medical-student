@@ -1772,7 +1772,7 @@ with tab1:
                         try:
                             img_input = Image.open(lab_photo)
                             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                            vision_model = genai.GenerativeModel("gemini-2.5-flash")
+                            vision_model = genai.GenerativeModel("gemini-3.6-flash")
 
                             ocr_prompt = """
                             Bạn là một chuyên gia xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và trích xuất các chỉ số quan trọng theo đúng định dạng JSON.
