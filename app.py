@@ -1646,7 +1646,7 @@ with tab1:
                             {context_cdpb}
 
                             YÊU CẦU ĐẦU RA:
-                            - Sắp xếp thứ tự các chẩn đoán phân biệt từ phù hợp nhất (khả năng cao nhất) đến ít phù hợp hơn.
+                            - Sắp xếp thứ tự các chẩn đoán phân biệt từ phù hợp nhất (khả năng cao nhất) đến ít phù hợp hơn. Từ cấp cứu nhất (nguy hiểm nhất) đến ít cấp cứu hơn.
     
                             - Chỉ xuất ra danh sách đánh số dạng:
                             1. Tên bệnh A
