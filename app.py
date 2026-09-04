@@ -12,7 +12,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 import json
 from streamlit_local_storage import LocalStorage
-
+import base64
 # 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
 local_storage = LocalStorage()
 STORAGE_KEY = "clinical_report_draft"
@@ -1815,7 +1815,7 @@ with tab2:
     col_dl_pdf, col_dl_pptx = st.columns(2)
     
     with col_dl_pdf:
-        if st.button("Tạo tập tin PDF bệnh án", type="primary", use_container_width=True):
+        if st.button("📄 Tạo & Xem trước tập tin PDF", type="primary", use_container_width=True):
             if not ho_ten_val:
                 st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
             elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"):
@@ -1823,15 +1823,19 @@ with tab2:
             else:
                 with st.spinner("Đang kết xuất văn bản PDF..."):
                     pdf_bytes = export_pdf(data_benh_an)
-                    ten_file = f"Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
-                    st.success("Tạo PDF thành công!")
-                    st.download_button(
-                        label="Nhấn vào đây để tải PDF về máy",
-                        data=pdf_bytes,
-                        file_name=ten_file,
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
+                    # Lưu vào session_state để khi cuộn trang hoặc thao tác không bị mất bản xem trước
+                    st.session_state["pdf_bytes_preview"] = pdf_bytes
+                    st.session_state["ten_file_pdf"] = f"Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+        # Nếu đã tạo PDF thành công, hiển thị nút Tải về kèm Khung xem trước trực tiếp
+        if st.session_state.get("pdf_bytes_preview"):
+            st.download_button(
+                label="📥 Tải PDF về máy",
+                data=st.session_state["pdf_bytes_preview"],
+                file_name=st.session_state.get("ten_file_pdf", "benh_an.pdf"),
+                mime="application/pdf",
+                use_container_width=True
+            )
 
     with col_dl_pptx:
         if st.button("Tạo tập tin PowerPoint (PPTX)", type="secondary", use_container_width=True):
@@ -1849,6 +1853,25 @@ with tab2:
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                         use_container_width=True
                     )
+    # Hiển thị trực tiếp trình xem PDF trên trình duyệt
+    if st.session_state.get("pdf_bytes_preview"):
+        st.markdown("---")
+        st.markdown("#### 👁️ Bản xem trước PDF trực tiếp:")
+        
+        # Mã hóa binary PDF sang Base64
+        base64_pdf = base64.b64encode(st.session_state["pdf_bytes_preview"]).decode('utf-8')
+        
+        # Nhúng trực tiếp bằng iframe (hỗ trợ phóng to, thu nhỏ, cuộn trang của trình duyệt)
+        pdf_display = f"""
+            <iframe 
+                src="data:application/pdf;base64,{base64_pdf}" 
+                width="100%" 
+                height="800px" 
+                type="application/pdf"
+                style="border: 1px solid #d4eaf0; border-radius: 8px;">
+            </iframe>
+        """
+        st.markdown(pdf_display, unsafe_allow_html=True)
 # ==========================================
 # TAB 3: PHẢN BIỆN BỆNH ÁN (MOCK CLINICAL ATTENDING)
 # ==========================================
