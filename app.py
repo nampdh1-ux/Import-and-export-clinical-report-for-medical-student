@@ -534,9 +534,11 @@ def export_pdf(data):
     pdf.add_section_header("VIII. CHẨN ĐOÁN PHÂN BIỆT")
     pdf.add_body_text(data['chan_doan_phan_biet'])
 
-    # IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ
-    pdf.add_section_header("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
-    pdf.add_body_text(data['bien_luan'])
+    # IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (Ẩn nếu để trống)
+    noi_dung_bien_luan = str(data.get('bien_luan', '')).strip()
+    if noi_dung_bien_luan:
+        pdf.add_section_header("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
+        pdf.add_body_text(noi_dung_bien_luan)
 
     # X. ĐỀ XUẤT CẬN LÂM SÀNG
     pdf.add_section_header("X. ĐỀ XUẤT CẬN LÂM SÀNG")
@@ -567,9 +569,11 @@ def export_pdf(data):
     pdf.add_section_header("XII. CHẨN ĐOÁN XÁC ĐỊNH")
     pdf.add_highlight_text(format_bullet_points(data['chan_doan_xac_dinh']))
 
-    # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH
-    pdf.add_section_header("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
-    pdf.add_body_text(format_bullet_points(data['bien_luan_xac_dinh']))
+    # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH (Ẩn nếu để trống)
+    noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
+    if noi_dung_bl_xd:
+        pdf.add_section_header("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
+        pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
 
     # XIV. ĐIỀU TRỊ
     pdf.add_section_header("XIV. ĐIỀU TRỊ")
@@ -786,11 +790,10 @@ def export_pptx(data):
     if cd_items:
         add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
 
-    # --- SLIDE: IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ ---
-    bl_items = []
+    # --- SLIDE: IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (Chỉ tạo slide khi có nội dung) ---
     lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
     if lines_bl:
-        bl_items.append(("Biện luận lâm sàng:", True))
+        bl_items = [("Biện luận lâm sàng:", True)]
         for l in lines_bl:
             bl_items.append((f"- {l}" if not l.startswith("-") else l, False))
         add_content_with_overflow("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", bl_items)
@@ -915,11 +918,10 @@ def export_pptx(data):
             cdxd_items.append((f"- {l}" if not l.startswith("-") else l, False))
         add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", cdxd_items, is_red=True)
 
-    # --- SLIDE: XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH ---
-    blxd_items = []
+    # --- SLIDE: XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH (Chỉ tạo slide khi có nội dung) ---
     lines_blxd = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
     if lines_blxd:
-        blxd_items.append(("Biện luận chẩn đoán xác định:", True))
+        blxd_items = [("Biện luận chẩn đoán xác định:", True)]
         for l in lines_blxd:
             blxd_items.append((f"- {l}" if not l.startswith("-") else l, False))
         add_content_with_overflow("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", blxd_items)
