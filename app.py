@@ -1637,7 +1637,7 @@ with tab1:
                             )
 
                             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                            model = genai.GenerativeModel('gemini-3.-flash')
+                            model = genai.GenerativeModel('gemini-3.6-flash')
 
                             prompt_cdpb = f"""
                             Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis).
