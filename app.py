@@ -1857,7 +1857,7 @@ with tab2:
     # Hiển thị PDF bằng PDF.js (chạy mượt trên Edge, Chrome, Safari)
     if st.session_state.get("pdf_bytes_preview"):
         st.markdown("---")
-        st.markdown("#### 👁️ Bản xem trước PDF trực tiếp:")
+        st.markdown("#### Bản xem trước PDF trực tiếp:")
         pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 # ==========================================
 # TAB 3: PHẢN BIỆN BỆNH ÁN (MOCK CLINICAL ATTENDING)
