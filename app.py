@@ -1264,14 +1264,35 @@ with st.sidebar:
         else:
             st.warning("Không tìm thấy dữ liệu nháp nào trên trình duyệt này.")
 
-    # 2. Nút xóa dữ liệu nháp khi hoàn thành ca bệnh
+    # 2. Nút xóa dữ liệu nháp khi hoàn thành ca bệnh (Đã phân loại chuẩn kiểu dữ liệu)
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", help="Xóa sạch dữ liệu đã lưu trong trình duyệt và làm mới toàn bộ form", use_container_width=True):
         local_storage.deleteItem(STORAGE_KEY)
-        for k in default_fields:
-            st.session_state[k] = ""
-        st.session_state["so_hang_cls"] = 1
+        
+        # Đặt lại giá trị ban đầu theo đúng kiểu dữ liệu của từng widget
+        for k in FIELDS_TO_SAVE:
+            if k == "tuoi":
+                st.session_state[k] = 45  # Số nguyên (int)
+            elif k in ["sh_can_nang", "sh_chieu_cao"]:
+                st.session_state[k] = 0.0  # Số thực (float)
+            elif k == "gioi_tinh":
+                st.session_state[k] = "Nam"  # Selectbox
+            elif k == "dan_tok":
+                st.session_state[k] = "Kinh"
+            elif k == "uu_tien_co_quan":
+                st.session_state[k] = "Không ưu tiên (Thứ tự mặc định)"
+            elif k == "ngay_vao_vien":
+                st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
+            else:
+                st.session_state[k] = ""  # Các trường văn bản đặt về chuỗi rỗng
+        
+        # Dọn sạch các hàng cận lâm sàng động
+        st.session_state["so_hang_cls"] = 3
+        for i in range(10):  # Dọn sạch tối đa 10 hàng cũ
+            st.session_state[f"cls_kq_{i}"] = ""
+            st.session_state[f"cls_pg_{i}"] = ""
+        
         st.session_state["last_saved_snapshot"] = ""
-        st.toast("Đã làm sạch bản nháp!", icon="🗑️")
+        st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
         st.rerun()
 
     st.markdown("---")
