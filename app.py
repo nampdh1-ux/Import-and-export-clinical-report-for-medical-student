@@ -1774,30 +1774,28 @@ with tab1:
                             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                             vision_model = genai.GenerativeModel("gemini-3.6-flash")
 
+                            # 3. Prompt chuyên biệt trích xuất JSON gom nhóm
                             ocr_prompt = """
-                            Bạn là một chuyên gia xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và trích xuất các chỉ số quan trọng theo đúng định dạng JSON.
+                            Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này (có thể chứa nhiều chỉ số như Sinh hóa, Huyết học...) và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
                             
                             YÊU CẦU:
-                            1. Bỏ qua các thông tin hành chính, chỉ lấy các dòng kết quả xét nghiệm.
-                            2. Tách thành danh sách các cặp: "ket_qua" (Tên xét nghiệm + Giá trị đo được + Đơn vị) và "phien_giai" (Đánh giá Tăng / Giảm / Bình thường so với khoảng tham chiếu, kèm ý nghĩa định hướng lâm sàng ngắn gọn).
-                            3. Trả về DUY NHẤT một mảng JSON (Array of Objects), không viết thêm văn bản giải thích.
+                            1. Bỏ qua các thông tin hành chính.
+                            2. Trả về DUY NHẤT một đối tượng JSON (Object) có 2 khóa:
+                               - "ket_qua": Liệt kê tất cả các chỉ số quan trọng (Tên + Giá trị + Đơn vị), mỗi chỉ số trên một dòng (dùng \n).
+                               - "phien_giai": Tóm tắt và biện luận chung cho toàn bộ phiếu xét nghiệm này, tập trung phân tích các chỉ số bất thường (Tăng/Giảm) và gợi ý ý nghĩa lâm sàng tổng thể.
+                            3. Không viết thêm văn bản giải thích ngoài JSON.
                             
                             Định dạng mẫu:
-                            [
-                              {
-                                "ket_qua": "Bạch cầu (WBC): 14.5 G/L (Bình thường: 4.0 - 10.0)",
-                                "phien_giai": "Tăng bạch cầu, gợi ý phản ứng viêm hoặc nhiễm trùng cấp tính."
-                              },
-                              {
-                                "ket_qua": "Glucose máu lúc đói: 8.5 mmol/L (Bình thường: 3.9 - 6.4)",
-                                "phien_giai": "Tăng đường huyết lúc đói, cần phối hợp HbA1c đánh giá Đái tháo đường."
-                              }
-                            ]
+                            {
+                              "ket_qua": "- Glucose: 8.5 mmol/L\n- Ure: 5.2 mmol/L\n- Creatinin: 85 umol/L\n- AST: 45 U/L\n- ALT: 50 U/L",
+                              "phien_giai": "- Tăng đường huyết lúc đói.\n- Men gan (AST, ALT) tăng nhẹ.\n- Chức năng thận (Ure, Creatinin) trong giới hạn bình thường."
+                            }
                             """
 
                             resp = vision_model.generate_content([ocr_prompt, img_input])
                             raw_text = resp.text.strip()
 
+                            # Làm sạch Markdown json nếu có
                             if raw_text.startswith("```json"):
                                 raw_text = raw_text[7:]
                             elif raw_text.startswith("```"):
@@ -1807,16 +1805,29 @@ with tab1:
 
                             lab_data = json.loads(raw_text.strip())
 
-                            if isinstance(lab_data, list) and len(lab_data) > 0:
-                                current_rows = st.session_state.get("so_hang_cls", 3)
-                                total_needed = max(current_rows, len(lab_data))
-                                st.session_state["so_hang_cls"] = total_needed
+                            # Điền vào 1 hàng duy nhất
+                            if isinstance(lab_data, dict) and ("ket_qua" in lab_data or "phien_giai" in lab_data):
+                                target_row = -1
+                                so_hang_hien_tai = st.session_state.get("so_hang_cls", 3)
+                                
+                                # Tìm hàng trống đầu tiên để điền
+                                for i in range(so_hang_hien_tai):
+                                    kq_i = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
+                                    pg_i = str(st.session_state.get(f"cls_pg_{i}", "")).strip()
+                                    if not kq_i and not pg_i:
+                                        target_row = i
+                                        break
+                                
+                                # Nếu tất cả các hàng đều đã có chữ, tự động tạo thêm 1 hàng mới
+                                if target_row == -1:
+                                    target_row = so_hang_hien_tai
+                                    st.session_state["so_hang_cls"] = target_row + 1
 
-                                for idx, item in enumerate(lab_data):
-                                    st.session_state[f"cls_kq_{idx}"] = item.get("ket_qua", "")
-                                    st.session_state[f"cls_pg_{idx}"] = item.get("phien_giai", "")
+                                # Điền dữ liệu gom nhóm vào hàng mục tiêu
+                                st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
+                                st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
 
-                                st.toast(f"✅ Đã trích xuất thành công {len(lab_data)} chỉ số xét nghiệm!", icon="🧪")
+                                st.toast("✅ Đã trích xuất và gom toàn bộ xét nghiệm vào 1 hàng!", icon="🧪")
                                 st.rerun()
                             else:
                                 st.warning("Không tìm thấy dữ liệu xét nghiệm rõ ràng trong ảnh, vui lòng chụp lại góc rõ hơn.")
