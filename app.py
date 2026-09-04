@@ -1610,7 +1610,61 @@ with tab1:
         with c_cd1:
             st.text_area("VII. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85)
         with c_cd2:
-            st.text_area("VIII. Chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=85)
+            st.markdown("**VIII. Chẩn đoán phân biệt:**")
+            
+            # Nút AI đề xuất chẩn đoán phân biệt
+            if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
+                if "GEMINI_API_KEY" not in st.secrets:
+                    st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
+                elif not str(st.session_state.get("chan_doan_so_bo", "")).strip():
+                    st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ trước khi yêu cầu gợi ý chẩn đoán phân biệt!")
+                else:
+                    with st.spinner("Bác sĩ AI đang phân tích toàn diện bệnh án để lập luận chẩn đoán phân biệt..."):
+                        try:
+                            # Tập hợp toàn bộ dữ kiện lâm sàng quan trọng
+                            context_cdpb = (
+                                f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                                f"- Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}\n"
+                                f"- Bệnh sử: {st.session_state.get('benh_su')}\n"
+                                f"- Tiền sử: {st.session_state.get('ts_noi_khoa')} | {st.session_state.get('ts_ngoai_khoa')}\n"
+                                f"- Toàn thân & Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, "
+                                f"Nhiệt {st.session_state.get('sh_nhiet_do')}, NT {st.session_state.get('sh_nhip_tho')}, BMI {st.session_state.get('sh_bmi')}\n"
+                                f"  Khám toàn thân: {st.session_state.get('kham_toan_than')}\n"
+                                f"- Khám cơ quan: Tuần hoàn: {st.session_state.get('kham_tuan_hoan')} | Hô hấp: {st.session_state.get('kham_ho_hap')} | "
+                                f"Tiêu hóa: {st.session_state.get('kham_tieu_hoa')} | Thần kinh: {st.session_state.get('kham_than_kinh')} | "
+                                f"Tiết niệu: {st.session_state.get('kham_tiet_nieu')} | Khớp: {st.session_state.get('kham_co_xuong_khop')}\n"
+                                f"- CHẨN ĐOÁN SƠ BỘ: {st.session_state.get('chan_doan_so_bo')}"
+                            )
+
+                            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                            model = genai.GenerativeModel('gemini-2.5-flash')
+
+                            prompt_cdpb = f"""
+                            Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis).
+
+                            Dữ kiện ca bệnh:
+                            {context_cdpb}
+
+                            YÊU CẦU ĐẦU RA:
+                            - Sắp xếp thứ tự các chẩn đoán phân biệt từ phù hợp nhất (khả năng cao nhất) đến ít phù hợp hơn.
+    
+                            - Chỉ xuất ra danh sách đánh số dạng:
+                            1. Tên bệnh A
+                            2. Tên bệnh B
+                            3. Tên bệnh C
+                            - Tuyệt đối không viết thêm bất kỳ lời chào, câu dẫn, giải thích cơ chế hay văn bản thừa nào ngoài danh sách đánh số.
+                            """
+
+                            resp_cdpb = model.generate_content(prompt_cdpb)
+                            res_cdpb_text = resp_cdpb.text.strip()
+
+                            st.session_state["chan_doan_phan_biet"] = res_cdpb_text
+                            st.toast("Đã gợi ý danh sách chẩn đoán phân biệt thành công!", icon="✨")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Lỗi khi kết nối với AI: {e}")
+
+            st.text_area("Nội dung chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=85, label_visibility="collapsed")
             
         st.text_area("IX. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=110)
 
