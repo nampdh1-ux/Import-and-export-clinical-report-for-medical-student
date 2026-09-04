@@ -17,23 +17,38 @@ from streamlit_local_storage import LocalStorage
 local_storage = LocalStorage()
 STORAGE_KEY = "clinical_report_draft"
 
-# 2. Danh sách toàn bộ các trường cần lưu nháp (đã bao gồm sinh hiệu)
+# 2. Danh sách toàn bộ các trường cần lưu nháp (ĐÃ ĐỒNG BỘ VÀ ĐẦY ĐỦ 100%)
 FIELDS_TO_SAVE = [
-    # Hành chính & Bệnh sử
-    "ho_ten", "tuoi", "gioi_tinh", "nghe_nghiep", "dia_chi",
-    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_gia_dinh",
-    # Khám lâm sàng & Dấu hiệu sinh tồn (Vital Signs)
+    # I. Hành chính
+    "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
+    # II & III. Lý do vào viện & Bệnh sử
+    "ly_do_vao_vien", "benh_su",
+    # IV. Tiền sử
+    "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
+    # V. Khám lâm sàng & Sinh hiệu
     "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
     "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
-    # Khám các cơ quan & Cơ quan ưu tiên
+    # Khám cơ quan
     "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
     "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
-    # Tóm tắt, Chẩn đoán & Cận lâm sàng
-    "tom_tat_benh_an", "chan_doan_so_bo", "chan_doan_phan_biet",
+    # VI -> IX. Tóm tắt & Chẩn đoán sơ bộ
+    "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
+    # X. Đề xuất cận lâm sàng
     "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
+    # XII & XIII. Chẩn đoán xác định & Biện luận
+    "chan_doan_xac_dinh", "bien_luan_xac_dinh",
+    # XIV. Điều trị
+    "dt_muc_tieu", "dt_cu_the", "dt_theo_doi",
+    # XV & XVI. Tiên lượng & Tư vấn
+    "tien_luong", "tu_van",
+    # Cận lâm sàng động
     "so_hang_cls"
 ]
 
+# Đồng bộ luôn default_fields bằng FIELDS_TO_SAVE để tránh lệch pha giữa 2 danh sách
+default_fields = FIELDS_TO_SAVE
+
+# 3. Tự động nạp nháp khi mở trang hoặc F5
 # 3. Tự động nạp nháp khi mở trang hoặc F5
 if "da_khoi_phuc_tu_dong" not in st.session_state:
     try:
@@ -46,12 +61,16 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
             if "uu_tien_co_quan" in loaded_ls:
                 st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
 
-            # Duyệt chính xác theo danh sách FIELDS_TO_SAVE
             for k in FIELDS_TO_SAVE:
                 if k in loaded_ls:
                     st.session_state[k] = loaded_ls[k]
 
-            # Xử lý riêng kiểu số float cho Chiều cao & Cân nặng để không bị lỗi 0.0
+            # Ép kiểu an toàn cho các ô số
+            try:
+                st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
+            except (ValueError, TypeError):
+                st.session_state["tuoi"] = 45
+
             try:
                 st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
             except (ValueError, TypeError):
@@ -1200,6 +1219,7 @@ with st.sidebar:
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
     
     # 1. Nút nạp lại dữ liệu nháp đang lưu trong trình duyệt (rất quan trọng sau khi F5)
+    # 1. Nút nạp lại dữ liệu nháp đang lưu trong trình duyệt
     if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", help="Khôi phục lại bệnh án đang lưu trong trình duyệt", use_container_width=True):
         saved_raw = local_storage.getItem(STORAGE_KEY)
         if saved_raw:
@@ -1211,12 +1231,16 @@ with st.sidebar:
                 if "uu_tien_co_quan" in loaded_ls:
                     st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
 
-                # Duyệt toàn bộ FIELDS_TO_SAVE để không bỏ sót các trường sinh hiệu
                 for k in FIELDS_TO_SAVE:
                     if k in loaded_ls:
                         st.session_state[k] = loaded_ls[k]
 
-                # Ép kiểu float chuẩn xác cho Cân nặng và Chiều cao (tránh bị nhảy về 0.0)
+                # Ép kiểu an toàn cho các ô số
+                try:
+                    st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
+                except (ValueError, TypeError):
+                    st.session_state["tuoi"] = 45
+
                 try:
                     st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
                 except (ValueError, TypeError):
@@ -1938,13 +1962,11 @@ with tab3:
 # ==========================================
 # CƠ CHẾ TỰ ĐỘNG LƯU NHÁP (NẰM NGOÀI CÙNG, CUỐI FILE APP.PY)
 # ==========================================
-# 1. Kiểm tra xem người dùng có đang thực sự nhập liệu hay không
 co_du_lieu = any(
     bool(str(st.session_state.get(k, "")).strip()) 
-    for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than", "sh_mach", "chan_doan_so_bo"]
+    for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than", "sh_mach", "chan_doan_so_bo", "tom_tat", "ts_noi_khoa"]
 )
 
-# 2. CHỈ TỰ ĐỘNG LƯU KHI CÓ DỮ LIỆU (Tuyệt đối không lưu đè khi vừa F5 mở trang trắng)
 if co_du_lieu:
     current_snapshot = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
     current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
@@ -1956,7 +1978,6 @@ if co_du_lieu:
 
     snapshot_json = json.dumps(current_snapshot, ensure_ascii=False)
 
-    # Chỉ ghi vào LocalStorage nếu nội dung có thay đổi mới
     if st.session_state.get("last_saved_snapshot") != snapshot_json:
         local_storage.setItem(STORAGE_KEY, snapshot_json)
         st.session_state["last_saved_snapshot"] = snapshot_json
