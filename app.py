@@ -1805,29 +1805,30 @@ with tab1:
 
                             lab_data = json.loads(raw_text.strip())
 
-                            # Điền vào 1 hàng duy nhất
+                            # Điền vào 1 hàng duy nhất (BẢO TOÀN HÀNG CŨ, ĐIỀN HÀNG MỚI)
                             if isinstance(lab_data, dict) and ("ket_qua" in lab_data or "phien_giai" in lab_data):
+                                so_hang_hien_tai = int(st.session_state.get("so_hang_cls", 3))
                                 target_row = -1
-                                so_hang_hien_tai = st.session_state.get("so_hang_cls", 3)
                                 
-                                # Tìm hàng trống đầu tiên để điền
+                                # Quét tìm hàng đầu tiên mà cả 2 ô đều thực sự rỗng
                                 for i in range(so_hang_hien_tai):
-                                    kq_i = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
-                                    pg_i = str(st.session_state.get(f"cls_pg_{i}", "")).strip()
-                                    if not kq_i and not pg_i:
+                                    kq_val = str(st.session_state.get(f"cls_kq_{i}", "") or "").strip()
+                                    pg_val = str(st.session_state.get(f"cls_pg_{i}", "") or "").strip()
+                                    if not kq_val and not pg_val:
                                         target_row = i
                                         break
                                 
-                                # Nếu tất cả các hàng đều đã có chữ, tự động tạo thêm 1 hàng mới
+                                # Nếu tất cả các hàng cũ đều đã có dữ liệu (ví dụ Hàng 1 đã có ảnh 1)
+                                # thì tự động mở thêm hàng mới ở cuối
                                 if target_row == -1:
                                     target_row = so_hang_hien_tai
                                     st.session_state["so_hang_cls"] = target_row + 1
 
-                                # Điền dữ liệu gom nhóm vào hàng mục tiêu
+                                # Gán dữ liệu của ảnh mới vào đúng hàng mục tiêu
                                 st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
                                 st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
 
-                                st.toast("✅ Đã trích xuất và gom toàn bộ xét nghiệm vào 1 hàng!", icon="🧪")
+                                st.toast(f"✅ Đã thêm kết quả vào Hàng {target_row + 1} (giữ nguyên các hàng trước)!", icon="🧪")
                                 st.rerun()
                             else:
                                 st.warning("Không tìm thấy dữ liệu xét nghiệm rõ ràng trong ảnh, vui lòng chụp lại góc rõ hơn.")
