@@ -1544,14 +1544,7 @@ with tab1:
             st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
             
         st.markdown("---")
-        
-        with col_clear_cq:
-            if st.button("🔄 Đặt lại các cơ quan", help="Xóa nội dung tất cả các ô khám cơ quan", use_container_width=True):
-                for k in NORMAL_ORGAN_FINDINGS.keys():
-                    st.session_state[k] = ""
-                st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
-                st.rerun()
-        st.markdown("---")
+    
 
         # Danh mục 7 cơ quan khớp chuẩn với key hiện tại trong dự án của bạn
         ORGAN_DEF = [
