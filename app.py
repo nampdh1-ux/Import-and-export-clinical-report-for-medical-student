@@ -10,6 +10,29 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+import json
+from streamlit_local_storage import LocalStorage
+
+# 1. Khởi tạo đối tượng LocalStorage
+local_storage = LocalStorage()
+STORAGE_KEY = "clinical_report_draft"
+
+# 2. Liệt kê danh sách tất cả các trường cần lưu nháp
+FIELDS_TO_SAVE = [
+    # Hành chính & Bệnh sử
+    "ho_ten", "tuoi", "gioi_tinh", "nghe_nghiep", "dia_chi",
+    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_gia_dinh",
+    # Khám lâm sàng & Dấu hiệu sinh tồn
+    "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
+    "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
+    # Khám các cơ quan & Cơ quan ưu tiên
+    "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
+    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
+    # Tóm tắt, Chẩn đoán & Cận lâm sàng
+    "tom_tat_benh_an", "chan_doan_so_bo", "chan_doan_phan_biet",
+    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
+    "so_hang_cls"
+]
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
 st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
@@ -1135,7 +1158,57 @@ def export_pptx(data):
 # --- SIDEBAR: XỬ LÝ LƯU & NẠP BẢN NHÁP ---
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
-    st.caption("Lưu hoặc khôi phục dữ liệu bệnh án từ tập tin JSON.")
+    
+    # --- TÍNH NĂNG MỚI: LƯU & NẠP NHANH TRÊN TRÌNH DUYỆT (LOCAL STORAGE) ---
+    st.caption("Lưu tạm vào bộ nhớ trình duyệt (không cần tải file về máy):")
+    c_ls_save, c_ls_load = st.columns(2)
+    
+    with c_ls_save:
+        if st.button("💾 Lưu nháp", help="Lưu dữ liệu hiện tại vào trình duyệt máy này", use_container_width=True):
+            # Gom dữ liệu từ default_fields
+            save_payload = {k: st.session_state.get(k, "") for k in default_fields}
+            save_payload["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
+            save_payload["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+            
+            # Gom các hàng cận lâm sàng động
+            for i in range(save_payload["so_hang_cls"]):
+                save_payload[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+                save_payload[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+
+            local_storage.setItem(STORAGE_KEY, json.dumps(save_payload, ensure_ascii=False))
+            st.toast("Đã lưu nháp vào trình duyệt thành công!", icon="💾")
+
+    with c_ls_load:
+        if st.button("🔄 Nạp nháp", help="Khôi phục dữ liệu đã lưu gần nhất từ trình duyệt", use_container_width=True):
+            saved_raw = local_storage.getItem(STORAGE_KEY)
+            if saved_raw:
+                try:
+                    loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
+                    
+                    if "so_hang_cls" in loaded_ls:
+                        st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
+                    if "uu_tien_co_quan" in loaded_ls:
+                        st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
+
+                    for k in default_fields:
+                        if k in loaded_ls:
+                            st.session_state[k] = loaded_ls[k]
+
+                    for i in range(st.session_state["so_hang_cls"]):
+                        if f"cls_kq_{i}" in loaded_ls:
+                            st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
+                        if f"cls_pg_{i}" in loaded_ls:
+                            st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
+
+                    st.toast("Đã khôi phục dữ liệu từ trình duyệt!", icon="✅")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi khi đọc bản nháp: {e}")
+            else:
+                st.warning("Chưa có bản nháp nào được lưu trên trình duyệt này.")
+
+    st.markdown("---")
+    st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
     
     current_data = {k: st.session_state.get(k, "") for k in default_fields}
     current_data["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
