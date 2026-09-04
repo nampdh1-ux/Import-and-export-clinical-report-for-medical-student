@@ -13,9 +13,28 @@ from pptx.enum.text import PP_ALIGN
 import json
 from streamlit_local_storage import LocalStorage
 
-# 1. Khởi tạo đối tượng LocalStorage
+# 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
 local_storage = LocalStorage()
-# Tự động nạp nháp một lần duy nhất khi người dùng mới truy cập/F5 trang web
+STORAGE_KEY = "clinical_report_draft"
+
+# 2. Danh sách toàn bộ các trường cần lưu nháp (đã bao gồm sinh hiệu)
+FIELDS_TO_SAVE = [
+    # Hành chính & Bệnh sử
+    "ho_ten", "tuoi", "gioi_tinh", "nghe_nghiep", "dia_chi",
+    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_gia_dinh",
+    # Khám lâm sàng & Dấu hiệu sinh tồn (Vital Signs)
+    "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
+    "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
+    # Khám các cơ quan & Cơ quan ưu tiên
+    "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
+    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
+    # Tóm tắt, Chẩn đoán & Cận lâm sàng
+    "tom_tat_benh_an", "chan_doan_so_bo", "chan_doan_phan_biet",
+    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
+    "so_hang_cls"
+]
+
+# 3. Tự động nạp nháp khi mở trang hoặc F5
 if "da_khoi_phuc_tu_dong" not in st.session_state:
     try:
         draft_raw = local_storage.getItem(STORAGE_KEY)
@@ -27,10 +46,23 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
             if "uu_tien_co_quan" in loaded_ls:
                 st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
 
-            for k in default_fields:
+            # Duyệt chính xác theo danh sách FIELDS_TO_SAVE
+            for k in FIELDS_TO_SAVE:
                 if k in loaded_ls:
                     st.session_state[k] = loaded_ls[k]
 
+            # Xử lý riêng kiểu số float cho Chiều cao & Cân nặng để không bị lỗi 0.0
+            try:
+                st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
+            except (ValueError, TypeError):
+                st.session_state["sh_can_nang"] = 0.0
+
+            try:
+                st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
+            except (ValueError, TypeError):
+                st.session_state["sh_chieu_cao"] = 0.0
+
+            # Nạp các hàng cận lâm sàng động
             for i in range(st.session_state.get("so_hang_cls", 3)):
                 if f"cls_kq_{i}" in loaded_ls:
                     st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
@@ -39,24 +71,6 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
     except Exception:
         pass
     st.session_state["da_khoi_phuc_tu_dong"] = True
-STORAGE_KEY = "clinical_report_draft"
-
-# 2. Liệt kê danh sách tất cả các trường cần lưu nháp
-FIELDS_TO_SAVE = [
-    # Hành chính & Bệnh sử
-    "ho_ten", "tuoi", "gioi_tinh", "nghe_nghiep", "dia_chi",
-    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_gia_dinh",
-    # Khám lâm sàng & Dấu hiệu sinh tồn
-    "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
-    "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
-    # Khám các cơ quan & Cơ quan ưu tiên
-    "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
-    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
-    # Tóm tắt, Chẩn đoán & Cận lâm sàng
-    "tom_tat_benh_an", "chan_doan_so_bo", "chan_doan_phan_biet",
-    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
-    "so_hang_cls"
-]
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
 st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
@@ -1197,9 +1211,21 @@ with st.sidebar:
                 if "uu_tien_co_quan" in loaded_ls:
                     st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
 
-                for k in default_fields:
+                # Duyệt toàn bộ FIELDS_TO_SAVE để không bỏ sót các trường sinh hiệu
+                for k in FIELDS_TO_SAVE:
                     if k in loaded_ls:
                         st.session_state[k] = loaded_ls[k]
+
+                # Ép kiểu float chuẩn xác cho Cân nặng và Chiều cao (tránh bị nhảy về 0.0)
+                try:
+                    st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
+                except (ValueError, TypeError):
+                    st.session_state["sh_can_nang"] = 0.0
+
+                try:
+                    st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
+                except (ValueError, TypeError):
+                    st.session_state["sh_chieu_cao"] = 0.0
 
                 for i in range(st.session_state.get("so_hang_cls", 3)):
                     if f"cls_kq_{i}" in loaded_ls:
@@ -1920,7 +1946,7 @@ co_du_lieu = any(
 
 # 2. CHỈ TỰ ĐỘNG LƯU KHI CÓ DỮ LIỆU (Tuyệt đối không lưu đè khi vừa F5 mở trang trắng)
 if co_du_lieu:
-    current_snapshot = {k: st.session_state.get(k, "") for k in default_fields}
+    current_snapshot = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
     current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
     current_snapshot["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
 
