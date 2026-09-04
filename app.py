@@ -13,6 +13,7 @@ from pptx.enum.text import PP_ALIGN
 import json
 from streamlit_local_storage import LocalStorage
 import base64
+from streamlit_pdf_viewer import pdf_viewer
 # 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
 local_storage = LocalStorage()
 STORAGE_KEY = "clinical_report_draft"
@@ -1853,25 +1854,11 @@ with tab2:
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                         use_container_width=True
                     )
-    # Hiển thị trực tiếp trình xem PDF trên trình duyệt
+    # Hiển thị PDF bằng PDF.js (chạy mượt trên Edge, Chrome, Safari)
     if st.session_state.get("pdf_bytes_preview"):
         st.markdown("---")
         st.markdown("#### 👁️ Bản xem trước PDF trực tiếp:")
-        
-        # Mã hóa binary PDF sang Base64
-        base64_pdf = base64.b64encode(st.session_state["pdf_bytes_preview"]).decode('utf-8')
-        
-        # Nhúng trực tiếp bằng iframe (hỗ trợ phóng to, thu nhỏ, cuộn trang của trình duyệt)
-        pdf_display = f"""
-            <iframe 
-                src="data:application/pdf;base64,{base64_pdf}" 
-                width="100%" 
-                height="800px" 
-                type="application/pdf"
-                style="border: 1px solid #d4eaf0; border-radius: 8px;">
-            </iframe>
-        """
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 # ==========================================
 # TAB 3: PHẢN BIỆN BỆNH ÁN (MOCK CLINICAL ATTENDING)
 # ==========================================
