@@ -348,6 +348,60 @@ class BenhAnPDF(FPDF):
                         pass
 
 # --- HÀM XUẤT FILE PDF ---
+# --- BỘ KHÁM LÂM SÀNG BÌNH THƯỜNG CHUẨN MỰC (NORMAL CLINICAL FINDINGS) ---
+NORMAL_ORGAN_FINDINGS = {
+    "kham_tuan_hoan": (
+        "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n"
+        "- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n"
+        "- Dấu hiệu Hartzer (-), không có rung miêu (Thrills).\n"
+        "- Nhịp tim đều, tần số trùng nhịp mạch.\n"
+        "- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n"
+        "- Không có tiếng thổi bệnh lý ở các ổ van tim.\n"
+        "- Mạch ngoại vi bắt rõ, đều hai bên."
+    ),
+    "kham_ho_hap": (
+        "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n"
+        "- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n"
+        "- Rung thanh (Tactile fremitus) đều hai bên phế trường.\n"
+        "- Gõ trong hai bên phổi.\n"
+        "- Rì rào phế nang (Vesicular breath sounds) êm dịu hai phế trường.\n"
+        "- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy."
+    ),
+    "kham_tieu_hoa": (
+        "- Bụng thon đều hai bên, di động theo nhịp thở, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ.\n"
+        "- Bụng mềm, không có điểm đau khu trú, không có đề kháng thành bụng (Guarding) hay cảm ứng phúc mạc (Peritoneal signs).\n"
+        "- Gan, lách không sờ thấy dưới bờ sườn, chiều cao gan trong giới hạn bình thường.\n"
+        "- Các điểm đau ngoại khoa (Ruột thừa, Murphy, túi mật) âm tính.\n"
+        "- Gõ trong toàn bụng, không có diện đục vùng thấp.\n"
+        "- Tiếng nhu động ruột bình thường (Bowel sounds: 5 - 15 lần/phút), không có tiếng thổi mạch máu bụng."
+    ),
+    "kham_than_kinh": (
+        "- Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm.\n"
+        "- Không có dấu hiệu thần kinh khu trú (Focal neurological deficits).\n"
+        "- Khám 12 đôi dây thần kinh sọ chưa phát hiện bệnh lý.\n"
+        "- Trương lực cơ bình thường, cơ lực hai bên đều nhau (5/5).\n"
+        "- Phản xạ gân xương (DTR) tứ chi bình thường, đối xứng hai bên.\n"
+        "- Dấu hiệu gáy mềm, Kernig (-), Brudzinski (-), Babinski (-) hai bên.\n"
+        "- Cảm giác nông và sâu bình thường."
+    ),
+    "kham_tiet_nieu": (
+        "- Hố thắt lưng hai bên cân đối, không sưng đỏ, không gồ cao.\n"
+        "- Chạm thận (-), Bập bềnh thận (-).\n"
+        "- Rung thận (-) hai bên.\n"
+        "- Ấn các điểm niệu quản trên và giữa không đau.\n"
+        "- Cầu bàng quang (-)."
+    ),
+    "kham_co_xuong_khop": (
+        "- Các khớp không sưng, nóng, đỏ, không biến dạng hay lệch trục.\n"
+        "- Tầm vận động chủ động và thụ động các khớp trong giới hạn bình thường.\n"
+        "- Không teo cơ, không cứng khớp buổi sáng.\n"
+        "- Cột sống không gù vẹo, không có điểm đau chói dọc gai sống."
+    ),
+    "kham_co_quan_khac": (
+        "- Răng - Hàm - Mặt, Tai - Mũi - Họng: Chưa phát hiện bất thường.\n"
+        "- Nội tiết: Tuyến giáp không to, không có dấu hiệu suy hay cường giáp trên lâm sàng."
+    )
+}
 def export_pdf(data):
     pdf = BenhAnPDF()
     pdf.alias_nb_pages()
@@ -1447,6 +1501,28 @@ with tab1:
                 st.session_state["sh_bmi_eval"] = ""
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
+        # --- NÚT BẤM THAO TÁC ĐIỀN KHÁM BÌNH THƯỜNG ---
+        col_btn_fill, col_clear_cq = st.columns([2, 1])
+        with col_btn_fill:
+            if st.button("⚡ Điền khám bình thường cho các cơ quan để trống", help="Tự động điền mẫu triệu chứng bình thường cho các ô chưa nhập, giữ nguyên các ô đã có dữ liệu.", use_container_width=True):
+                dem_dien = 0
+                for k, norm_text in NORMAL_ORGAN_FINDINGS.items():
+                    if not str(st.session_state.get(k, "")).strip():
+                        st.session_state[k] = norm_text
+                        dem_dien += 1
+                if dem_dien > 0:
+                    st.toast(f"Đã tự động điền mẫu bình thường cho {dem_dien} cơ quan!", icon="✨")
+                    st.rerun()
+                else:
+                    st.info("Tất cả các cơ quan đều đã có dữ liệu, không có ô nào trống.")
+        
+        with col_clear_cq:
+            if st.button("🔄 Đặt lại các cơ quan", help="Xóa nội dung tất cả các ô khám cơ quan", use_container_width=True):
+                for k in NORMAL_ORGAN_FINDINGS.keys():
+                    st.session_state[k] = ""
+                st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
+                st.rerun()
+        st.markdown("---")
 
         # Danh mục 7 cơ quan khớp chuẩn với key hiện tại trong dự án của bạn
         ORGAN_DEF = [
