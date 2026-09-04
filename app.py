@@ -1501,17 +1501,19 @@ with tab1:
                 st.session_state["sh_bmi_eval"] = ""
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
-        # --- NÚT BẤM THAO TÁC ĐIỀN KHÁM BÌNH THƯỜNG ---
+        # --- NÚT BẤM THAO TÁC ĐIỀN KHÁM BÌNH THƯỜNG (ĐÃ SỬA CHỐNG MẤT DỮ LIỆU) ---
         col_btn_fill, col_clear_cq = st.columns([2, 1])
         with col_btn_fill:
             if st.button("⚡ Điền khám bình thường cho các cơ quan để trống", help="Tự động điền mẫu triệu chứng bình thường cho các ô chưa nhập, giữ nguyên các ô đã có dữ liệu.", use_container_width=True):
                 dem_dien = 0
                 for k, norm_text in NORMAL_ORGAN_FINDINGS.items():
-                    if not str(st.session_state.get(k, "")).strip():
+                    # Kiểm tra kỹ cả None và chuỗi rỗng
+                    val_hien_tai = str(st.session_state.get(k, "") or "").strip()
+                    if not val_hien_tai:
                         st.session_state[k] = norm_text
                         dem_dien += 1
                 if dem_dien > 0:
-                    st.toast(f"Đã tự động điền mẫu bình thường cho {dem_dien} cơ quan!", icon="✨")
+                    st.toast(f"Đã giữ nguyên dữ liệu cũ và điền mẫu cho {dem_dien} cơ quan còn lại!", icon="✨")
                     st.rerun()
                 else:
                     st.info("Tất cả các cơ quan đều đã có dữ liệu, không có ô nào trống.")
@@ -1549,7 +1551,13 @@ with tab1:
 
             # 1. Hiển thị cơ quan trọng điểm lên đầu
             st.markdown(f"**1. {fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
-            st.text_area(f"Khám {fav['name']}:", key=fav["key"], height=130, placeholder=f"Mô tả chi tiết khám chuyên khoa {fav['name']}...")
+            st.text_area(
+                f"Khám {fav['name']}:", 
+                value=st.session_state.get(fav["key"], ""),
+                key=fav["key"], 
+                height=130, 
+                placeholder=f"Mô tả chi tiết khám chuyên khoa {fav['name']}..."
+            )
             st.markdown("---")
             st.markdown("**Các cơ quan khác:**")
 
@@ -1558,23 +1566,32 @@ with tab1:
             half = len(others) // 2 + len(others) % 2
             with c_cq1:
                 for idx, org in enumerate(others[:half]):
-                    st.text_area(f"{idx + 2}. {org['name']}:", key=org["key"], height=85)
+                    st.text_area(
+                        f"{idx + 2}. {org['name']}:", 
+                        value=st.session_state.get(org["key"], ""),
+                        key=org["key"], 
+                        height=85
+                    )
             with c_cq2:
                 for idx, org in enumerate(others[half:]):
-                    st.text_area(f"{idx + 2 + half}. {org['name']}:", key=org["key"], height=85)
+                    st.text_area(
+                        f"{idx + 2 + half}. {org['name']}:", 
+                        value=st.session_state.get(org["key"], ""),
+                        key=org["key"], 
+                        height=85
+                    )
         else:
-            # Thứ tự mặc định 2 cột như ban đầu
+            # Thứ tự mặc định 2 cột như ban đầu (Đã thêm value=st.session_state.get(...))
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
-                st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
-                st.text_area("Hô hấp:", key="kham_ho_hap", height=85)
-                st.text_area("Tiêu hóa:", key="kham_tieu_hoa", height=85)
-                st.text_area("Thần kinh:", key="kham_than_kinh", height=85)
+                st.text_area("Tuần hoàn:", value=st.session_state.get("kham_tuan_hoan", ""), key="kham_tuan_hoan", height=85)
+                st.text_area("Hô hấp:", value=st.session_state.get("kham_ho_hap", ""), key="kham_ho_hap", height=85)
+                st.text_area("Tiêu hóa:", value=st.session_state.get("kham_tieu_hoa", ""), key="kham_tieu_hoa", height=85)
+                st.text_area("Thần kinh:", value=st.session_state.get("kham_than_kinh", ""), key="kham_than_kinh", height=85)
             with c_cq2:
-                st.text_area("Thận - Tiết niệu:", key="kham_tiet_nieu", height=85)
-                st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
-                st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
-
+                st.text_area("Thận - Tiết niệu:", value=st.session_state.get("kham_tiet_nieu", ""), key="kham_tiet_nieu", height=85)
+                st.text_area("Cơ xương khớp:", value=st.session_state.get("kham_co_xuong_khop", ""), key="kham_co_xuong_khop", height=85)
+                st.text_area("Các cơ quan khác:", value=st.session_state.get("kham_co_quan_khac", ""), key="kham_co_quan_khac", height=85)
     # 5. TỔNG HỢP & BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (EXPANDER)
     with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
         st.caption("Lưu ý: Dòng đầu tiên là câu dẫn. Từ lần xuống dòng tiếp theo sẽ tự động thụt lề và thêm gạch đầu dòng.")
