@@ -15,6 +15,30 @@ from streamlit_local_storage import LocalStorage
 
 # 1. Khởi tạo đối tượng LocalStorage
 local_storage = LocalStorage()
+# Tự động nạp nháp một lần duy nhất khi người dùng mới truy cập/F5 trang web
+if "da_khoi_phuc_tu_dong" not in st.session_state:
+    try:
+        draft_raw = local_storage.getItem(STORAGE_KEY)
+        if draft_raw:
+            loaded_ls = json.loads(draft_raw) if isinstance(draft_raw, str) else draft_raw
+            
+            if "so_hang_cls" in loaded_ls:
+                st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
+            if "uu_tien_co_quan" in loaded_ls:
+                st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
+
+            for k in default_fields:
+                if k in loaded_ls:
+                    st.session_state[k] = loaded_ls[k]
+
+            for i in range(st.session_state.get("so_hang_cls", 3)):
+                if f"cls_kq_{i}" in loaded_ls:
+                    st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
+                if f"cls_pg_{i}" in loaded_ls:
+                    st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
+    except Exception:
+        pass
+    st.session_state["da_khoi_phuc_tu_dong"] = True
 STORAGE_KEY = "clinical_report_draft"
 
 # 2. Liệt kê danh sách tất cả các trường cần lưu nháp
@@ -1159,53 +1183,16 @@ def export_pptx(data):
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
     
-    # --- TÍNH NĂNG MỚI: LƯU & NẠP NHANH TRÊN TRÌNH DUYỆT (LOCAL STORAGE) ---
-    st.caption("Lưu tạm vào bộ nhớ trình duyệt (không cần tải file về máy):")
-    c_ls_save, c_ls_load = st.columns(2)
-    
-    with c_ls_save:
-        if st.button("💾 Lưu nháp", help="Lưu dữ liệu hiện tại vào trình duyệt máy này", use_container_width=True):
-            # Gom dữ liệu từ default_fields
-            save_payload = {k: st.session_state.get(k, "") for k in default_fields}
-            save_payload["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
-            save_payload["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
-            
-            # Gom các hàng cận lâm sàng động
-            for i in range(save_payload["so_hang_cls"]):
-                save_payload[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
-                save_payload[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
-
-            local_storage.setItem(STORAGE_KEY, json.dumps(save_payload, ensure_ascii=False))
-            st.toast("Đã lưu nháp vào trình duyệt thành công!", icon="💾")
-
-    with c_ls_load:
-        if st.button("🔄 Nạp nháp", help="Khôi phục dữ liệu đã lưu gần nhất từ trình duyệt", use_container_width=True):
-            saved_raw = local_storage.getItem(STORAGE_KEY)
-            if saved_raw:
-                try:
-                    loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
-                    
-                    if "so_hang_cls" in loaded_ls:
-                        st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
-                    if "uu_tien_co_quan" in loaded_ls:
-                        st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
-
-                    for k in default_fields:
-                        if k in loaded_ls:
-                            st.session_state[k] = loaded_ls[k]
-
-                    for i in range(st.session_state["so_hang_cls"]):
-                        if f"cls_kq_{i}" in loaded_ls:
-                            st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
-                        if f"cls_pg_{i}" in loaded_ls:
-                            st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
-
-                    st.toast("Đã khôi phục dữ liệu từ trình duyệt!", icon="✅")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Lỗi khi đọc bản nháp: {e}")
-            else:
-                st.warning("Chưa có bản nháp nào được lưu trên trình duyệt này.")
+    # Báo trạng thái tự động lưu & Nút xóa nháp khi muốn bắt đầu ca bệnh mới
+    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
+    if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", help="Xóa sạch dữ liệu đã lưu trong trình duyệt và làm mới toàn bộ form", use_container_width=True):
+        local_storage.deleteItem(STORAGE_KEY)
+        for k in default_fields:
+            st.session_state[k] = ""
+        st.session_state["so_hang_cls"] = 1
+        st.session_state["last_saved_snapshot"] = ""
+        st.toast("Đã làm sạch bản nháp!", icon="🗑️")
+        st.rerun()
 
     st.markdown("---")
     st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
@@ -1892,3 +1879,25 @@ with tab3:
             with st.expander(toggle_title, expanded=False):
                 st.markdown("**Gợi ý hướng trả lời (Teaching Points):**")
                 st.markdown(goi_y)
+# ==========================================
+# CƠ CHẾ TỰ ĐỘNG LƯU NHÁP (AUTO-SAVE ENGINE)
+# ==========================================
+# 1. Gom dữ liệu thực tế tại thời điểm render xong
+current_snapshot = {k: st.session_state.get(k, "") for k in default_fields}
+current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
+current_snapshot["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+
+for i in range(current_snapshot["so_hang_cls"]):
+    current_snapshot[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+    current_snapshot[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+
+snapshot_json = json.dumps(current_snapshot, ensure_ascii=False)
+
+# 2. Kiểm tra nếu có sự thay đổi nội dung thì mới ghi đè vào LocalStorage
+if st.session_state.get("last_saved_snapshot") != snapshot_json:
+    # Chỉ lưu nếu người dùng đã nhập ít nhất một trường cơ bản (tránh ghi đè khi form trống)
+    co_du_lieu = any(bool(str(st.session_state.get(k, "")).strip()) for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than"])
+    
+    if co_du_lieu:
+        local_storage.setItem(STORAGE_KEY, snapshot_json)
+        st.session_state["last_saved_snapshot"] = snapshot_json
