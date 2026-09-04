@@ -353,7 +353,7 @@ NORMAL_ORGAN_FINDINGS = {
     "kham_tuan_hoan": (
         "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n"
         "- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n"
-        "- Dấu hiệu Hartzer (-), không có rung miêu (Thrills).\n"
+        "- Dấu hiệu Hartzer (-), không có rung miêu.\n"
         "- Nhịp tim đều, tần số trùng nhịp mạch.\n"
         "- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n"
         "- Không có tiếng thổi bệnh lý ở các ổ van tim.\n"
@@ -362,25 +362,25 @@ NORMAL_ORGAN_FINDINGS = {
     "kham_ho_hap": (
         "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n"
         "- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n"
-        "- Rung thanh (Tactile fremitus) đều hai bên phế trường.\n"
+        "- Rung thanh đều hai bên phế trường.\n"
         "- Gõ trong hai bên phổi.\n"
-        "- Rì rào phế nang (Vesicular breath sounds) êm dịu hai phế trường.\n"
+        "- Rì rào phế nang êm dịu hai phế trường.\n"
         "- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy."
     ),
     "kham_tieu_hoa": (
         "- Bụng thon đều hai bên, di động theo nhịp thở, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ.\n"
-        "- Bụng mềm, không có điểm đau khu trú, không có đề kháng thành bụng (Guarding) hay cảm ứng phúc mạc (Peritoneal signs).\n"
+        "- Bụng mềm, không có điểm đau khu trú, không có phản ứng thành bụng hay cảm ứng phúc mạc.\n"
         "- Gan, lách không sờ thấy dưới bờ sườn, chiều cao gan trong giới hạn bình thường.\n"
         "- Các điểm đau ngoại khoa (Ruột thừa, Murphy, túi mật) âm tính.\n"
         "- Gõ trong toàn bụng, không có diện đục vùng thấp.\n"
-        "- Tiếng nhu động ruột bình thường (Bowel sounds: 5 - 15 lần/phút), không có tiếng thổi mạch máu bụng."
+        "- Tiếng nhu động ruột bình thường, không có tiếng thổi mạch máu bụng."
     ),
     "kham_than_kinh": (
         "- Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm.\n"
-        "- Không có dấu hiệu thần kinh khu trú (Focal neurological deficits).\n"
+        "- Không có dấu hiệu thần kinh khu trú.\n"
         "- Khám 12 đôi dây thần kinh sọ chưa phát hiện bệnh lý.\n"
         "- Trương lực cơ bình thường, cơ lực hai bên đều nhau (5/5).\n"
-        "- Phản xạ gân xương (DTR) tứ chi bình thường, đối xứng hai bên.\n"
+        "- Phản xạ gân xương tứ chi bình thường, đối xứng hai bên.\n"
         "- Dấu hiệu gáy mềm, Kernig (-), Brudzinski (-), Babinski (-) hai bên.\n"
         "- Cảm giác nông và sâu bình thường."
     ),
