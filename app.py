@@ -1183,8 +1183,38 @@ def export_pptx(data):
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
     
-    # Báo trạng thái tự động lưu & Nút xóa nháp khi muốn bắt đầu ca bệnh mới
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
+    
+    # 1. Nút nạp lại dữ liệu nháp đang lưu trong trình duyệt (rất quan trọng sau khi F5)
+    if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", help="Khôi phục lại bệnh án đang lưu trong trình duyệt", use_container_width=True):
+        saved_raw = local_storage.getItem(STORAGE_KEY)
+        if saved_raw:
+            try:
+                loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
+                
+                if "so_hang_cls" in loaded_ls:
+                    st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
+                if "uu_tien_co_quan" in loaded_ls:
+                    st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
+
+                for k in default_fields:
+                    if k in loaded_ls:
+                        st.session_state[k] = loaded_ls[k]
+
+                for i in range(st.session_state.get("so_hang_cls", 3)):
+                    if f"cls_kq_{i}" in loaded_ls:
+                        st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
+                    if f"cls_pg_{i}" in loaded_ls:
+                        st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
+
+                st.toast("Đã khôi phục bệnh án thành công!", icon="✅")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi khi đọc bản nháp: {e}")
+        else:
+            st.warning("Không tìm thấy dữ liệu nháp nào trên trình duyệt này.")
+
+    # 2. Nút xóa dữ liệu nháp khi hoàn thành ca bệnh
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", help="Xóa sạch dữ liệu đã lưu trong trình duyệt và làm mới toàn bộ form", use_container_width=True):
         local_storage.deleteItem(STORAGE_KEY)
         for k in default_fields:
@@ -1880,24 +1910,27 @@ with tab3:
                 st.markdown("**Gợi ý hướng trả lời (Teaching Points):**")
                 st.markdown(goi_y)
 # ==========================================
-# CƠ CHẾ TỰ ĐỘNG LƯU NHÁP (AUTO-SAVE ENGINE)
+# CƠ CHẾ TỰ ĐỘNG LƯU NHÁP (NẰM NGOÀI CÙNG, CUỐI FILE APP.PY)
 # ==========================================
-# 1. Gom dữ liệu thực tế tại thời điểm render xong
-current_snapshot = {k: st.session_state.get(k, "") for k in default_fields}
-current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
-current_snapshot["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+# 1. Kiểm tra xem người dùng có đang thực sự nhập liệu hay không
+co_du_lieu = any(
+    bool(str(st.session_state.get(k, "")).strip()) 
+    for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than", "sh_mach", "chan_doan_so_bo"]
+)
 
-for i in range(current_snapshot["so_hang_cls"]):
-    current_snapshot[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
-    current_snapshot[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+# 2. CHỈ TỰ ĐỘNG LƯU KHI CÓ DỮ LIỆU (Tuyệt đối không lưu đè khi vừa F5 mở trang trắng)
+if co_du_lieu:
+    current_snapshot = {k: st.session_state.get(k, "") for k in default_fields}
+    current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
+    current_snapshot["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
 
-snapshot_json = json.dumps(current_snapshot, ensure_ascii=False)
+    for i in range(current_snapshot["so_hang_cls"]):
+        current_snapshot[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+        current_snapshot[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
 
-# 2. Kiểm tra nếu có sự thay đổi nội dung thì mới ghi đè vào LocalStorage
-if st.session_state.get("last_saved_snapshot") != snapshot_json:
-    # Chỉ lưu nếu người dùng đã nhập ít nhất một trường cơ bản (tránh ghi đè khi form trống)
-    co_du_lieu = any(bool(str(st.session_state.get(k, "")).strip()) for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than"])
-    
-    if co_du_lieu:
+    snapshot_json = json.dumps(current_snapshot, ensure_ascii=False)
+
+    # Chỉ ghi vào LocalStorage nếu nội dung có thay đổi mới
+    if st.session_state.get("last_saved_snapshot") != snapshot_json:
         local_storage.setItem(STORAGE_KEY, snapshot_json)
         st.session_state["last_saved_snapshot"] = snapshot_json
