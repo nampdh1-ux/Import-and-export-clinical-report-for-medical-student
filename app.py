@@ -13,6 +13,7 @@ from pptx.enum.text import PP_ALIGN
 import json
 from streamlit_local_storage import LocalStorage
 import base64
+from PIL import Image
 from streamlit_pdf_viewer import pdf_viewer
 # 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
 local_storage = LocalStorage()
@@ -1749,7 +1750,80 @@ with tab1:
             
         st.markdown(f"<div class='sub-section-header'>XI. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
         st.caption("Mỗi hàng: Cột trái nhập kết quả hoặc kèm ảnh; Cột phải nhập biện giải tương ứng. Khi xuất PDF sẽ tự động xếp thành bảng 2 cột đối chiếu.")
-        
+        # --- TÍNH NĂNG OCR KẾT QUẢ XÉT NGHIỆM SIÊU TỐC BẰNG AI VISION ---
+        with st.container():
+            col_ocr_file, col_ocr_act = st.columns([2.5, 1])
+            with col_ocr_file:
+                lab_photo = st.file_uploader(
+                    "📷 Quét ảnh phiếu xét nghiệm (Huyết học, Sinh hóa, Nước tiểu...):",
+                    type=["png", "jpg", "jpeg"],
+                    key="uploader_ocr_lab"
+                )
+            with col_ocr_act:
+                st.write("")
+                st.write("")
+                btn_ocr = st.button("⚡ Trích xuất kết quả tức thì", type="primary", use_container_width=True, key="btn_ocr_lab")
+
+            if btn_ocr and lab_photo:
+                if "GEMINI_API_KEY" not in st.secrets:
+                    st.error("⚠️ Hệ thống chưa được cấu hình API Key trong Secrets!")
+                else:
+                    with st.spinner("AI đang quét bảng xét nghiệm và phiên giải bệnh lý..."):
+                        try:
+                            img_input = Image.open(lab_photo)
+                            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                            vision_model = genai.GenerativeModel("gemini-2.5-flash")
+
+                            ocr_prompt = """
+                            Bạn là một chuyên gia xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và trích xuất các chỉ số quan trọng theo đúng định dạng JSON.
+                            
+                            YÊU CẦU:
+                            1. Bỏ qua các thông tin hành chính, chỉ lấy các dòng kết quả xét nghiệm.
+                            2. Tách thành danh sách các cặp: "ket_qua" (Tên xét nghiệm + Giá trị đo được + Đơn vị) và "phien_giai" (Đánh giá Tăng / Giảm / Bình thường so với khoảng tham chiếu, kèm ý nghĩa định hướng lâm sàng ngắn gọn).
+                            3. Trả về DUY NHẤT một mảng JSON (Array of Objects), không viết thêm văn bản giải thích.
+                            
+                            Định dạng mẫu:
+                            [
+                              {
+                                "ket_qua": "Bạch cầu (WBC): 14.5 G/L (Bình thường: 4.0 - 10.0)",
+                                "phien_giai": "Tăng bạch cầu, gợi ý phản ứng viêm hoặc nhiễm trùng cấp tính."
+                              },
+                              {
+                                "ket_qua": "Glucose máu lúc đói: 8.5 mmol/L (Bình thường: 3.9 - 6.4)",
+                                "phien_giai": "Tăng đường huyết lúc đói, cần phối hợp HbA1c đánh giá Đái tháo đường."
+                              }
+                            ]
+                            """
+
+                            resp = vision_model.generate_content([ocr_prompt, img_input])
+                            raw_text = resp.text.strip()
+
+                            if raw_text.startswith("```json"):
+                                raw_text = raw_text[7:]
+                            elif raw_text.startswith("```"):
+                                raw_text = raw_text[3:]
+                            if raw_text.endswith("```"):
+                                raw_text = raw_text[:-3]
+
+                            lab_data = json.loads(raw_text.strip())
+
+                            if isinstance(lab_data, list) and len(lab_data) > 0:
+                                current_rows = st.session_state.get("so_hang_cls", 3)
+                                total_needed = max(current_rows, len(lab_data))
+                                st.session_state["so_hang_cls"] = total_needed
+
+                                for idx, item in enumerate(lab_data):
+                                    st.session_state[f"cls_kq_{idx}"] = item.get("ket_qua", "")
+                                    st.session_state[f"cls_pg_{idx}"] = item.get("phien_giai", "")
+
+                                st.toast(f"✅ Đã trích xuất thành công {len(lab_data)} chỉ số xét nghiệm!", icon="🧪")
+                                st.rerun()
+                            else:
+                                st.warning("Không tìm thấy dữ liệu xét nghiệm rõ ràng trong ảnh, vui lòng chụp lại góc rõ hơn.")
+                        except Exception as e:
+                            st.error(f"Lỗi khi xử lý ảnh xét nghiệm: {e}")
+            st.divider()
+        # -------------------------------------------------------------------------
         uploaded_imgs = {}
         for i in range(st.session_state["so_hang_cls"]):
             st.markdown(f"**Hàng {i + 1}:**")
