@@ -145,7 +145,20 @@ def send_login_notification(user_email):
         pass  # Không làm gián đoạn người dùng nếu có lỗi kết nối SMTP mạng
 
 # --- BẢO MẬT: MÀN HÌNH KHÓA XÁC THỰC GMAIL VÀ MẬT KHẨU NỘI BỘ ---
+# --- BẢO MẬT: MÀN HÌNH KHÓA XÁC THỰC GMAIL VÀ MẬT KHẨU NỘI BỘ (TỰ ĐỘNG BỎ QUA CHO ADMIN) ---
 def check_password():
+    # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?admin_key=...)
+    admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
+    url_admin_key = st.query_params.get("admin_key", "")
+    
+    if admin_token_secret and url_admin_key == admin_token_secret:
+        st.session_state["password_correct"] = True
+        st.session_state["is_admin"] = True
+        if "logged_in_user" not in st.session_state:
+            st.session_state["logged_in_user"] = "Admin"
+        return True
+
+    # 2. Nếu phiên làm việc đã được mở khóa trước đó
     if "password_correct" in st.session_state and st.session_state["password_correct"]:
         return True
 
@@ -191,7 +204,6 @@ def check_password():
 
 if not check_password():
     st.stop()  # Ngăn chặn toàn bộ code bên dưới thực thi nếu chưa xác thực
-# ----------------------------------------------------------------------  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
 # -------------------------------------------------------------
 
 # --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
