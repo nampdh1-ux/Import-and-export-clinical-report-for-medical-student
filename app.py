@@ -996,9 +996,7 @@ with st.sidebar:
 st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
 
-st.markdown("<div class='type-selector'>", unsafe_allow_html=True)
 loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
-st.markdown("</div>", unsafe_allow_html=True)
 
 # Khai báo Dictionary lưu trữ ảnh toàn cục
 uploaded_imgs = {}
