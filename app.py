@@ -107,31 +107,91 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
 st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # --- BẢO MẬT: MÀN HÌNH KHÓA TRUY CẬP BẰNG MẬT KHẨU NỘI BỘ ---
-def check_password():
-    def password_entered():
-        # Đối chiếu mật khẩu nhập vào với mật khẩu trong Secrets (mặc định fallback là 123456 nếu quên cài)
-        mat_khau_chuan = str(st.secrets.get("APP_PASSWORD", "123456")).strip()
-        if str(st.session_state.get("password_input", "")).strip() == mat_khau_chuan:
-            st.session_state["password_correct"] = True
-            if "password_input" in st.session_state:
-                del st.session_state["password_input"]  # Xóa password khỏi state để bảo mật
-        else:
-            st.session_state["password_correct"] = False
+import re
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-    if "password_correct" not in st.session_state:
+# --- HÀM GỬI EMAIL THÔNG BÁO NGẦM VỀ ADMIN ---
+def send_login_notification(user_email):
+    admin_mail = st.secrets.get("ADMIN_EMAIL")
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
+    
+    if not (admin_mail and sender_mail and sender_pass):
+        return  # Bỏ qua nếu chưa cấu hình SMTP secrets
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_mail
+        msg['To'] = admin_mail
+        msg['Subject'] = f"🔔 [Bệnh Án Lâm Sàng] Người dùng mới đăng nhập: {user_email}"
+        
+        login_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        body = f"""
+        Hệ thống Bệnh Án Lâm Sàng ghi nhận lượt truy cập thành công:
+        - Người dùng (Gmail): {user_email}
+        - Thời gian đăng nhập: {login_time}
+        """
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Kết nối qua SMTP của Gmail (Port 587 TLS)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        server.quit()
+    except Exception:
+        pass  # Không làm gián đoạn người dùng nếu có lỗi kết nối SMTP mạng
+
+# --- BẢO MẬT: MÀN HÌNH KHÓA XÁC THỰC GMAIL VÀ MẬT KHẨU NỘI BỘ ---
+def check_password():
+    if "password_correct" in st.session_state and st.session_state["password_correct"]:
+        return True
+
+    # Biểu thức chính quy kiểm tra định dạng Gmail hợp lệ
+    GMAIL_REGEX = r"^[a-zA-Z0-9](\.?[a-zA-Z0-9_-]){5,29}@gmail\.com$"
+
+    with st.container():
         st.markdown("### 🔒 Ứng dụng Bệnh án Lâm sàng (Nội bộ)")
-        st.caption("Ứng dụng dành riêng cho nhóm thực hành lâm sàng. Vui lòng nhập mã bảo vệ để tiếp tục:")
-        st.text_input("Mã truy cập:", type="password", on_change=password_entered, key="password_input")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.markdown("### 🔒 Ứng dụng Bệnh án Lâm sàng (Nội bộ)")
-        st.text_input("Mã truy cập:", type="password", on_change=password_entered, key="password_input")
-        st.error("❌ Mật khẩu không chính xác, vui lòng thử lại.")
-        return False
-    return True
+        st.caption("Vui lòng xác thực tài khoản Gmail và nhập mã truy cập để vào hệ thống:")
+        
+        col_form, _ = st.columns([1.5, 1])
+        with col_form:
+            input_email = st.text_input("Địa chỉ Gmail của bạn:", placeholder="tenban@gmail.com", key="login_email_input").strip().lower()
+            input_pass = st.text_input("Mã truy cập nội bộ:", type="password", key="login_pass_input")
+            
+            btn_login = st.button("Đăng nhập hệ thống", type="primary", use_container_width=True)
+            
+            if btn_login:
+                mat_khau_chuan = str(st.secrets.get("APP_PASSWORD", "123456")).strip()
+                
+                # 1. Kiểm tra định dạng Gmail thật
+                if not input_email or not re.match(GMAIL_REGEX, input_email):
+                    st.error("❌ Vui lòng nhập đúng định dạng Gmail hợp lệ (kết thúc bằng @gmail.com)!")
+                # 2. Kiểm tra mật khẩu truy cập
+                elif input_pass != mat_khau_chuan:
+                    st.error("❌ Mã truy cập không chính xác. Vui lòng thử lại!")
+                else:
+                    # Đăng nhập hợp lệ: Gửi mail thông báo về admin
+                    with st.spinner("Đang xác thực thông tin..."):
+                        send_login_notification(input_email)
+                    
+                    st.session_state["password_correct"] = True
+                    st.session_state["logged_in_user"] = input_email
+                    
+                    # Tự động điền tên người thực hiện nếu ô đó đang trống
+                    if not st.session_state.get("sinh_vien"):
+                        st.session_state["sinh_vien"] = input_email.split("@")[0]
+                        
+                    st.toast(f"Xin chào {input_email}! Đăng nhập thành công.", icon="👋")
+                    st.rerun()
+                    
+    return False
 
 if not check_password():
-    st.stop()  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
+    st.stop()  # Ngăn chặn toàn bộ code bên dưới thực thi nếu chưa xác thực
+# ----------------------------------------------------------------------  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
 # -------------------------------------------------------------
 
 # --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
