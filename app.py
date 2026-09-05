@@ -163,12 +163,99 @@ def generate_auth_token(email):
     return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
 
 # --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
-def check_password():
-    # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?admin_key=...)
-    admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
-    url_admin_key = st.query_params.get("nam", "")
+# ==============================================================================
+# BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
+# ==============================================================================
+
+AUTH_STORAGE_KEY = "clinical_user_auth_token"
+
+def generate_auth_token(email):
+    """Tạo mã băm an toàn gắn liền với email và khóa bí mật của hệ thống"""
+    secret = st.secrets.get("AUTH_SECRET_KEY", "default_secret_medical_key_2026")
+    raw_str = f"{email}_{secret}"
+    return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
+
+# 1. HÀM GỬI MÃ OTP VỀ GMAIL NGƯỜI DÙNG (Khai báo trước để check_password gọi được)
+def send_otp_email(target_email, otp_code):
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
     
+    if not (sender_mail and sender_pass):
+        st.error("⚠️ Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets!")
+        return False
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_mail
+        msg['To'] = target_email
+        msg['Subject'] = f"🔑 Mã xác thực truy cập Bệnh án Lâm sàng: {otp_code}"
+        
+        body = f"""
+        Xin chào,
+        
+        Mã xác thực (OTP) dùng để đăng nhập vào Ứng dụng Bệnh án Lâm sàng của bạn là:
+        
+        👉  {otp_code}  👈
+        
+        Mã có hiệu lực trong phiên đăng nhập này. Vui lòng không chia sẻ mã cho người khác.
+        """
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Lỗi kết nối gửi email xác thực: {e}")
+        return False
+
+# 2. HÀM GỬI THÔNG BÁO NGẦM VỀ CHO ADMIN
+def send_login_notification(user_email):
+    admin_mail = st.secrets.get("ADMIN_EMAIL")
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
+    
+    if not (admin_mail and sender_mail and sender_pass):
+        return
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_mail
+        msg['To'] = admin_mail
+        msg['Subject'] = f"🔔 [Bệnh Án Lâm Sàng] Người dùng mới đăng nhập: {user_email}"
+        
+        login_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        body = f"""
+        Hệ thống Bệnh Án Lâm Sàng ghi nhận lượt truy cập thành công:
+        - Người dùng (Gmail): {user_email}
+        - Thời gian đăng nhập: {login_time}
+        """
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        server.quit()
+    except Exception:
+        pass
+
+# 3. HÀM ĐIỀU PHỐI KIỂM TRA MẬT KHẨU & PHIÊN ĐĂNG NHẬP
+def check_password():
+    # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?nam=...)
+    # Bắt cả trường hợp ?nam=admin_pass hoặc chỉ cần gõ ?nam
+    admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
+    url_admin_key = str(st.query_params.get("nam", "")).strip()
+    
+    is_admin_access = False
     if admin_token_secret and url_admin_key == admin_token_secret:
+        is_admin_access = True
+    elif "nam" in st.query_params and not admin_token_secret:
+        is_admin_access = True
+
+    if is_admin_access:
         st.session_state["password_correct"] = True
         st.session_state["is_admin"] = True
         if "logged_in_user" not in st.session_state:
@@ -242,10 +329,8 @@ def check_password():
                 elif input_pass != mat_khau_chuan:
                     st.error("❌ Mã truy cập nội bộ không chính xác!")
                 else:
-                    # Gửi mail thông báo đăng nhập thiết bị mới về admin
                     send_login_notification(input_email)
                     
-                    # Lưu vé xác thực vĩnh viễn vào LocalStorage trên máy người dùng
                     token = generate_auth_token(input_email)
                     auth_payload = json.dumps({"email": input_email, "token": token}, ensure_ascii=False)
                     local_storage.setItem(AUTH_STORAGE_KEY, auth_payload)
