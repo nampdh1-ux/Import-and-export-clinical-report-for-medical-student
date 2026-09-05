@@ -163,89 +163,14 @@ def generate_auth_token(email):
     return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
 
 # --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
-# ==============================================================================
-# BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
-# ==============================================================================
+import time
 
-AUTH_STORAGE_KEY = "clinical_user_auth_token"
+# --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
+import time
 
-def generate_auth_token(email):
-    """Tạo mã băm an toàn gắn liền với email và khóa bí mật của hệ thống"""
-    secret = st.secrets.get("AUTH_SECRET_KEY", "default_secret_medical_key_2026")
-    raw_str = f"{email}_{secret}"
-    return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
-
-# 1. HÀM GỬI MÃ OTP VỀ GMAIL NGƯỜI DÙNG (Khai báo trước để check_password gọi được)
-def send_otp_email(target_email, otp_code):
-    sender_mail = st.secrets.get("SENDER_EMAIL")
-    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
-    
-    if not (sender_mail and sender_pass):
-        st.error("⚠️ Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets!")
-        return False
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender_mail
-        msg['To'] = target_email
-        msg['Subject'] = f"🔑 Mã xác thực truy cập Bệnh án Lâm sàng: {otp_code}"
-        
-        body = f"""
-        Xin chào,
-        
-        Mã xác thực (OTP) dùng để đăng nhập vào Ứng dụng Bệnh án Lâm sàng của bạn là:
-        
-        👉  {otp_code}  👈
-        
-        Mã có hiệu lực trong phiên đăng nhập này. Vui lòng không chia sẻ mã cho người khác.
-        """
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.starttls()
-        server.login(sender_mail, sender_pass)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        st.error(f"Lỗi kết nối gửi email xác thực: {e}")
-        return False
-
-# 2. HÀM GỬI THÔNG BÁO NGẦM VỀ CHO ADMIN
-def send_login_notification(user_email):
-    admin_mail = st.secrets.get("ADMIN_EMAIL")
-    sender_mail = st.secrets.get("SENDER_EMAIL")
-    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
-    
-    if not (admin_mail and sender_mail and sender_pass):
-        return
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender_mail
-        msg['To'] = admin_mail
-        msg['Subject'] = f"🔔 [Bệnh Án Lâm Sàng] Người dùng mới đăng nhập: {user_email}"
-        
-        login_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        body = f"""
-        Hệ thống Bệnh Án Lâm Sàng ghi nhận lượt truy cập thành công:
-        - Người dùng (Gmail): {user_email}
-        - Thời gian đăng nhập: {login_time}
-        """
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.starttls()
-        server.login(sender_mail, sender_pass)
-        server.send_message(msg)
-        server.quit()
-    except Exception:
-        pass
-
-# 3. HÀM ĐIỀU PHỐI KIỂM TRA MẬT KHẨU & PHIÊN ĐĂNG NHẬP
+# --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
 def check_password():
-    # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?nam=...)
-    # Bắt cả trường hợp ?nam=admin_pass hoặc chỉ cần gõ ?nam
+    # 1. Bypass cho Admin
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
     url_admin_key = str(st.query_params.get("nam", "")).strip()
     
@@ -262,34 +187,36 @@ def check_password():
             st.session_state["logged_in_user"] = "Admin"
         return True
 
-    # 2. Đã mở khóa trong phiên hiện tại (Session State)
+    # 2. Đã mở khóa trong phiên hiện tại
     if st.session_state.get("password_correct"):
         return True
 
-    # 3. Tự động kiểm tra vé ghi nhớ thiết bị trong LocalStorage của máy
+    # 3. Tự động kiểm tra vé ghi nhớ thiết bị trong LocalStorage
     try:
         saved_auth_raw = local_storage.getItem(AUTH_STORAGE_KEY)
         if saved_auth_raw:
+            # Xử lý tương thích nếu trả về chuỗi JSON hoặc Dict
             auth_data = json.loads(saved_auth_raw) if isinstance(saved_auth_raw, str) else saved_auth_raw
-            saved_email = auth_data.get("email", "")
-            saved_token = auth_data.get("token", "")
-            
-            # Nếu vé xác thực trên máy này khớp với chữ ký hệ thống -> BỎ QUA ĐĂNG NHẬP
-            if saved_email and saved_token == generate_auth_token(saved_email):
-                st.session_state["password_correct"] = True
-                st.session_state["logged_in_user"] = saved_email
-                if not st.session_state.get("sinh_vien"):
-                    st.session_state["sinh_vien"] = saved_email.split("@")[0]
-                return True
+            if isinstance(auth_data, dict):
+                saved_email = auth_data.get("email", "")
+                saved_token = auth_data.get("token", "")
+                
+                # Nếu vé xác thực trên máy khớp chữ ký -> MỞ KHÓA NGAY
+                if saved_email and saved_token == generate_auth_token(saved_email):
+                    st.session_state["password_correct"] = True
+                    st.session_state["logged_in_user"] = saved_email
+                    if not st.session_state.get("sinh_vien"):
+                        st.session_state["sinh_vien"] = saved_email.split("@")[0]
+                    st.rerun()
     except Exception:
         pass
 
-    # 4. Nếu là máy mới hoặc chưa lưu vé: Hiện màn hình OTP xác thực
+    # 4. Giao diện xác thực OTP nếu là máy mới
     GMAIL_REGEX = r"^[a-zA-Z0-9](\.?[a-zA-Z0-9_-]){5,29}@gmail\.com$"
 
     with st.container():
         st.markdown("### 🔒 Ứng dụng Bệnh án Lâm sàng (Nội bộ)")
-        st.caption("Vui lòng xác thực tài khoản Gmail chính chủ. Sau khi xác thực thành công, thiết bị này sẽ được tự động ghi nhớ:")
+        st.caption("Vui lòng xác thực tài khoản Gmail chính chủ. Sau khi xác thực, thiết bị này sẽ được tự động ghi nhớ:")
 
         col_form, _ = st.columns([1.5, 1])
         with col_form:
@@ -329,21 +256,26 @@ def check_password():
                 elif input_pass != mat_khau_chuan:
                     st.error("❌ Mã truy cập nội bộ không chính xác!")
                 else:
-                    send_login_notification(input_email)
-                    
-                    token = generate_auth_token(input_email)
-                    auth_payload = json.dumps({"email": input_email, "token": token}, ensure_ascii=False)
-                    local_storage.setItem(AUTH_STORAGE_KEY, auth_payload)
-                    
-                    st.session_state["password_correct"] = True
-                    st.session_state["logged_in_user"] = input_email
-                    
-                    if not st.session_state.get("sinh_vien"):
-                        st.session_state["sinh_vien"] = input_email.split("@")[0]
+                    with st.spinner("Đang lưu trạng thái và ghi nhớ thiết bị..."):
+                        send_login_notification(input_email)
                         
-                    st.session_state.pop("generated_otp", None)
-                    st.session_state.pop("otp_target_email", None)
-                    
+                        # 1. Tạo và lưu token vào LocalStorage trình duyệt
+                        token = generate_auth_token(input_email)
+                        auth_payload = json.dumps({"email": input_email, "token": token}, ensure_ascii=False)
+                        local_storage.setItem(AUTH_STORAGE_KEY, auth_payload)
+                        
+                        # 2. Nghỉ 1.2s để đảm bảo JavaScript của trình duyệt đã ghi đĩa xong
+                        time.sleep(1.2)
+                        
+                        st.session_state["password_correct"] = True
+                        st.session_state["logged_in_user"] = input_email
+                        
+                        if not st.session_state.get("sinh_vien"):
+                            st.session_state["sinh_vien"] = input_email.split("@")[0]
+                            
+                        st.session_state.pop("generated_otp", None)
+                        st.session_state.pop("otp_target_email", None)
+                        
                     st.toast("✅ Xác thực thành công! Đã ghi nhớ thiết bị này.", icon="🎉")
                     st.rerun()
 
