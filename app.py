@@ -1077,6 +1077,7 @@ def generate_intro_tom_tat_noi_khoa():
     )
 
 # --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_hau_phau():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
@@ -1090,39 +1091,50 @@ def generate_intro_tom_tat_hau_phau():
     # 1. Trích xuất Chẩn đoán trước mổ
     cd_truoc_mo = "..."
     m_cdtm = re.search(r"(?:chẩn đoán trước mổ|cđ trước mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_truoc_mo, re.IGNORECASE)
-    if m_cdtm:
+    if m_cdtm and m_cdtm.group(1).strip():
         cd_truoc_mo = m_cdtm.group(1).strip()
     elif bs_truoc_mo:
         cd_truoc_mo = bs_truoc_mo.split("\n")[-1].strip().lstrip("-*• ")
 
-    # 2. Trích xuất Phương pháp mổ & Cấp cứu hay Chương trình/Phiên
+    # 2. Trích xuất các trường từ form mẫu 5 dòng trong mổ
     pp_mo = "..."
     loai_mo = "cấp cứu/phiên"
-    if bs_trong_mo:
-        m_pp = re.search(r"(?:phương pháp phẫu thuật|phương pháp mổ|phẫu thuật|pt)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_trong_mo, re.IGNORECASE)
-        if m_pp:
-            pp_mo = m_pp.group(1).strip()
-        else:
-            first_line = bs_trong_mo.split("\n")[0].strip().lstrip("-*• ")
-            pp_mo = first_line if len(first_line) < 60 else "phẫu thuật"
-
-        bs_tm_lower = bs_trong_mo.lower()
-        if "cấp cứu" in bs_tm_lower:
-            loai_mo = "cấp cứu"
-        elif "chương trình" in bs_tm_lower or "mổ phiên" in bs_tm_lower:
-            loai_mo = "chương trình"
-
-    # 3. Trích xuất Chẩn đoán sau mổ
     cd_sau_mo = "..."
-    m_cdsm = re.search(r"(?:chẩn đoán sau mổ|cđ sau mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_trong_mo, re.IGNORECASE)
-    if m_cdsm:
-        cd_sau_mo = m_cdsm.group(1).strip()
-    elif cd_so_bo:
-        # Nếu đã ghi ở CĐ sơ bộ: "Hậu phẫu ngày 3 - Viêm phúc mạc ruột thừa..." -> lấy phần bệnh học
+    dien_bien_phau_thuat = "Quá trình mổ không có biến chứng."
+
+    if bs_trong_mo:
+        # Hình thức mổ: Mổ phiên hay Mổ cấp cứu
+        m_ht = re.search(r"(?:hình thức mổ|mổ phiên/mổ cấp cứu|mổ phiên hay mổ cấp cứu)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_ht:
+            txt_ht = m_ht.group(1).lower().strip()
+            if "cấp cứu" in txt_ht and "phiên" not in txt_ht:
+                loai_mo = "cấp cứu"
+            elif "phiên" in txt_ht or "chương trình" in txt_ht:
+                loai_mo = "chương trình"
+
+        # Phương pháp mổ
+        m_pp = re.search(r"(?:phương pháp mổ|phương pháp phẫu thuật|pt)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_pp and m_pp.group(1).strip():
+            pp_mo = m_pp.group(1).strip()
+
+        # Quá trình mổ: Đọc trực tiếp nội dung người dùng nhập, không gán mặc định
+        m_qtm = re.search(r"(?:quá trình mổ|diễn biến mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_qtm and m_qtm.group(1).strip():
+            val_qtm = m_qtm.group(1).strip().rstrip(".")
+            # Viết hoa chữ cái đầu và kết thúc bằng dấu chấm
+            dien_bien_phau_thuat = f"Quá trình mổ {val_qtm[0].lower() + val_qtm[1:] if val_qtm.lower().startswith('không') or val_qtm.lower().startswith('có') or val_qtm.lower().startswith('thuận') else val_qtm}."
+
+        # Chẩn đoán sau mổ
+        m_sm = re.search(r"(?:chẩn đoán sau mổ|cđ sau mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_sm and m_sm.group(1).strip():
+            cd_sau_mo = m_sm.group(1).strip()
+
+    # Dự phòng lấy chẩn đoán sau mổ từ chẩn đoán sơ bộ nếu chưa điền ở mục trong mổ
+    if cd_sau_mo == "..." and cd_so_bo:
         cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
         cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
 
-    # 4. Trích xuất Ngày hậu phẫu
+    # 3. Trích xuất Ngày hậu phẫu
     ngay_hp_val = str(st.session_state.get("ngay_hau_phau", "")).strip()
     m_hp = re.search(r"(?:ngày\s*(?:thứ)?\s*)(\d+)", ngay_hp_val, re.IGNORECASE)
     if m_hp:
@@ -1136,7 +1148,7 @@ def generate_intro_tom_tat_hau_phau():
         f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str} vào viện vì {ly_do}, "
         f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
         f"mổ {loai_mo}, chẩn đoán sau mổ là {cd_sau_mo}. "
-        f"Quá trình mổ không có biến chứng. Hiện tại hậu phẫu {ngay_hp_str}. "
+        f"{dien_bien_phau_thuat} Hiện tại hậu phẫu {ngay_hp_str}. "
         f"Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
     )
 
