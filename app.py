@@ -1079,7 +1079,7 @@ def ui_tom_tat(num):
                     else:
                         st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
                 else:
-                    st.session_state["tom_tat"] = cau_dan_moi + "\n- Hội chứng...\n- Triệu chứng..."
+                    st.session_state["tom_tat"] = cau_dan_moi
                 st.rerun()
 
     st.text_area(
