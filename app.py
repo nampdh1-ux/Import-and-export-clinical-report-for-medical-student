@@ -1,19 +1,25 @@
-import google.generativeai as genai
-import streamlit as st
-from fpdf import FPDF
+import base64
 from datetime import datetime
-import os
-import tempfile
-import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import hashlib
 import io
+import json
+import os
+import random
+import re
+import smtplib
+import tempfile
+
+from fpdf import FPDF
+import google.generativeai as genai
+from PIL import Image
 from pptx import Presentation
-from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
-import json
+from pptx.util import Inches, Pt
+import streamlit as st
 from streamlit_local_storage import LocalStorage
-import base64
-from PIL import Image
 from streamlit_pdf_viewer import pdf_viewer
 # --- HÀM ĐIỀU PHỐI API KEY THEO TỪNG TÍNH NĂNG ĐỂ TRÁNH QUÁ TẢI (RATE LIMIT) ---
 def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
