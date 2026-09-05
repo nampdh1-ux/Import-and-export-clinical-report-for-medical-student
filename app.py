@@ -202,14 +202,14 @@ def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
 STORAGE_KEY = "clinical_report_draft"
 
 FIELDS_TO_SAVE = [
-    "loai_benh_an",  # NEW: Phân loại bệnh án
+    "loai_benh_an",  # Phân loại bệnh án
     "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
     "ly_do_vao_vien", "benh_su", 
-    "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", # NEW: Bệnh sử hậu phẫu
+    "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", 
     "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
     "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
     "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
-    "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu", # NEW: Khám hậu phẫu
+    "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu", 
     "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
     "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
     "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
@@ -281,7 +281,6 @@ st.markdown("""
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
 # ==============================================================================
 def get_benh_su_text_for_ai():
-    """Gom bệnh sử để nạp cho AI thấu hiểu dựa trên loại bệnh án"""
     if st.session_state.get("loai_benh_an") == "Hậu phẫu":
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
     return st.session_state.get("benh_su")
@@ -312,7 +311,7 @@ class BenhAnPDF(FPDF):
         super().__init__(*args, **kwargs)
         self.add_font("Roboto", "", "Roboto-Regular.ttf")
         self.add_font("Roboto-Bold", "", "Roboto-Bold.ttf")
-        self.loai_ba = "Nội khoa / Tiền phẫu" # Set later
+        self.loai_ba = "Nội khoa / Tiền phẫu"
 
     def header(self):
         if self.page_no() == 1:
@@ -457,7 +456,7 @@ def export_pdf(data):
 
     # III. BỆNH SỬ
     pdf.add_section_header("III. BỆNH SỬ")
-    if data.get("loai_benh_an") == "Hậu phẫu":
+    if pdf.loai_ba == "Hậu phẫu":
         pdf.add_subsection_header("1. Tình trạng trước mổ:")
         pdf.add_body_text(format_bullet_points(data.get('bs_truoc_mo', '')))
         pdf.add_subsection_header("2. Tình trạng trong mổ:")
@@ -480,15 +479,17 @@ def export_pdf(data):
 
     # V. THĂM KHÁM LÂM SÀNG
     pdf.add_section_header("V. THĂM KHÁM LÂM SÀNG")
-    pdf.add_subsection_header("1. Thăm khám lúc vào viện:")
-    pdf.add_body_text(format_bullet_points(data.get('kham_vao_vien', '')))
     
-    pdf.add_subsection_header("2. Thăm khám hiện tại:")
-    
-    if data.get("loai_benh_an") == "Hậu phẫu":
+    if pdf.loai_ba == "Hậu phẫu":
+        pdf.add_subsection_header("1. Thăm khám hiện tại:")
         pdf.add_highlight_text(f"Đánh giá ngày hậu phẫu thứ: {data.get('ngay_hau_phau', '...')}")
-        
-    pdf.add_body_text("a. Toàn thân:")
+        pdf.add_body_text("a. Toàn thân:")
+    else:
+        pdf.add_subsection_header("1. Thăm khám lúc vào viện:")
+        pdf.add_body_text(format_bullet_points(data.get('kham_vao_vien', '')))
+        pdf.add_subsection_header("2. Thăm khám hiện tại:")
+        pdf.add_body_text("a. Toàn thân:")
+
     pdf.add_body_text(format_bullet_points(data.get('kham_toan_than', '')))
     
     # BẢNG SINH HIỆU
@@ -520,8 +521,7 @@ def export_pdf(data):
     pdf.cell(col_w3_3, 5.5, bmi_display, border=1, ln=True)
     pdf.ln(2)
     
-    # Hậu phẫu: Khám vết mổ và Dẫn lưu
-    if data.get("loai_benh_an") == "Hậu phẫu":
+    if pdf.loai_ba == "Hậu phẫu":
         pdf.add_body_text("b. Tình trạng vết mổ và dẫn lưu:")
         pdf.add_subsection_header("Vết mổ:")
         pdf.add_body_text(format_bullet_points(data.get('kham_vet_mo', '')))
@@ -560,50 +560,65 @@ def export_pdf(data):
         pdf.line(x, y, x + text_w, y)
         pdf.add_body_text(content)
 
-    # VI -> IX
-    pdf.add_section_header("VI. TÓM TẮT BỆNH ÁN")
-    pdf.render_tom_tat_pdf(data.get('tom_tat', ''))
+    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG THEO LOẠI BỆNH ÁN
+    if pdf.loai_ba == "Hậu phẫu":
+        num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+    else:
+        num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
 
-    pdf.add_section_header("VII. CHẨN ĐOÁN SƠ BỘ")
-    pdf.add_body_text(data.get('chan_doan_so_bo', ''))
+    def pdf_tt():
+        pdf.add_section_header(f"{num_tt}. TÓM TẮT BỆNH ÁN")
+        pdf.render_tom_tat_pdf(data.get('tom_tat', ''))
 
-    pdf.add_section_header("VIII. CHẨN ĐOÁN PHÂN BIỆT")
-    pdf.add_body_text(data.get('chan_doan_phan_biet', ''))
+    def pdf_cdsb():
+        pdf.add_section_header(f"{num_cdsb}. CHẨN ĐOÁN SƠ BỘ")
+        pdf.add_body_text(data.get('chan_doan_so_bo', ''))
+        pdf.add_section_header(f"{num_cdpb}. CHẨN ĐOÁN PHÂN BIỆT")
+        pdf.add_body_text(data.get('chan_doan_phan_biet', ''))
+        bl = str(data.get('bien_luan', '')).strip()
+        if bl:
+            pdf.add_section_header(f"{num_blsb}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
+            pdf.add_body_text(bl)
 
-    noi_dung_bien_luan = str(data.get('bien_luan', '')).strip()
-    if noi_dung_bien_luan:
-        pdf.add_section_header("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
-        pdf.add_body_text(noi_dung_bien_luan)
+    def pdf_cls():
+        pdf.add_section_header(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG")
+        pdf.add_subsection_header("1. Phục vụ chẩn đoán xác định:")
+        pdf.add_body_text(format_bullet_points(data.get('cls_dx_xac_dinh', '')))
+        pdf.add_subsection_header("2. Phục vụ điều trị:")
+        pdf.add_body_text(format_bullet_points(data.get('cls_dx_dieu_tri', '')))
+        pdf.add_subsection_header("3. Cận lâm sàng khác:")
+        pdf.add_body_text(format_bullet_points(data.get('cls_dx_khac', '')))
 
-    # X. CẬN LÂM SÀNG
-    pdf.add_section_header("X. ĐỀ XUẤT CẬN LÂM SÀNG")
-    pdf.add_subsection_header("1. Phục vụ chẩn đoán xác định:")
-    pdf.add_body_text(format_bullet_points(data.get('cls_dx_xac_dinh', '')))
-    pdf.add_subsection_header("2. Phục vụ điều trị:")
-    pdf.add_body_text(format_bullet_points(data.get('cls_dx_dieu_tri', '')))
-    pdf.add_subsection_header("3. Cận lâm sàng khác:")
-    pdf.add_body_text(format_bullet_points(data.get('cls_dx_khac', '')))
+        pdf.add_section_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ")
+        cls_rows = []
+        so_hang = data.get("so_hang_cls", 3)
+        for i in range(so_hang):
+            kq = data.get(f"cls_kq_{i}", "").strip()
+            pg = data.get(f"cls_pg_{i}", "").strip()
+            img = data.get(f"cls_img_{i}", None)
+            if kq or pg or img: cls_rows.append((kq, pg, img))
+        if not cls_rows: pdf.add_body_text("Chưa ghi nhận kết quả cận lâm sàng.")
+        else: pdf.render_table_cls(cls_rows)
 
-    pdf.add_section_header("XI. CẬN LÂM SÀNG ĐÃ CÓ")
-    cls_rows = []
-    so_hang = data.get("so_hang_cls", 3)
-    for i in range(so_hang):
-        kq = data.get(f"cls_kq_{i}", "").strip()
-        pg = data.get(f"cls_pg_{i}", "").strip()
-        img = data.get(f"cls_img_{i}", None)
-        if kq or pg or img: cls_rows.append((kq, pg, img))
+    def pdf_cdxd():
+        pdf.add_section_header(f"{num_cdxd}. CHẨN ĐOÁN XÁC ĐỊNH")
+        pdf.add_highlight_text(format_bullet_points(data.get('chan_doan_xac_dinh', '')))
+        noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
+        if noi_dung_bl_xd:
+            pdf.add_section_header(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
+            pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
 
-    if not cls_rows: pdf.add_body_text("Chưa ghi nhận kết quả cận lâm sàng.")
-    else: pdf.render_table_cls(cls_rows)
-
-    # XII -> XVI
-    pdf.add_section_header("XII. CHẨN ĐOÁN XÁC ĐỊNH")
-    pdf.add_highlight_text(format_bullet_points(data.get('chan_doan_xac_dinh', '')))
-
-    noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
-    if noi_dung_bl_xd:
-        pdf.add_section_header("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
-        pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
+    # TRIỂN KHAI TRẬT TỰ ĐỘNG
+    if pdf.loai_ba == "Hậu phẫu":
+        pdf_cdsb()
+        pdf_cls()
+        pdf_tt()
+        pdf_cdxd()
+    else:
+        pdf_tt()
+        pdf_cdsb()
+        pdf_cls()
+        pdf_cdxd()
 
     pdf.add_section_header("XIV. ĐIỀU TRỊ")
     pdf.add_subsection_header("1. Mục tiêu điều trị:")
@@ -713,7 +728,7 @@ def export_pptx(data):
     p3.font.size = Pt(16)
     p3.alignment = PP_ALIGN.CENTER
 
-    # Các phần nội dung
+    # I. HÀNH CHÍNH
     hc_items = [
         (f"Họ và tên: {str(data['ho_ten']).upper()}", False),
         (f"Tuổi: {data['tuoi']}   |   Giới tính: {data['gioi_tinh']}   |   Dân tộc: {data['dan_tok']}", False),
@@ -723,6 +738,7 @@ def export_pptx(data):
     ]
     add_content_with_overflow("I. PHẦN HÀNH CHÍNH", hc_items)
 
+    # II & III
     bs_items = [("1. Lý do vào viện:", True), (f"- {data.get('ly_do_vao_vien', '')}", False)]
     if loai_ba == "Hậu phẫu":
         for title, key in [("2. Tình trạng trước mổ:", "bs_truoc_mo"), ("3. Tình trạng trong mổ:", "bs_trong_mo"), ("4. Quá trình sau mổ:", "bs_sau_mo")]:
@@ -737,6 +753,7 @@ def export_pptx(data):
             bs_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in bs_text_lines])
     add_content_with_overflow("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", bs_items)
 
+    # IV
     ts_items = []
     for label, key in [("1. Tiền sử nội khoa:", "ts_noi_khoa"), ("2. Tiền sử ngoại khoa & dị ứng:", "ts_ngoai_khoa"), ("3. Lối sống & thói quen:", "ts_loi_song"), ("4. Tiền sử gia đình:", "ts_gia_dinh")]:
         lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
@@ -745,23 +762,27 @@ def export_pptx(data):
             ts_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
     if ts_items: add_content_with_overflow("IV. TIỀN SỬ", ts_items)
 
+    # V
     tk_items = []
-    if data.get("kham_vao_vien"): 
+    if loai_ba != "Hậu phẫu" and data.get("kham_vao_vien"): 
         tk_items.append(("1. Khám lúc vào viện:", True))
         tk_items.extend([(f"- {l.strip()}", False) for l in str(data['kham_vao_vien']).split("\n") if l.strip()])
         
     if data.get("kham_toan_than"):
-        tk_items.append(("2. Thăm khám hiện tại - Toàn thân:", True))
-        if loai_ba == "Hậu phẫu": tk_items.append((f"Hậu phẫu ngày thứ: {data.get('ngay_hau_phau', '...')}", False))
+        if loai_ba == "Hậu phẫu":
+            tk_items.append(("1. Thăm khám hiện tại - Toàn thân:", True))
+            tk_items.append((f"Hậu phẫu ngày thứ: {data.get('ngay_hau_phau', '...')}", False))
+        else:
+            tk_items.append(("2. Thăm khám hiện tại - Toàn thân:", True))
         tk_items.extend([(f"- {l.strip()}", False) for l in str(data['kham_toan_than']).split("\n") if l.strip()])
         
     if loai_ba == "Hậu phẫu" and (data.get("kham_vet_mo") or data.get("kham_dan_luu")):
-        tk_items.append(("3. Vết mổ & Dẫn lưu:", True))
+        tk_items.append(("2. Vết mổ & Dẫn lưu:", True))
         if data.get("kham_vet_mo"): tk_items.append((f"- Vết mổ: {data['kham_vet_mo']}", False))
         if data.get("kham_dan_luu"): tk_items.append((f"- Ống dẫn lưu: {data['kham_dan_luu']}", False))
-        tk_items.append(("4. Khám các cơ quan:", True))
-    else:
         tk_items.append(("3. Khám các cơ quan:", True))
+    else:
+        tk_items.append(("2. Khám các cơ quan:" if loai_ba == "Hậu phẫu" else "3. Khám các cơ quan:", True))
         
     cq_list = [("Tuần hoàn", "kham_tuan_hoan"), ("Hô hấp", "kham_ho_hap"), ("Tiêu hóa", "kham_tieu_hoa"), ("Thần kinh", "kham_than_kinh"), ("Thận - Tiết niệu", "kham_tiet_nieu"), ("Cơ xương khớp", "kham_co_xuong_khop")]
     for name, key in cq_list:
@@ -769,97 +790,119 @@ def export_pptx(data):
         if val: tk_items.append((f"- {name}: {val}", False))
     if tk_items: add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_items)
 
-    tt_items = []
-    lines_tt = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
-    if lines_tt:
-        tt_items.append(("Tóm tắt diễn biến ca bệnh:", True))
-        tt_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines_tt])
-        add_content_with_overflow("VI. TÓM TẮT BỆNH ÁN", tt_items)
+    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG PPTX
+    if loai_ba == "Hậu phẫu":
+        num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+    else:
+        num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
 
-    cd_items = []
-    if str(data.get("chan_doan_so_bo", "")).strip():
-        cd_items.append(("Chẩn đoán sơ bộ:", True))
-        cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_so_bo']).split("\n") if l.strip()])
-    if str(data.get("chan_doan_phan_biet", "")).strip():
-        cd_items.append(("Chẩn đoán phân biệt:", True))
-        cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_phan_biet']).split("\n") if l.strip()])
-    if cd_items: add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
+    def pptx_tt():
+        tt_items = []
+        lines_tt = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
+        if lines_tt:
+            tt_items.append(("Tóm tắt diễn biến ca bệnh:", True))
+            tt_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines_tt])
+            add_content_with_overflow(f"{num_tt}. TÓM TẮT BỆNH ÁN", tt_items)
 
-    lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
-    if lines_bl:
-        add_content_with_overflow("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", [("Biện luận lâm sàng:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in lines_bl])
+    def pptx_cdsb():
+        cd_items = []
+        if str(data.get("chan_doan_so_bo", "")).strip():
+            cd_items.append(("Chẩn đoán sơ bộ:", True))
+            cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_so_bo']).split("\n") if l.strip()])
+        if str(data.get("chan_doan_phan_biet", "")).strip():
+            cd_items.append(("Chẩn đoán phân biệt:", True))
+            cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_phan_biet']).split("\n") if l.strip()])
+        if cd_items: add_content_with_overflow(f"{num_cdsb} VÀ {num_cdpb}. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
 
-    cls_items = []
-    for label, key in [("1. Phục vụ chẩn đoán xác định:", "cls_dx_xac_dinh"), ("2. Phục vụ điều trị:", "cls_dx_dieu_tri"), ("3. Cận lâm sàng khác:", "cls_dx_khac")]:
-        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if lines:
-            cls_items.append((label, True))
-            cls_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
-    if cls_items: add_content_with_overflow("X. ĐỀ XUẤT CẬN LÂM SÀNG", cls_items)
+        lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
+        if lines_bl:
+            add_content_with_overflow(f"{num_blsb}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", [("Biện luận lâm sàng:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in lines_bl])
 
-    cls_rows = []
-    so_hang = data.get("so_hang_cls", 3)
-    for i in range(so_hang):
-        kq = data.get(f"cls_kq_{i}", "").strip()
-        pg = data.get(f"cls_pg_{i}", "").strip()
-        img = data.get(f"cls_img_{i}", None)
-        if kq or pg or img: cls_rows.append((kq, pg, img))
+    def pptx_cls():
+        cls_items = []
+        for label, key in [("1. Phục vụ chẩn đoán xác định:", "cls_dx_xac_dinh"), ("2. Phục vụ điều trị:", "cls_dx_dieu_tri"), ("3. Cận lâm sàng khác:", "cls_dx_khac")]:
+            lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
+            if lines:
+                cls_items.append((label, True))
+                cls_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
+        if cls_items: add_content_with_overflow(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG", cls_items)
 
-    if cls_rows:
-        rows_text_only = [item for item in cls_rows if not item[2]]
-        rows_with_img = [item for item in cls_rows if item[2]]
-        if rows_text_only:
-            table_chunks = [rows_text_only[i:i + 3] for i in range(0, len(rows_text_only), 3)]
-            for c_idx, chunk in enumerate(table_chunks):
-                slide = add_slide_with_header("XI. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else "XI. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)")
-                table_shape = slide.shapes.add_table(len(chunk) + 1, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
-                table = table_shape.table
-                table.columns[0].width = Inches(5.866)
-                table.columns[1].width = Inches(5.866)
-                table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
-                table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
-                for col_i in range(2):
-                    cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
-                    cell_p.font.bold = True
-                    cell_p.font.size = Pt(14)
-                    cell_p.font.color.rgb = COLOR_PRIMARY
-                for r_i, (kq, pg, _) in enumerate(chunk):
-                    table.cell(r_i + 1, 0).text = kq if kq else "-"
-                    table.cell(r_i + 1, 1).text = pg if pg else "-"
+        cls_rows = []
+        so_hang = data.get("so_hang_cls", 3)
+        for i in range(so_hang):
+            kq = data.get(f"cls_kq_{i}", "").strip()
+            pg = data.get(f"cls_pg_{i}", "").strip()
+            img = data.get(f"cls_img_{i}", None)
+            if kq or pg or img: cls_rows.append((kq, pg, img))
+
+        if cls_rows:
+            rows_text_only = [item for item in cls_rows if not item[2]]
+            rows_with_img = [item for item in cls_rows if item[2]]
+            if rows_text_only:
+                table_chunks = [rows_text_only[i:i + 3] for i in range(0, len(rows_text_only), 3)]
+                for c_idx, chunk in enumerate(table_chunks):
+                    slide = add_slide_with_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)")
+                    table_shape = slide.shapes.add_table(len(chunk) + 1, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
+                    table = table_shape.table
+                    table.columns[0].width = Inches(5.866)
+                    table.columns[1].width = Inches(5.866)
+                    table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
+                    table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
                     for col_i in range(2):
-                        cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
-                        cell_p.font.size = Pt(13)
-        temp_img_files = []
-        try:
-            for kq, pg, img in rows_with_img:
-                slide = add_slide_with_header("XI. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
-                suffix = os.path.splitext(img.name)[1]
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
-                    t_img.write(img.getbuffer())
-                    temp_path = t_img.name
-                    temp_img_files.append(temp_path)
-                try: slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
-                except: pass
-                tf_r = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0)).text_frame
-                tf_r.word_wrap = True
-                p_kq_title = tf_r.paragraphs[0]
-                p_kq_title.text, p_kq_title.font.bold, p_kq_title.font.underline, p_kq_title.font.size, p_kq_title.font.color.rgb = "Kết quả ghi nhận:", True, True, Pt(16), COLOR_PRIMARY
-                p_kq = tf_r.add_paragraph()
-                p_kq.text, p_kq.font.size, p_kq.space_after = kq if kq else "Hình ảnh xét nghiệm đính kèm", Pt(14.5), Pt(16)
-                p_pg_title = tf_r.add_paragraph()
-                p_pg_title.text, p_pg_title.font.bold, p_pg_title.font.underline, p_pg_title.font.size, p_pg_title.font.color.rgb = "Biện giải / Phiên giải:", True, True, Pt(16), COLOR_PRIMARY
-                p_pg = tf_r.add_paragraph()
-                p_pg.text, p_pg.font.size = pg if pg else "-", Pt(14.5)
-        finally:
-            for p in temp_img_files:
-                try: os.remove(p)
-                except: pass
+                        cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
+                        cell_p.font.bold = True
+                        cell_p.font.size = Pt(14)
+                        cell_p.font.color.rgb = COLOR_PRIMARY
+                    for r_i, (kq, pg, _) in enumerate(chunk):
+                        table.cell(r_i + 1, 0).text = kq if kq else "-"
+                        table.cell(r_i + 1, 1).text = pg if pg else "-"
+                        for col_i in range(2):
+                            cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
+                            cell_p.font.size = Pt(13)
+            temp_img_files = []
+            try:
+                for kq, pg, img in rows_with_img:
+                    slide = add_slide_with_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
+                    suffix = os.path.splitext(img.name)[1]
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
+                        t_img.write(img.getbuffer())
+                        temp_path = t_img.name
+                        temp_img_files.append(temp_path)
+                    try: slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
+                    except: pass
+                    tf_r = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0)).text_frame
+                    tf_r.word_wrap = True
+                    p_kq_title = tf_r.paragraphs[0]
+                    p_kq_title.text, p_kq_title.font.bold, p_kq_title.font.underline, p_kq_title.font.size, p_kq_title.font.color.rgb = "Kết quả ghi nhận:", True, True, Pt(16), COLOR_PRIMARY
+                    p_kq = tf_r.add_paragraph()
+                    p_kq.text, p_kq.font.size, p_kq.space_after = kq if kq else "Hình ảnh xét nghiệm đính kèm", Pt(14.5), Pt(16)
+                    p_pg_title = tf_r.add_paragraph()
+                    p_pg_title.text, p_pg_title.font.bold, p_pg_title.font.underline, p_pg_title.font.size, p_pg_title.font.color.rgb = "Biện giải / Phiên giải:", True, True, Pt(16), COLOR_PRIMARY
+                    p_pg = tf_r.add_paragraph()
+                    p_pg.text, p_pg.font.size = pg if pg else "-", Pt(14.5)
+            finally:
+                for p in temp_img_files:
+                    try: os.remove(p)
+                    except: pass
 
-    cdxd_lines = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
-    if cdxd_lines: add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", [("Chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in cdxd_lines], is_red=True)
+    def pptx_cdxd():
+        cdxd_lines = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
+        if cdxd_lines: add_content_with_overflow(f"{num_cdxd}. CHẨN ĐOÁN XÁC ĐỊNH", [("Chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in cdxd_lines], is_red=True)
 
-    blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
-    if blxd_lines: add_content_with_overflow("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", [("Biện luận chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in blxd_lines])
+        blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
+        if blxd_lines: add_content_with_overflow(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", [("Biện luận chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in blxd_lines])
+
+    # THỰC THI PPTX TRẬT TỰ ĐỘNG
+    if loai_ba == "Hậu phẫu":
+        pptx_cdsb()
+        pptx_cls()
+        pptx_tt()
+        pptx_cdxd()
+    else:
+        pptx_tt()
+        pptx_cdsb()
+        pptx_cls()
+        pptx_cdxd()
 
     dt_items = []
     for label, key in [("1. Mục tiêu điều trị:", "dt_muc_tieu"), ("2. Điều trị cụ thể:", "dt_cu_the"), ("3. Theo dõi sau điều trị:", "dt_theo_doi")]:
@@ -953,10 +996,148 @@ with st.sidebar:
 st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
 
-# NEW: Bộ chọn loại bệnh án
 st.markdown("<div class='type-selector'>", unsafe_allow_html=True)
 loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
 st.markdown("</div>", unsafe_allow_html=True)
+
+# Khai báo Dictionary lưu trữ ảnh toàn cục
+uploaded_imgs = {}
+
+# CÁC HÀM UI RỜI RẠC DÙNG CHUNG (Để hoán đổi vị trí)
+def ui_tom_tat(num):
+    st.text_area(f"{num}. Tóm tắt bệnh án:", key="tom_tat", height=110)
+
+def ui_cdsb(num_sb, num_pb, num_bl):
+    c_cd1, c_cd2 = st.columns(2)
+    with c_cd1:
+        placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
+        st.text_area(f"{num_sb}. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85, placeholder=placeholder_cd)
+    with c_cd2:
+        st.markdown(f"**{num_pb}. Chẩn đoán phân biệt:**")
+        if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
+            if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key bí mật!")
+            elif not str(st.session_state.get("chan_doan_so_bo", "")).strip(): st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ!")
+            else:
+                with st.spinner("AI đang phân tích lập luận chẩn đoán phân biệt..."):
+                    try:
+                        benh_su_str = get_benh_su_text_for_ai()
+                        context_cdpb = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nLý do vào viện: {st.session_state.get('ly_do_vao_vien')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
+                        model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
+                        prompt_cdpb = f"Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cdpb}), hãy đưa ra CHẨN ĐOÁN PHÂN BIỆT dạng danh sách đánh số từ khả năng cao nhất đến thấp nhất. Chỉ ghi danh sách, không văn vẻ thừa."
+                        resp_cdpb = model.generate_content(prompt_cdpb)
+                        st.session_state["chan_doan_phan_biet"] = resp_cdpb.text.strip()
+                        st.toast("Đã gợi ý danh sách chẩn đoán phân biệt!", icon="✨")
+                        st.rerun()
+                    except Exception as e: st.error(f"Lỗi AI: {e}")
+        st.text_area("Nội dung chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=85, label_visibility="collapsed")
+    st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=110)
+
+def ui_cls(num_dx, num_kq):
+    st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
+    if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
+        if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
+        else:
+            with st.spinner("AI đang phân tích chỉ định cận lâm sàng tối ưu..."):
+                try:
+                    benh_su_str = get_benh_su_text_for_ai()
+                    context_cls = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
+                    model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
+                    prompt_cls = f"Bạn là bác sĩ lâm sàng. Phân tích ca bệnh ({context_cls}) để chỉ định CẬN LÂM SÀNG. Nếu là Hậu phẫu, ưu tiên các xét nghiệm theo dõi biến chứng mổ. Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng xuống dòng, không dùng gạch đầu dòng."
+                    res_cls_text = model.generate_content(prompt_cls).text
+                    if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
+                        p1 = res_cls_text.split("[CLS_DIEU_TRI]")
+                        part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
+                        if "[CLS_KHAC]" in p1[1]:
+                            p2 = p1[1].split("[CLS_KHAC]")
+                            part_dt, part_khac = p2[0].strip(), p2[1].strip()
+                        else:
+                            part_dt, part_khac = p1[1].strip(), ""
+                        st.session_state["cls_dx_xac_dinh"] = part_xd
+                        st.session_state["cls_dx_dieu_tri"] = part_dt
+                        st.session_state["cls_dx_khac"] = part_khac
+                        st.success("✨ Đã gợi ý danh mục CLS thành công!")
+                        st.rerun()
+                    else: st.error("AI trả về sai định dạng.")
+                except Exception as e: st.error(f"Lỗi AI: {e}")
+
+    c_cls1, c_cls2, c_cls3 = st.columns(3)
+    with c_cls1: st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=130)
+    with c_cls2: st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=130)
+    with c_cls3: st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
+        
+    st.markdown(f"<div class='sub-section-header'>{num_kq}. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
+    with st.container():
+        col_ocr_file, col_ocr_act = st.columns([2.5, 1])
+        with col_ocr_file: lab_photos = st.file_uploader("📷 Tải lên ảnh phiếu xét nghiệm (cho phép nhiều ảnh):", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="uploader_ocr_lab_multi")
+        with col_ocr_act: 
+            st.write(""); st.write("")
+            btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
+
+        if btn_ocr and lab_photos:
+            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
+            if not vision_model: st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
+            else:
+                progress_bar = st.progress(0, text="Bắt đầu phân tích...")
+                ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
+                so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
+                last_used_idx = -1
+                for r in range(so_hang_cls):
+                    val_k, val_p = str(st.session_state.get(f"cls_kq_{r}", "")).strip(), str(st.session_state.get(f"cls_pg_{r}", "")).strip()
+                    if (val_k and val_k not in ["None", "-"]) or (val_p and val_p not in ["None", "-"]): last_used_idx = r
+
+                start_row = last_used_idx + 1
+                empty_rows = [start_row + i for i in range(len(lab_photos))]
+                if start_row + len(lab_photos) > so_hang_cls: st.session_state["so_hang_cls"] = start_row + len(lab_photos)
+
+                thanh_cong = 0
+                for idx, photo in enumerate(lab_photos):
+                    target_row = empty_rows[idx]
+                    progress_bar.progress(int((idx + 1) / len(lab_photos) * 100), text=f"Xử lý ảnh {idx + 1}/{len(lab_photos)}...")
+                    try:
+                        img_input = optimize_lab_image(photo)
+                        resp = vision_model.generate_content([ocr_prompt, img_input])
+                        raw_text = resp.text.strip()
+                        if raw_text.startswith("```json"): raw_text = raw_text[7:]
+                        elif raw_text.startswith("```"): raw_text = raw_text[3:]
+                        if raw_text.endswith("```"): raw_text = raw_text[:-3]
+
+                        lab_data = json.loads(raw_text.strip())
+                        if isinstance(lab_data, dict):
+                            st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
+                            st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
+                            thanh_cong += 1
+                    except Exception as e: st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
+
+                progress_bar.empty()
+                if thanh_cong > 0:
+                    st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
+                    st.rerun()
+        st.divider()
+
+    for i in range(st.session_state["so_hang_cls"]):
+        st.markdown(f"**Hàng {i + 1}:**")
+        col_left, col_right = st.columns([1, 1])
+        with col_left:
+            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
+            img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
+            if img:
+                uploaded_imgs[f"cls_img_{i}"] = img
+                st.image(img, width=180, caption=f"Ảnh hàng {i + 1}")
+        with col_right:
+            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
+        st.divider()
+
+    col_btn_them, col_btn_bot, _ = st.columns([2, 2, 6])
+    with col_btn_them:
+        if st.button("➕ Thêm kết quả cận lâm sàng"): st.session_state["so_hang_cls"] += 1; st.rerun()
+    with col_btn_bot:
+        if st.session_state["so_hang_cls"] > 1:
+            if st.button("➖ Bớt hàng cuối"): st.session_state["so_hang_cls"] -= 1; st.rerun()
+
+def ui_cdxd(num_xd, num_blxd):
+    placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
+    st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
+    st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
@@ -981,12 +1162,11 @@ with tab1:
     with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
         
-        # Giao diện động cho Bệnh sử
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
-            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Mổ phiên hay mổ cấp cứu, ngày giờ mổ, phương pháp vô cảm, phương pháp phẫu thuật, mô tả kỹ tổn thương, tai biến trong mổ (nếu có) và phương pháp xử trí...")
-            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Đây là phần quan trọng nhất, từ lúc rời phòng hồi tỉnh đến nay: nếu bệnh nhân mới mổ trong 24-48h đầu (chưa trung tiện), cần chú trọng khai thác tỉ mỉ các triệu chứng biểu hiện của tai biến do gây mê hoặc phẫu thuật. Nếu đã mổ được nhiều ngày thì mô tả 24-48h đầu chỉ khái quát không cần chi tiết nữa. ")
+            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Mổ phiên hay cấp cứu, ngày giờ mổ, vô cảm, phẫu thuật, tổn thương, tai biến trong mổ (nếu có)...")
+            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
 
@@ -1004,14 +1184,14 @@ with tab1:
             st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
 
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
-        st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
-        st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
-        
-        st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
-        
-        # Hiển thị ngày hậu phẫu nếu chọn form Hậu Phẫu
+        # Không hiển thị mục "Khám vào viện" nếu là Hậu phẫu
         if loai_benh_an == "Hậu phẫu":
+            st.markdown("<div class='sub-section-header'>1. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
             st.text_input("Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?", key="ngay_hau_phau", placeholder="VD: Ngày thứ 3 sau mổ (Giờ thứ 72)...")
+        else:
+            st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
+            st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
+            st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
 
         col_tt_mo_ta, col_tt_sh = st.columns([1.2, 1])
         with col_tt_mo_ta:
@@ -1039,13 +1219,12 @@ with tab1:
             else:
                 st.session_state["sh_bmi"], st.session_state["sh_bmi_eval"] = "", ""
         
-        # Khám vết mổ và dẫn lưu cho Hậu phẫu
         if loai_benh_an == "Hậu phẫu":
-            st.markdown("<div class='sub-section-header'>3. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
+            st.markdown("<div class='sub-section-header'>2. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
             c_vm, c_dl = st.columns(2)
             with c_vm: st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=85, placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
             with c_dl: st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=85, placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
-            st.markdown("<div class='sub-section-header'>4. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
+            st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
 
@@ -1074,16 +1253,16 @@ with tab1:
         if selected_organ_name != "Không ưu tiên (Thứ tự mặc định)":
             fav = next(item for item in ORGAN_DEF if item["name"] == selected_organ_name)
             others = [item for item in ORGAN_DEF if item["name"] != selected_organ_name]
-            st.markdown(f"**1. {fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
+            st.markdown(f"**{fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
             st.text_area(f"Khám {fav['name']}:", key=fav["key"], height=130)
             st.markdown("---")
             st.markdown("**Các cơ quan khác:**")
             c_cq1, c_cq2 = st.columns(2)
             half = len(others) // 2 + len(others) % 2
             with c_cq1:
-                for idx, org in enumerate(others[:half]): st.text_area(f"{idx + 2}. {org['name']}:", key=org["key"], height=85)
+                for idx, org in enumerate(others[:half]): st.text_area(f"{org['name']}:", key=org["key"], height=85)
             with c_cq2:
-                for idx, org in enumerate(others[half:]): st.text_area(f"{idx + 2 + half}. {org['name']}:", key=org["key"], height=85)
+                for idx, org in enumerate(others[half:]): st.text_area(f"{org['name']}:", key=org["key"], height=85)
         else:
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
@@ -1096,140 +1275,23 @@ with tab1:
                 st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
-    with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
-        st.text_area("VI. Tóm tắt bệnh án:", key="tom_tat", height=110)
-        c_cd1, c_cd2 = st.columns(2)
-        with c_cd1:
-            placeholder_cd = "Hậu phẫu ngày thứ?-Chẩn đoán sau mổ?-Tình trạng hiện tại?" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
-            st.text_area("VII. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85, placeholder=placeholder_cd)
-        with c_cd2:
-            st.markdown("**VIII. Chẩn đoán phân biệt:**")
-            if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
-                if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key bí mật!")
-                elif not str(st.session_state.get("chan_doan_so_bo", "")).strip(): st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ!")
-                else:
-                    with st.spinner("AI đang phân tích lập luận chẩn đoán phân biệt..."):
-                        try:
-                            benh_su_str = get_benh_su_text_for_ai()
-                            context_cdpb = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nLý do vào viện: {st.session_state.get('ly_do_vao_vien')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
-                            model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                            prompt_cdpb = f"Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cdpb}), hãy đưa ra CHẨN ĐOÁN PHÂN BIỆT dạng danh sách đánh số từ khả năng cao nhất đến thấp nhất. Chỉ ghi danh sách, không văn vẻ thừa."
-                            resp_cdpb = model.generate_content(prompt_cdpb)
-                            st.session_state["chan_doan_phan_biet"] = resp_cdpb.text.strip()
-                            st.toast("Đã gợi ý danh sách chẩn đoán phân biệt!", icon="✨")
-                            st.rerun()
-                        except Exception as e: st.error(f"Lỗi AI: {e}")
-            st.text_area("Nội dung chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=85, label_visibility="collapsed")
-        st.text_area("IX. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=110)
-
-    with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
-        st.markdown("<div class='sub-section-header'>X. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
-        if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
-            if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
-            else:
-                with st.spinner("AI đang phân tích chỉ định cận lâm sàng tối ưu..."):
-                    try:
-                        benh_su_str = get_benh_su_text_for_ai()
-                        context_cls = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
-                        model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt_cls = f"Bạn là bác sĩ lâm sàng. Phân tích ca bệnh ({context_cls}) để chỉ định CẬN LÂM SÀNG. Nếu là Hậu phẫu, ưu tiên các xét nghiệm theo dõi biến chứng mổ. Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng xuống dòng, không dùng gạch đầu dòng, không giải thích thừa."
-                        res_cls_text = model.generate_content(prompt_cls).text
-
-                        if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
-                            p1 = res_cls_text.split("[CLS_DIEU_TRI]")
-                            part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
-                            if "[CLS_KHAC]" in p1[1]:
-                                p2 = p1[1].split("[CLS_KHAC]")
-                                part_dt, part_khac = p2[0].strip(), p2[1].strip()
-                            else:
-                                part_dt, part_khac = p1[1].strip(), ""
-                            st.session_state["cls_dx_xac_dinh"] = part_xd
-                            st.session_state["cls_dx_dieu_tri"] = part_dt
-                            st.session_state["cls_dx_khac"] = part_khac
-                            st.success("✨ Đã gợi ý danh mục CLS thành công!")
-                            st.rerun()
-                        else: st.error("AI trả về sai định dạng.")
-                    except Exception as e: st.error(f"Lỗi AI: {e}")
-
-        c_cls1, c_cls2, c_cls3 = st.columns(3)
-        with c_cls1: st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=130)
-        with c_cls2: st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=130)
-        with c_cls3: st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
-            
-        st.markdown(f"<div class='sub-section-header'>XI. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
-        with st.container():
-            col_ocr_file, col_ocr_act = st.columns([2.5, 1])
-            with col_ocr_file: lab_photos = st.file_uploader("📷 Tải lên ảnh phiếu xét nghiệm (cho phép nhiều ảnh):", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="uploader_ocr_lab_multi")
-            with col_ocr_act: 
-                st.write(""); st.write("")
-                btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
-
-            if btn_ocr and lab_photos:
-                vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
-                if not vision_model: st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
-                else:
-                    progress_bar = st.progress(0, text="Bắt đầu phân tích...")
-                    ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
-                    so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
-                    last_used_idx = -1
-                    for r in range(so_hang_cls):
-                        val_k, val_p = str(st.session_state.get(f"cls_kq_{r}", "")).strip(), str(st.session_state.get(f"cls_pg_{r}", "")).strip()
-                        if (val_k and val_k not in ["None", "-"]) or (val_p and val_p not in ["None", "-"]): last_used_idx = r
-
-                    start_row = last_used_idx + 1
-                    empty_rows = [start_row + i for i in range(len(lab_photos))]
-                    if start_row + len(lab_photos) > so_hang_cls: st.session_state["so_hang_cls"] = start_row + len(lab_photos)
-
-                    thanh_cong = 0
-                    for idx, photo in enumerate(lab_photos):
-                        target_row = empty_rows[idx]
-                        progress_bar.progress(int((idx + 1) / len(lab_photos) * 100), text=f"Xử lý ảnh {idx + 1}/{len(lab_photos)}...")
-                        try:
-                            img_input = optimize_lab_image(photo)
-                            resp = vision_model.generate_content([ocr_prompt, img_input])
-                            raw_text = resp.text.strip()
-                            if raw_text.startswith("```json"): raw_text = raw_text[7:]
-                            elif raw_text.startswith("```"): raw_text = raw_text[3:]
-                            if raw_text.endswith("```"): raw_text = raw_text[:-3]
-
-                            lab_data = json.loads(raw_text.strip())
-                            if isinstance(lab_data, dict):
-                                st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
-                                st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
-                                thanh_cong += 1
-                        except Exception as e: st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
-
-                    progress_bar.empty()
-                    if thanh_cong > 0:
-                        st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
-                        st.rerun()
-            st.divider()
-
-        uploaded_imgs = {}
-        for i in range(st.session_state["so_hang_cls"]):
-            st.markdown(f"**Hàng {i + 1}:**")
-            col_left, col_right = st.columns([1, 1])
-            with col_left:
-                st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
-                img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
-                if img:
-                    uploaded_imgs[f"cls_img_{i}"] = img
-                    st.image(img, width=180, caption=f"Ảnh hàng {i + 1}")
-            with col_right:
-                st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
-            st.divider()
-
-        col_btn_them, col_btn_bot, _ = st.columns([2, 2, 6])
-        with col_btn_them:
-            if st.button("➕ Thêm kết quả cận lâm sàng"): st.session_state["so_hang_cls"] += 1; st.rerun()
-        with col_btn_bot:
-            if st.session_state["so_hang_cls"] > 1:
-                if st.button("➖ Bớt hàng cuối"): st.session_state["so_hang_cls"] -= 1; st.rerun()
-
-    with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
-        placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
-        st.text_area("XII. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
-        st.text_area("XIII. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
+    # --- KHỐI ĐỘNG CHUYỂN MẠCH VỊ TRÍ THEO LOẠI BỆNH ÁN ---
+    if loai_benh_an == "Hậu phẫu":
+        with st.expander("VI VÀ VII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", expanded=True):
+            ui_cdsb("VI", "VII", "VIII")
+        with st.expander("IX VÀ X. CẬN LÂM SÀNG", expanded=True):
+            ui_cls("IX", "X")
+        with st.expander("XI VÀ XII. TÓM TẮT BỆNH ÁN VÀ CHẨN ĐOÁN XÁC ĐỊNH", expanded=True):
+            ui_tom_tat("XI")
+            ui_cdxd("XII", "XIII")
+    else:
+        with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
+            ui_tom_tat("VI")
+            ui_cdsb("VII", "VIII", "IX")
+        with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
+            ui_cls("X", "XI")
+        with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
+            ui_cdxd("XII", "XIII")
 
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
@@ -1356,7 +1418,9 @@ with tab3:
     - Bệnh sử: {benh_su_str_pb}
     - Khám toàn thân: {st.session_state.get('kham_toan_than')} (Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau', 'Không có')})
     - Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}
-    - Đề xuất cận lâm sàng: {st.session_state.get('cls_dx_xac_dinh')}
+    - Cận lâm sàng: {st.session_state.get('cls_dx_xac_dinh')}
+    - Tóm tắt: {st.session_state.get('tom_tat')}
+    - Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}
     """
 
     col_btn_pb, col_mode = st.columns([1, 1.5])
