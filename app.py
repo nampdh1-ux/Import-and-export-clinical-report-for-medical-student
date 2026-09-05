@@ -1278,15 +1278,63 @@ def ui_cdsb(num_sb, num_pb, num_bl):
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
     if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
-        if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
+        if "GEMINI_API_KEY" not in st.secrets:
+            st.error("⚠️ Chưa cài đặt API Key!")
         else:
             with st.spinner("AI đang phân tích chỉ định cận lâm sàng tối ưu..."):
                 try:
                     benh_su_str = get_benh_su_text_for_ai()
-                    context_cls = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
                     model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                    prompt_cls = f"Bạn là bác sĩ lâm sàng. Phân tích ca bệnh ({context_cls}) để chỉ định CẬN LÂM SÀNG. Nếu là Hậu phẫu, ưu tiên các xét nghiệm theo dõi biến chứng mổ. Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng xuống dòng, không dùng gạch đầu dòng."
+                    
+                    if loai_benh_an == "Hậu phẫu":
+                        # Prompt chuyên biệt hóa tuyệt đối cho Hậu phẫu
+                        context_cls = (
+                            f"LOẠI BỆNH ÁN: HẬU PHẪU\n"
+                            f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                            f"Diễn biến trước/trong/sau mổ:\n{benh_su_str}\n"
+                            f"Khám toàn thân & Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}, {st.session_state.get('kham_toan_than')}\n"
+                            f"Khám ngày hậu phẫu: {st.session_state.get('ngay_hau_phau')}\n"
+                            f"Tình trạng vết mổ: {st.session_state.get('kham_vet_mo')}\n"
+                            f"Tình trạng ống dẫn lưu: {st.session_state.get('kham_dan_luu')}\n"
+                            f"Chẩn đoán sơ bộ hậu phẫu: {st.session_state.get('chan_doan_so_bo')}\n"
+                            f"Chẩn đoán phân biệt / Biến chứng nghi ngờ: {st.session_state.get('chan_doan_phan_biet')}\n"
+                        )
+                        prompt_cls = f"""
+                        Bạn là một phẫu thuật viên / bác sĩ ngoại khoa giàu kinh nghiệm. 
+                        Đối với ca bệnh HẬU PHẪU dưới đây, chẩn đoán bệnh nguyên đã rõ ràng qua phẫu thuật. 
+                        QUY TẮC CỐT LÕI: TUYỆT ĐỐI KHÔNG đề xuất lại các xét nghiệm chẩn đoán bệnh ban đầu (như siêu âm tìm sỏi, nội soi chẩn đoán u...). 
+                        CHỈ ĐỀ XUẤT các cận lâm sàng để theo dõi và phát hiện CÁC VẤN ĐỀ SAU MỔ, bao gồm:
+                        - Tầm soát và đánh giá biến chứng ngoại khoa khi cần thiết và nghi ngờ như: Chảy máu sau mổ (Hemoglobin/Hct tụt), tụ dịch/áp xe tồn dư, rò miệng nối/xì rò tiêu hóa, bục vết mổ, xẹp phổi/viêm phổi hậu phẫu, tắc ruột sau mổ.
+                        - Đánh giá hồi phục chức năng và chuyển hóa: Điện giải đồ (đặc biệt K+ trong hồi phục nhu động ruột), bilan viêm/nhiễm trùng (CTM, CRP/PCT), chức năng thận (Ure, Creatinine), vi sinh cấy dịch vết mổ/dẫn lưu nếu nghi nhiễm trùng.
+
+                        Dữ kiện ca bệnh:
+                        {context_cls}
+
+                        YÊU CẦU ĐẦU RA (Xuất đúng 3 nhãn sau, mỗi xét nghiệm xuống 1 dòng, không dùng gạch đầu dòng, không giải thích dài dòng):
+                        [CLS_XAC_DINH]
+                        (Các CLS để phát hiện/loại trừ biến chứng sau mổ đang theo dõi: VD Siêu âm ổ bụng kiểm tra dịch tồn dư, X-quang ngực thẳng, X-quang bụng không chuẩn bị...)
+                        [CLS_DIEU_TRI]
+                        (Các CLS theo dõi hồi phục và định hướng điều trị/chăm sóc: VD Tổng phân tích tế bào máu, Điện giải đồ, CRP, Ure, Creatinine, đường huyết...)
+                        [CLS_KHAC]
+                        (Cấy vi sinh dịch dẫn lưu/mủ vết mổ làm kháng sinh đồ nếu có chỉ định, khí máu động mạch, đông máu toàn bộ...)
+                        """
+                    else:
+                        # Prompt chuẩn cho Nội khoa / Tiền phẫu
+                        context_cls = (
+                            f"Loại bệnh án: {loai_benh_an}\n"
+                            f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                            f"Bệnh sử: {benh_su_str}\n"
+                            f"Khám: {st.session_state.get('kham_toan_than')}\n"
+                            f"Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}\n"
+                            f"Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}"
+                        )
+                        prompt_cls = f"""
+                        Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cls}), hãy chỉ định CẬN LÂM SÀNG cần thiết, hợp lý, tránh lạm dụng xét nghiệm:
+                        Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng danh sách xuống dòng, không dùng gạch đầu dòng, không giải thích thừa.
+                        """
+
                     res_cls_text = model.generate_content(prompt_cls).text
+
                     if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
                         p1 = res_cls_text.split("[CLS_DIEU_TRI]")
                         part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
@@ -1298,15 +1346,22 @@ def ui_cls(num_dx, num_kq):
                         st.session_state["cls_dx_xac_dinh"] = part_xd
                         st.session_state["cls_dx_dieu_tri"] = part_dt
                         st.session_state["cls_dx_khac"] = part_khac
-                        st.success("✨ Đã gợi ý danh mục CLS thành công!")
+                        st.success("✨ Đã gợi ý danh mục CLS theo dõi sau mổ thành công!")
                         st.rerun()
-                    else: st.error("AI trả về sai định dạng.")
-                except Exception as e: st.error(f"Lỗi AI: {e}")
+                    else:
+                        st.error("AI trả về sai định dạng cấu trúc nhãn.")
+                except Exception as e:
+                    st.error(f"Lỗi AI: {e}")
 
     c_cls1, c_cls2, c_cls3 = st.columns(3)
-    with c_cls1: st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=130)
-    with c_cls2: st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=130)
-    with c_cls3: st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
+    with c_cls1:
+        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if loai_benh_an == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+        st.text_area(nhan_cls1, key="cls_dx_xac_dinh", height=130)
+    with c_cls2:
+        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if loai_benh_an == "Hậu phẫu" else "2. Phục vụ điều trị:"
+        st.text_area(nhan_cls2, key="cls_dx_dieu_tri", height=130)
+    with c_cls3:
+        st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
         
     st.markdown(f"<div class='sub-section-header'>{num_kq}. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
     with st.container():
@@ -1321,7 +1376,7 @@ def ui_cls(num_dx, num_kq):
             if not vision_model: st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
             else:
                 progress_bar = st.progress(0, text="Bắt đầu phân tích...")
-                ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
+                ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \\n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
                 so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
                 last_used_idx = -1
                 for r in range(so_hang_cls):
