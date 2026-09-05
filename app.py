@@ -1,7 +1,4 @@
 import base64
-from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import hashlib
 import io
 import json
@@ -10,18 +7,29 @@ import random
 import re
 import smtplib
 import tempfile
+import time
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from fpdf import FPDF
-import google.generativeai as genai
 from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
+
+import google.generativeai as genai
 import streamlit as st
 from streamlit_local_storage import LocalStorage
 from streamlit_pdf_viewer import pdf_viewer
-# --- HÀM ĐIỀU PHỐI API KEY THEO TỪNG TÍNH NĂNG ĐỂ TRÁNH QUÁ TẢI (RATE LIMIT) ---
+
+# --- CẤU HÌNH TRANG ĐẦU TIÊN (Phải luôn nằm trên cùng) ---
+st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
+
+# ==============================================================================
+# HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
+# ==============================================================================
 def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
     """
     Lấy model AI với API key chuyên biệt cho từng tác vụ.
@@ -32,150 +40,12 @@ def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
         return None
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
-# 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
-local_storage = LocalStorage()
-STORAGE_KEY = "clinical_report_draft"
-
-# 2. Danh sách toàn bộ các trường cần lưu nháp (ĐÃ ĐỒNG BỘ VÀ ĐẦY ĐỦ 100%)
-FIELDS_TO_SAVE = [
-    # I. Hành chính
-    "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
-    # II & III. Lý do vào viện & Bệnh sử
-    "ly_do_vao_vien", "benh_su",
-    # IV. Tiền sử
-    "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
-    # V. Khám lâm sàng & Sinh hiệu
-    "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
-    "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
-    # Khám cơ quan
-    "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
-    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
-    # VI -> IX. Tóm tắt & Chẩn đoán sơ bộ
-    "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
-    # X. Đề xuất cận lâm sàng
-    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
-    # XII & XIII. Chẩn đoán xác định & Biện luận
-    "chan_doan_xac_dinh", "bien_luan_xac_dinh",
-    # XIV. Điều trị
-    "dt_muc_tieu", "dt_cu_the", "dt_theo_doi",
-    # XV & XVI. Tiên lượng & Tư vấn
-    "tien_luong", "tu_van",
-    # Cận lâm sàng động
-    "so_hang_cls"
-]
-
-# Đồng bộ luôn default_fields bằng FIELDS_TO_SAVE để tránh lệch pha giữa 2 danh sách
-default_fields = FIELDS_TO_SAVE
-
-# 3. Tự động nạp nháp khi mở trang hoặc F5
-# 3. Tự động nạp nháp khi mở trang hoặc F5
-if "da_khoi_phuc_tu_dong" not in st.session_state:
-    try:
-        draft_raw = local_storage.getItem(STORAGE_KEY)
-        if draft_raw:
-            loaded_ls = json.loads(draft_raw) if isinstance(draft_raw, str) else draft_raw
-            
-            if "so_hang_cls" in loaded_ls:
-                st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
-            if "uu_tien_co_quan" in loaded_ls:
-                st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
-
-            for k in FIELDS_TO_SAVE:
-                if k in loaded_ls:
-                    st.session_state[k] = loaded_ls[k]
-
-            # Ép kiểu an toàn cho các ô số
-            try:
-                st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
-            except (ValueError, TypeError):
-                st.session_state["tuoi"] = 45
-
-            try:
-                st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
-            except (ValueError, TypeError):
-                st.session_state["sh_can_nang"] = 0.0
-
-            try:
-                st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
-            except (ValueError, TypeError):
-                st.session_state["sh_chieu_cao"] = 0.0
-
-            # Nạp các hàng cận lâm sàng động
-            for i in range(st.session_state.get("so_hang_cls", 3)):
-                if f"cls_kq_{i}" in loaded_ls:
-                    st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
-                if f"cls_pg_{i}" in loaded_ls:
-                    st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
-    except Exception:
-        pass
-    st.session_state["da_khoi_phuc_tu_dong"] = True
-
-# --- CẤU HÌNH TRANG ĐẦU TIÊN ---
-st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
-# --- BẢO MẬT: MÀN HÌNH KHÓA TRUY CẬP BẰNG MẬT KHẨU NỘI BỘ ---
-import re
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-# --- HÀM GỬI EMAIL THÔNG BÁO NGẦM VỀ ADMIN ---
-def send_login_notification(user_email):
-    admin_mail = st.secrets.get("ADMIN_EMAIL")
-    sender_mail = st.secrets.get("SENDER_EMAIL")
-    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
-    
-    if not (admin_mail and sender_mail and sender_pass):
-        return  # Bỏ qua nếu chưa cấu hình SMTP secrets
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender_mail
-        msg['To'] = admin_mail
-        msg['Subject'] = f"🔔 [Bệnh Án Lâm Sàng] Người dùng mới đăng nhập: {user_email}"
-        
-        login_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        body = f"""
-        Hệ thống Bệnh Án Lâm Sàng ghi nhận lượt truy cập thành công:
-        - Người dùng (Gmail): {user_email}
-        - Thời gian đăng nhập: {login_time}
-        """
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Kết nối qua SMTP của Gmail (Port 587 TLS)
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.starttls()
-        server.login(sender_mail, sender_pass)
-        server.send_message(msg)
-        server.quit()
-    except Exception:
-        pass  # Không làm gián đoạn người dùng nếu có lỗi kết nối SMTP mạng
-
-# --- BẢO MẬT: MÀN HÌNH KHÓA XÁC THỰC GMAIL VÀ MẬT KHẨU NỘI BỘ ---
-# --- BẢO MẬT: MÀN HÌNH KHÓA XÁC THỰC GMAIL VÀ MẬT KHẨU NỘI BỘ (TỰ ĐỘNG BỎ QUA CHO ADMIN) ---
-import hashlib
-
-AUTH_STORAGE_KEY = "clinical_user_auth_token"
-
-def generate_auth_token(email):
-    """Tạo mã băm an toàn gắn liền với email và khóa bí mật của hệ thống"""
-    secret = st.secrets.get("AUTH_SECRET_KEY", "default_secret_medical_key_2026")
-    raw_str = f"{email}_{secret}"
-    return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
-
-# --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
-import time
-
-# --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
-import time
-
-# --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
-import time
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
 # ==============================================================================
-
 AUTH_STORAGE_KEY = "clinical_user_auth_token"
+local_storage = LocalStorage()
 
 def generate_auth_token(email):
     """Tạo mã băm an toàn gắn liền với email và khóa bí mật của hệ thống"""
@@ -360,7 +230,96 @@ if not check_password():
     st.stop()  # Ngăn chặn toàn bộ code bên dưới thực thi nếu chưa xác thực
 # -------------------------------------------------------------
 
-# --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
+# ==============================================================================
+# DANH MỤC TRƯỜNG DỮ LIỆU & NẠP BẢN NHÁP TỰ ĐỘNG
+# ==============================================================================
+STORAGE_KEY = "clinical_report_draft"
+
+FIELDS_TO_SAVE = [
+    "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
+    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
+    "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
+    "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
+    "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
+    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
+    "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
+    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
+    "chan_doan_xac_dinh", "bien_luan_xac_dinh",
+    "dt_muc_tieu", "dt_cu_the", "dt_theo_doi",
+    "tien_luong", "tu_van", "so_hang_cls"
+]
+
+def load_draft_to_session(loaded_ls):
+    """Hàm hỗ trợ nạp dữ liệu nháp vào session state"""
+    if "so_hang_cls" in loaded_ls:
+        st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
+    if "uu_tien_co_quan" in loaded_ls:
+        st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
+
+    for k in FIELDS_TO_SAVE:
+        if k in loaded_ls:
+            st.session_state[k] = loaded_ls[k]
+
+    try:
+        st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
+    except (ValueError, TypeError):
+        st.session_state["tuoi"] = 45
+
+    try:
+        st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
+    except (ValueError, TypeError):
+        st.session_state["sh_can_nang"] = 0.0
+
+    try:
+        st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
+    except (ValueError, TypeError):
+        st.session_state["sh_chieu_cao"] = 0.0
+
+    for i in range(st.session_state.get("so_hang_cls", 3)):
+        if f"cls_kq_{i}" in loaded_ls:
+            st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
+        if f"cls_pg_{i}" in loaded_ls:
+            st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
+
+# Tự động nạp nháp lần đầu
+if "da_khoi_phuc_tu_dong" not in st.session_state:
+    try:
+        draft_raw = local_storage.getItem(STORAGE_KEY)
+        if draft_raw:
+            loaded_ls = json.loads(draft_raw) if isinstance(draft_raw, str) else draft_raw
+            load_draft_to_session(loaded_ls)
+    except Exception:
+        pass
+    st.session_state["da_khoi_phuc_tu_dong"] = True
+
+# Khởi tạo giá trị mặc định cho Session State nếu chưa có
+if "so_hang_cls" not in st.session_state:
+    st.session_state["so_hang_cls"] = 3
+
+for field in FIELDS_TO_SAVE:
+    if field not in st.session_state:
+        if field == "tuoi":
+            st.session_state[field] = 45
+        elif field == "gioi_tinh":
+            st.session_state[field] = "Nam"
+        elif field == "dan_tok":
+            st.session_state[field] = "Kinh"
+        elif field == "ngay_vao_vien":
+            st.session_state[field] = datetime.now().strftime("%d/%m/%Y %H:%M")
+        elif field in ["sh_can_nang", "sh_chieu_cao"]:
+            st.session_state[field] = 0.0
+        elif field == "uu_tien_co_quan":
+            st.session_state[field] = "Không ưu tiên (Thứ tự mặc định)"
+        else:
+            st.session_state[field] = ""
+
+for i in range(st.session_state["so_hang_cls"]):
+    if f"cls_kq_{i}" not in st.session_state:
+        st.session_state[f"cls_kq_{i}"] = ""
+    if f"cls_pg_{i}" not in st.session_state:
+        st.session_state[f"cls_pg_{i}"] = ""
+
+# --- CSS TÙY BIẾN ---
 st.markdown("""
 <style>
     div[data-testid="stExpander"] {
@@ -412,41 +371,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- DANH MỤC CÁC TRƯỜNG DỮ LIỆU ---
-default_fields = [
-    "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
-    "ly_do_vao_vien", "benh_su", "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
-    "kham_vao_vien", "kham_toan_than", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa",
-    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
-    "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
-    "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
-    "chan_doan_xac_dinh", "bien_luan_xac_dinh", "dt_muc_tieu", "dt_cu_the", "dt_theo_doi",
-    "tien_luong", "tu_van"
-]
 
-if "so_hang_cls" not in st.session_state:
-    st.session_state["so_hang_cls"] = 3
-
-for field in default_fields:
-    if field not in st.session_state:
-        if field == "tuoi":
-            st.session_state[field] = 45
-        elif field == "gioi_tinh":
-            st.session_state[field] = "Nam"
-        elif field == "dan_tok":
-            st.session_state[field] = "Kinh"
-        elif field == "ngay_vao_vien":
-            st.session_state[field] = datetime.now().strftime("%d/%m/%Y %H:%M")
-        else:
-            st.session_state[field] = ""
-
-for i in range(st.session_state["so_hang_cls"]):
-    if f"cls_kq_{i}" not in st.session_state:
-        st.session_state[f"cls_kq_{i}"] = ""
-    if f"cls_pg_{i}" not in st.session_state:
-        st.session_state[f"cls_pg_{i}"] = ""
-
-# --- HÀM HỖ TRỢ ĐỊNH DẠNG BULLET POINTS TỰ ĐỘNG ---
+# ==============================================================================
+# CÁC HÀM XUẤT FILE PDF & POWERPOINT
+# ==============================================================================
 def format_bullet_points(text):
     if not text or not str(text).strip():
         return "Chưa ghi nhận thông tin."
@@ -461,7 +389,60 @@ def format_bullet_points(text):
                 formatted_lines.append(cleaned)
     return "\n".join(formatted_lines)
 
-# --- CLASS TẠO PDF BỆNH ÁN ---
+NORMAL_ORGAN_FINDINGS = {
+    "kham_tuan_hoan": (
+        "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n"
+        "- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n"
+        "- Dấu hiệu Hartzer (-), không có rung miêu.\n"
+        "- Nhịp tim đều, tần số trùng nhịp mạch.\n"
+        "- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n"
+        "- Không có tiếng thổi bệnh lý ở các ổ van tim.\n"
+        "- Mạch ngoại vi bắt rõ, đều hai bên."
+    ),
+    "kham_ho_hap": (
+        "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n"
+        "- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n"
+        "- Rung thanh đều hai bên phế trường.\n"
+        "- Gõ trong hai bên phổi.\n"
+        "- Rì rào phế nang êm dịu hai phế trường.\n"
+        "- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy."
+    ),
+    "kham_tieu_hoa": (
+        "- Bụng thon đều hai bên, di động theo nhịp thở, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ.\n"
+        "- Bụng mềm, không có điểm đau khu trú, không có phản ứng thành bụng hay cảm ứng phúc mạc.\n"
+        "- Gan, lách không sờ thấy dưới bờ sườn, chiều cao gan trong giới hạn bình thường.\n"
+        "- Các điểm đau ngoại khoa (Ruột thừa, Murphy, túi mật) âm tính.\n"
+        "- Gõ trong toàn bụng, không có diện đục vùng thấp.\n"
+        "- Tiếng nhu động ruột bình thường, không có tiếng thổi mạch máu bụng."
+    ),
+    "kham_than_kinh": (
+        "- Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm.\n"
+        "- Không có dấu hiệu thần kinh khu trú.\n"
+        "- Khám 12 đôi dây thần kinh sọ chưa phát hiện bệnh lý.\n"
+        "- Trương lực cơ bình thường, cơ lực hai bên đều nhau (5/5).\n"
+        "- Phản xạ gân xương tứ chi bình thường, đối xứng hai bên.\n"
+        "- Dấu hiệu gáy mềm, Kernig (-), Brudzinski (-), Babinski (-) hai bên.\n"
+        "- Cảm giác nông và sâu bình thường."
+    ),
+    "kham_tiet_nieu": (
+        "- Hố thắt lưng hai bên cân đối, không sưng đỏ, không gồ cao.\n"
+        "- Chạm thận (-), Bập bềnh thận (-).\n"
+        "- Rung thận (-) hai bên.\n"
+        "- Ấn các điểm niệu quản trên và giữa không đau.\n"
+        "- Cầu bàng quang (-)."
+    ),
+    "kham_co_xuong_khop": (
+        "- Các khớp không sưng, nóng, đỏ, không biến dạng hay lệch trục.\n"
+        "- Tầm vận động chủ động và thụ động các khớp trong giới hạn bình thường.\n"
+        "- Không teo cơ, không cứng khớp buổi sáng.\n"
+        "- Cột sống không gù vẹo, không có điểm đau chói dọc gai sống."
+    ),
+    "kham_co_quan_khac": (
+        "- Răng - Hàm - Mặt, Tai - Mũi - Họng: Chưa phát hiện bất thường.\n"
+        "- Nội tiết: Tuyến giáp không to, không có dấu hiệu suy hay cường giáp trên lâm sàng."
+    )
+}
+
 class BenhAnPDF(FPDF):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -612,61 +593,6 @@ class BenhAnPDF(FPDF):
                     except:
                         pass
 
-# --- HÀM XUẤT FILE PDF ---
-# --- BỘ KHÁM LÂM SÀNG BÌNH THƯỜNG CHUẨN MỰC (NORMAL CLINICAL FINDINGS) ---
-NORMAL_ORGAN_FINDINGS = {
-    "kham_tuan_hoan": (
-        "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n"
-        "- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n"
-        "- Dấu hiệu Hartzer (-), không có rung miêu.\n"
-        "- Nhịp tim đều, tần số trùng nhịp mạch.\n"
-        "- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n"
-        "- Không có tiếng thổi bệnh lý ở các ổ van tim.\n"
-        "- Mạch ngoại vi bắt rõ, đều hai bên."
-    ),
-    "kham_ho_hap": (
-        "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n"
-        "- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n"
-        "- Rung thanh đều hai bên phế trường.\n"
-        "- Gõ trong hai bên phổi.\n"
-        "- Rì rào phế nang êm dịu hai phế trường.\n"
-        "- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy."
-    ),
-    "kham_tieu_hoa": (
-        "- Bụng thon đều hai bên, di động theo nhịp thở, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ.\n"
-        "- Bụng mềm, không có điểm đau khu trú, không có phản ứng thành bụng hay cảm ứng phúc mạc.\n"
-        "- Gan, lách không sờ thấy dưới bờ sườn, chiều cao gan trong giới hạn bình thường.\n"
-        "- Các điểm đau ngoại khoa (Ruột thừa, Murphy, túi mật) âm tính.\n"
-        "- Gõ trong toàn bụng, không có diện đục vùng thấp.\n"
-        "- Tiếng nhu động ruột bình thường, không có tiếng thổi mạch máu bụng."
-    ),
-    "kham_than_kinh": (
-        "- Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm.\n"
-        "- Không có dấu hiệu thần kinh khu trú.\n"
-        "- Khám 12 đôi dây thần kinh sọ chưa phát hiện bệnh lý.\n"
-        "- Trương lực cơ bình thường, cơ lực hai bên đều nhau (5/5).\n"
-        "- Phản xạ gân xương tứ chi bình thường, đối xứng hai bên.\n"
-        "- Dấu hiệu gáy mềm, Kernig (-), Brudzinski (-), Babinski (-) hai bên.\n"
-        "- Cảm giác nông và sâu bình thường."
-    ),
-    "kham_tiet_nieu": (
-        "- Hố thắt lưng hai bên cân đối, không sưng đỏ, không gồ cao.\n"
-        "- Chạm thận (-), Bập bềnh thận (-).\n"
-        "- Rung thận (-) hai bên.\n"
-        "- Ấn các điểm niệu quản trên và giữa không đau.\n"
-        "- Cầu bàng quang (-)."
-    ),
-    "kham_co_xuong_khop": (
-        "- Các khớp không sưng, nóng, đỏ, không biến dạng hay lệch trục.\n"
-        "- Tầm vận động chủ động và thụ động các khớp trong giới hạn bình thường.\n"
-        "- Không teo cơ, không cứng khớp buổi sáng.\n"
-        "- Cột sống không gù vẹo, không có điểm đau chói dọc gai sống."
-    ),
-    "kham_co_quan_khac": (
-        "- Răng - Hàm - Mặt, Tai - Mũi - Họng: Chưa phát hiện bất thường.\n"
-        "- Nội tiết: Tuyến giáp không to, không có dấu hiệu suy hay cường giáp trên lâm sàng."
-    )
-}
 def export_pdf(data):
     pdf = BenhAnPDF()
     pdf.alias_nb_pages()
@@ -711,7 +637,7 @@ def export_pdf(data):
     pdf.add_subsection_header("2. Thăm khám hiện tại:")
     pdf.add_body_text("a. Toàn thân:")
     pdf.add_body_text(format_bullet_points(data['kham_toan_than']))
-    # BẢNG SINH HIỆU & THỂ TRẠNG (VITAL SIGNS & ANTHROPOMETRY)
+    # BẢNG SINH HIỆU & THỂ TRẠNG
     mach_val = data.get('sh_mach') or "--"
     nhiet_val = data.get('sh_nhiet_do') or "--"
     ha_val = data.get('sh_ha') or "--"
@@ -725,7 +651,6 @@ def export_pdf(data):
     pdf.set_draw_color(180, 180, 180)
     pdf.set_fill_color(245, 247, 250)
     
-    # Hàng 1: Mạch, Nhiệt độ, Huyết áp, Nhịp thở (chia 4 ô đều nhau)
     col_w4 = (pdf.w - pdf.l_margin - pdf.r_margin) / 4.0
     
     pdf.set_font("Roboto-Bold", size=8.5)
@@ -734,10 +659,9 @@ def export_pdf(data):
     pdf.cell(col_w4, 5.5, f"Huyết áp: {ha_val} mmHg", border=1, fill=True)
     pdf.cell(col_w4, 5.5, f"Nhịp thở: {nt_val} l/phút", border=1, fill=True, ln=True)
     
-    # Hàng 2: Chiều cao, Cân nặng, BMI & Kết luận thể trạng
     col_w3_1 = col_w4
     col_w3_2 = col_w4
-    col_w3_3 = col_w4 * 2.0  # Ô BMI rộng hơn để chứa kết luận
+    col_w3_3 = col_w4 * 2.0
     
     bmi_display = f"BMI: {bmi_num} kg/m² ({bmi_txt})" if bmi_num else "BMI: --"
     pdf.cell(col_w3_1, 5.5, f"Chiều cao: {cc_val} cm", border=1)
@@ -746,7 +670,6 @@ def export_pdf(data):
     pdf.ln(2)
     
     pdf.add_body_text("b. Các cơ quan:")
-    # Danh mục cơ quan tương ứng với key dữ liệu
     organ_list = [
         {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
         {"key": "kham_ho_hap", "name": "Hô hấp"},
@@ -759,7 +682,6 @@ def export_pdf(data):
 
     selected_organ = data.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
 
-    # Sắp xếp danh sách in ra PDF theo lựa chọn ưu tiên
     if selected_organ != "Không ưu tiên (Thứ tự mặc định)":
         fav = next((it for it in organ_list if it["name"] == selected_organ), None)
         others = [it for it in organ_list if it["name"] != selected_organ]
@@ -767,24 +689,18 @@ def export_pdf(data):
     else:
         render_list = organ_list
 
-    # In tuần tự ra PDF: cơ quan ưu tiên đứng đầu và có gạch chân bên dưới tên
     for org in render_list:
         content = format_bullet_points(data.get(org["key"], ""))
-        
-        # 1. In tên cơ quan bằng hàm tiêu đề phụ có sẵn trong PDF của bạn
         title_text = f"{org['name']}:"
         pdf.add_subsection_header(title_text)
         
-        # 2. Vẽ đường gạch chân ngay dưới chân chữ vừa in
-        # Lấy chiều rộng chuỗi text để đường gạch vừa vặn khít với tên cơ quan
         text_w = pdf.get_string_width(title_text)
         x = pdf.get_x()
-        y = pdf.get_y() - 1  # Đặt đường kẻ sát chân chữ
-        pdf.set_draw_color(50, 50, 50)  # Màu xám đậm / đen
-        pdf.set_line_width(0.3)         # Độ dày nét gạch chân
+        y = pdf.get_y() - 1
+        pdf.set_draw_color(50, 50, 50)
+        pdf.set_line_width(0.3)
         pdf.line(x, y, x + text_w, y)
         
-        # 3. In nội dung triệu chứng thăm khám bên dưới
         pdf.add_body_text(content)
 
     # VI. TÓM TẮT BỆNH ÁN
@@ -799,7 +715,7 @@ def export_pdf(data):
     pdf.add_section_header("VIII. CHẨN ĐOÁN PHÂN BIỆT")
     pdf.add_body_text(data['chan_doan_phan_biet'])
 
-    # IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (Ẩn nếu để trống)
+    # IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ
     noi_dung_bien_luan = str(data.get('bien_luan', '')).strip()
     if noi_dung_bien_luan:
         pdf.add_section_header("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
@@ -834,7 +750,7 @@ def export_pdf(data):
     pdf.add_section_header("XII. CHẨN ĐOÁN XÁC ĐỊNH")
     pdf.add_highlight_text(format_bullet_points(data['chan_doan_xac_dinh']))
 
-    # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH (Ẩn nếu để trống)
+    # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH
     noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
     if noi_dung_bl_xd:
         pdf.add_section_header("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
@@ -864,8 +780,6 @@ def export_pdf(data):
 
     return bytes(pdf.output())
 
-# --- HÀM XUẤT FILE POWERPOINT (PPTX) ---
-# --- HÀM XUẤT FILE POWERPOINT (PPTX) ĐÃ ĐƯỢC LÀM NỔI BẬT ĐỀ MỤC ---
 def export_pptx(data):
     prs = Presentation()
     prs.slide_width = Inches(13.333)
@@ -889,7 +803,6 @@ def export_pptx(data):
         p.font.bold = True
         p.font.color.rgb = COLOR_PRIMARY
 
-        # Vạch trang trí kép nhận diện HMU
         line_rose = slide.shapes.add_shape(1, Inches(0.8), Inches(1.3), Inches(0.6), Inches(0.06))
         line_rose.fill.solid()
         line_rose.fill.fore_color.rgb = COLOR_ACCENT
@@ -903,10 +816,6 @@ def export_pptx(data):
         return slide
 
     def add_content_with_overflow(title_text, items_list, is_red=False):
-        """
-        Nhận vào danh sách tuple: (text, is_header)
-        is_header=True -> Tự động IN ĐẬM, GẠCH CHÂN và đổi sang màu xanh thương hiệu.
-        """
         if not items_list:
             return
             
@@ -922,13 +831,17 @@ def export_pptx(data):
             tf.word_wrap = True
             
             for line_idx, item in enumerate(chunk):
-                text, is_sub_header = item
+                # Xử lý cho định dạng tuple (text, is_sub_header) hoặc chuỗi thường
+                if isinstance(item, tuple):
+                    text, is_sub_header = item
+                else:
+                    text, is_sub_header = item, False
+
                 p = tf.paragraphs[0] if line_idx == 0 else tf.add_paragraph()
                 p.text = text
                 p.font.name = "Calibri"
                 
                 if is_sub_header:
-                    # NỔI BẬT: IN ĐẬM + GẠCH CHÂN
                     p.font.size = Pt(19)
                     p.font.bold = True
                     p.font.underline = True
@@ -1055,7 +968,7 @@ def export_pptx(data):
     if cd_items:
         add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
 
-    # --- SLIDE: IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (Chỉ tạo slide khi có nội dung) ---
+    # --- SLIDE: IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ ---
     lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
     if lines_bl:
         bl_items = [("Biện luận lâm sàng:", True)]
@@ -1183,7 +1096,7 @@ def export_pptx(data):
             cdxd_items.append((f"- {l}" if not l.startswith("-") else l, False))
         add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", cdxd_items, is_red=True)
 
-    # --- SLIDE: XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH (Chỉ tạo slide khi có nội dung) ---
+    # --- SLIDE: XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH ---
     lines_blxd = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
     if lines_blxd:
         blxd_items = [("Biện luận chẩn đoán xác định:", True)]
@@ -1204,7 +1117,7 @@ def export_pptx(data):
     if dt_items:
         add_content_with_overflow("XIV. ĐIỀU TRỊ", dt_items)
 
-    # --- SLIDE: XV. TIÊN LƯỢNG (CHỈ TẠO KHI CÓ DỮ LIỆU) ---
+    # --- SLIDE: XV. TIÊN LƯỢNG ---
     lines_tl = [l.strip() for l in str(data.get("tien_luong", "")).split("\n") if l.strip()]
     if lines_tl:
         tl_items = [("Đánh giá tiên lượng bệnh nhân:", True)]
@@ -1212,7 +1125,7 @@ def export_pptx(data):
             tl_items.append((f"- {l}" if not l.startswith("-") else l, False))
         add_content_with_overflow("XV. TIÊN LƯỢNG", tl_items)
 
-    # --- SLIDE: XVI. TƯ VẤN (CHỈ TẠO KHI CÓ DỮ LIỆU) ---
+    # --- SLIDE: XVI. TƯ VẤN ---
     lines_tv = [l.strip() for l in str(data.get("tu_van", "")).split("\n") if l.strip()]
     if lines_tv:
         t_label = "XVI. TƯ VẤN" if lines_tl else "XV. TƯ VẤN"
@@ -1225,360 +1138,20 @@ def export_pptx(data):
     prs.save(pptx_io)
     pptx_io.seek(0)
     return pptx_io.getvalue()
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    blank_layout = prs.slide_layouts[6]
 
-    COLOR_PRIMARY = RGBColor(13, 71, 161)
-    COLOR_ACCENT = RGBColor(194, 24, 91)
-    COLOR_TEXT = RGBColor(30, 41, 59)
-    COLOR_RED = RGBColor(180, 0, 0)
-
-    def add_slide_with_header(title_text):
-        slide = prs.slides.add_slide(blank_layout)
-        header_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(11.733), Inches(0.9))
-        tf = header_box.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = title_text
-        p.font.name = "Calibri"
-        p.font.size = Pt(24)
-        p.font.bold = True
-        p.font.color.rgb = COLOR_PRIMARY
-
-        line_rose = slide.shapes.add_shape(1, Inches(0.8), Inches(1.3), Inches(0.6), Inches(0.06))
-        line_rose.fill.solid()
-        line_rose.fill.fore_color.rgb = COLOR_ACCENT
-        line_rose.line.fill.background()
-
-        line_blue = slide.shapes.add_shape(1, Inches(1.45), Inches(1.3), Inches(11.083), Inches(0.06))
-        line_blue.fill.solid()
-        line_blue.fill.fore_color.rgb = COLOR_PRIMARY
-        line_blue.line.fill.background()
-
-        return slide
-
-    def add_content_with_overflow(title_text, lines_list, is_red=False):
-        if not lines_list:
-            return
-        MAX_LINES_PER_SLIDE = 7
-        total_chunks = [lines_list[i:i + MAX_LINES_PER_SLIDE] for i in range(0, len(lines_list), MAX_LINES_PER_SLIDE)]
-
-        for idx, chunk in enumerate(total_chunks):
-            current_title = title_text if idx == 0 else f"{title_text} (tiếp theo)"
-            slide = add_slide_with_header(current_title)
-            
-            box = slide.shapes.add_textbox(Inches(0.8), Inches(1.6), Inches(11.733), Inches(5.2))
-            tf = box.text_frame
-            tf.word_wrap = True
-            
-            for line_idx, line in enumerate(chunk):
-                p = tf.paragraphs[0] if line_idx == 0 else tf.add_paragraph()
-                p.text = line
-                p.font.name = "Calibri"
-                p.font.size = Pt(17)
-                p.font.color.rgb = COLOR_RED if is_red else COLOR_TEXT
-                p.font.bold = is_red
-                p.space_after = Pt(12)
-
-    # Slide 1: Bìa
-    title_slide = prs.slides.add_slide(blank_layout)
-    t_box = title_slide.shapes.add_textbox(Inches(1.0), Inches(2.0), Inches(11.333), Inches(3.5))
-    tf_t = t_box.text_frame
-    tf_t.word_wrap = True
-    p1 = tf_t.paragraphs[0]
-    p1.text = "BỆNH ÁN LÂM SÀNG"
-    p1.font.size = Pt(38)
-    p1.font.bold = True
-    p1.font.color.rgb = COLOR_PRIMARY
-    p1.alignment = PP_ALIGN.CENTER
-    p1.space_after = Pt(16)
-
-    p2 = tf_t.add_paragraph()
-    p2.text = f"Bệnh nhân: {str(data['ho_ten']).upper()} | {data['tuoi']} tuổi | Giới tính: {data['gioi_tinh']}"
-    p2.font.size = Pt(20)
-    p2.font.color.rgb = COLOR_TEXT
-    p2.alignment = PP_ALIGN.CENTER
-    p2.space_after = Pt(8)
-
-    p3 = tf_t.add_paragraph()
-    p3.text = f"Khoa phòng: {data['khoa_phong']} | Người thực hiện: {data['sinh_vien']}"
-    p3.font.size = Pt(16)
-    p3.font.color.rgb = RGBColor(100, 116, 139)
-    p3.alignment = PP_ALIGN.CENTER
-
-    # Slide: I. Hành chính
-    hc_lines = [
-        f"Họ và tên: {str(data['ho_ten']).upper()}",
-        f"Tuổi: {data['tuoi']}   |   Giới tính: {data['gioi_tinh']}   |   Dân tộc: {data['dan_tok']}",
-        f"Nghề nghiệp: {data['nghe_nghiep']}",
-        f"Khoa / Phòng: {data['khoa_phong']}",
-        f"Địa chỉ: {data['dia_chi']}",
-        f"Ngày giờ vào viện: {data['ngay_vao_vien']}",
-        f"Bác sĩ hoặc Sinh viên thực hiện: {data['sinh_vien']}"
-    ]
-    add_content_with_overflow("I. PHẦN HÀNH CHÍNH", hc_lines)
-
-    # Slide: II & III. Lý do vào viện & Bệnh sử
-    bs_lines = [f"Lý do vào viện:\n- {data['ly_do_vao_vien']}"]
-    bs_text_lines = [l.strip() for l in str(data['benh_su']).split("\n") if l.strip()]
-    if bs_text_lines:
-        bs_lines.append("Bệnh sử:")
-        bs_lines.extend([f"- {l}" if not l.startswith("-") else l for l in bs_text_lines])
-    add_content_with_overflow("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", bs_lines)
-
-    # Slide: IV. Tiền sử
-    ts_lines = []
-    for label, key in [("1. Tiền sử nội khoa", "ts_noi_khoa"),
-                       ("2. Tiền sử ngoại khoa & dị ứng", "ts_ngoai_khoa"),
-                       ("3. Lối sống & thói quen", "ts_loi_song"),
-                       ("4. Tiền sử gia đình", "ts_gia_dinh")]:
-        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if items:
-            ts_lines.append(f"[{label}]")
-            ts_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
-    if ts_lines:
-        add_content_with_overflow("IV. TIỀN SỬ", ts_lines)
-
-    # Slide: V. Thăm khám
-    tk_lines = []
-    if str(data.get("kham_vao_vien", "")).strip():
-        tk_lines.append("[1. Khám lúc vào viện]")
-        tk_lines.extend([f"- {l.strip()}" for l in str(data['kham_vao_vien']).split("\n") if l.strip()])
-    if str(data.get("kham_toan_than", "")).strip():
-        tk_lines.append("[2. Toàn thân]")
-        tk_lines.extend([f"- {l.strip()}" for l in str(data['kham_toan_than']).split("\n") if l.strip()])
-    
-    co_quan = [("Tuần hoàn", "kham_tuan_hoan"), ("Hô hấp", "kham_ho_hap"), ("Tiêu hóa", "kham_tieu_hoa"),
-               ("Thần kinh", "kham_than_kinh"), ("Thận - Tiết niệu", "kham_tiet_nieu"), ("Cơ xương khớp", "kham_co_xuong_khop")]
-    for cq_name, cq_key in co_quan:
-        val = str(data.get(cq_key, "")).strip()
-        if val:
-            tk_lines.append(f"[{cq_name}]: {val}")
-    add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_lines)
-
-    # Slide: VI. Tóm tắt bệnh án
-    tt_lines = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
-    if tt_lines:
-        add_content_with_overflow("VI. TÓM TẮT BỆNH ÁN", tt_lines)
-
-    # Slide: VII & VIII. Chẩn đoán sơ bộ & phân biệt
-    cd_lines = []
-    if str(data.get("chan_doan_so_bo", "")).strip():
-        cd_lines.append("[Chẩn đoán sơ bộ]:")
-        cd_lines.extend([f"- {l.strip()}" for l in str(data['chan_doan_so_bo']).split("\n") if l.strip()])
-    if str(data.get("chan_doan_phan_biet", "")).strip():
-        cd_lines.append("[Chẩn đoán phân biệt]:")
-        cd_lines.extend([f"- {l.strip()}" for l in str(data['chan_doan_phan_biet']).split("\n") if l.strip()])
-    add_content_with_overflow("VII VÀ VIII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_lines)
-
-    # Slide: IX. Biện luận sơ bộ
-    bl_sb_lines = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
-    if bl_sb_lines:
-        add_content_with_overflow("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", bl_sb_lines)
-
-    # Slide: X. Đề xuất cận lâm sàng
-    cls_dx_lines = []
-    for label, key in [("1. Phục vụ chẩn đoán xác định", "cls_dx_xac_dinh"),
-                       ("2. Phục vụ điều trị", "cls_dx_dieu_tri"),
-                       ("3. Cận lâm sàng khác", "cls_dx_khac")]:
-        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if items:
-            cls_dx_lines.append(f"[{label}]")
-            cls_dx_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
-    if cls_dx_lines:
-        add_content_with_overflow("X. ĐỀ XUẤT CẬN LÂM SÀNG", cls_dx_lines)
-
-    # Slide: XI. Cận lâm sàng đã có (Bảng)
-    # --- SLIDE: XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG & ẢNH ĐÍNH KÈM) ---
-    cls_rows = []
-    so_hang = data.get("so_hang_cls", 3)
-    for i in range(so_hang):
-        kq = data.get(f"cls_kq_{i}", "").strip()
-        pg = data.get(f"cls_pg_{i}", "").strip()
-        img = data.get(f"cls_img_{i}", None)
-        if kq or pg or img:
-            cls_rows.append((kq, pg, img))
-
-    if cls_rows:
-        rows_text_only = []
-        rows_with_img = []
-        for item in cls_rows:
-            if item[2]:  # Có ảnh đính kèm
-                rows_with_img.append(item)
-            else:
-                rows_text_only.append(item)
-
-        # 1. Hiển thị các cận lâm sàng dạng chữ (Dạng bảng 2 cột)
-        if rows_text_only:
-            MAX_ROWS_PER_SLIDE = 3
-            table_chunks = [rows_text_only[i:i + MAX_ROWS_PER_SLIDE] for i in range(0, len(rows_text_only), MAX_ROWS_PER_SLIDE)]
-            for c_idx, chunk in enumerate(table_chunks):
-                t_title = "XI. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else "XI. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)"
-                slide = add_slide_with_header(t_title)
-                
-                rows_cnt = len(chunk) + 1
-                table_shape = slide.shapes.add_table(rows_cnt, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
-                table = table_shape.table
-                table.columns[0].width = Inches(5.866)
-                table.columns[1].width = Inches(5.866)
-
-                table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
-                table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
-                for col_i in range(2):
-                    cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
-                    cell_p.font.bold = True
-                    cell_p.font.size = Pt(14)
-                    cell_p.font.color.rgb = COLOR_PRIMARY
-
-                for r_i, (kq, pg, _) in enumerate(chunk):
-                    table.cell(r_i + 1, 0).text = kq if kq else "-"
-                    table.cell(r_i + 1, 1).text = pg if pg else "-"
-                    for col_i in range(2):
-                        cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
-                        cell_p.font.size = Pt(13)
-                        cell_p.font.color.rgb = COLOR_TEXT
-
-        # 2. Hiển thị các cận lâm sàng có kèm ảnh (Mỗi ảnh 1 slide riêng, chia đôi màn hình)
-        temp_img_files = []
-        try:
-            for kq, pg, img in rows_with_img:
-                slide = add_slide_with_header("XI. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
-                
-                # Lưu tạm ảnh để nạp vào slide
-                suffix = os.path.splitext(img.name)[1]
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
-                    t_img.write(img.getbuffer())
-                    temp_path = t_img.name
-                    temp_img_files.append(temp_path)
-
-                # Nửa bên trái: Ảnh (Kích thước tự động tối đa rộng 5.8 inch, cao 5.0 inch)
-                try:
-                    slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
-                except Exception:
-                    pass
-
-                # Nửa bên phải: Kết quả & Biện giải
-                right_box = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0))
-                tf_r = right_box.text_frame
-                tf_r.word_wrap = True
-
-                p_kq_title = tf_r.paragraphs[0]
-                p_kq_title.text = "Kết quả ghi nhận:"
-                p_kq_title.font.bold = True
-                p_kq_title.font.size = Pt(15)
-                p_kq_title.font.color.rgb = COLOR_PRIMARY
-                p_kq_title.space_after = Pt(4)
-
-                p_kq = tf_r.add_paragraph()
-                p_kq.text = kq if kq else "Hình ảnh đính kèm"
-                p_kq.font.size = Pt(14)
-                p_kq.font.color.rgb = COLOR_TEXT
-                p_kq.space_after = Pt(16)
-
-                p_pg_title = tf_r.add_paragraph()
-                p_pg_title.text = "Biện giải / Phiên giải:"
-                p_pg_title.font.bold = True
-                p_pg_title.font.size = Pt(15)
-                p_pg_title.font.color.rgb = COLOR_PRIMARY
-                p_pg_title.space_after = Pt(4)
-
-                p_pg = tf_r.add_paragraph()
-                p_pg.text = pg if pg else "-"
-                p_pg.font.size = Pt(14)
-                p_pg.font.color.rgb = COLOR_TEXT
-        finally:
-            for p in temp_img_files:
-                if os.path.exists(p):
-                    try:
-                        os.remove(p)
-                    except:
-                        pass
-
-    # Slide: XII. Chẩn đoán xác định (Đỏ đậm)
-    cdxd_lines = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
-    if cdxd_lines:
-        add_content_with_overflow("XII. CHẨN ĐOÁN XÁC ĐỊNH", cdxd_lines, is_red=True)
-
-    # Slide: XIII. Biện luận chẩn đoán xác định
-    blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
-    if blxd_lines:
-        add_content_with_overflow("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", blxd_lines)
-
-    # Slide: XIV. Điều trị
-    dt_lines = []
-    for label, key in [("1. Mục tiêu điều trị", "dt_muc_tieu"),
-                       ("2. Điều trị cụ thể", "dt_cu_the"),
-                       ("3. Theo dõi sau điều trị", "dt_theo_doi")]:
-        items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if items:
-            dt_lines.append(f"[{label}]")
-            dt_lines.extend([f"- {i}" if not i.startswith("-") else i for i in items])
-    if dt_lines:
-        add_content_with_overflow("XIV. ĐIỀU TRỊ", dt_lines)
-
-    # Slide: XV. Tiên lượng
-    tl_lines = [l.strip() for l in str(data.get("tien_luong", "")).split("\n") if l.strip()]
-    if tl_lines:
-        add_content_with_overflow("XV. TIÊN LƯỢNG", tl_lines)
-
-    # Slide: XVI. Tư vấn
-    tv_lines = [l.strip() for l in str(data.get("tu_van", "")).split("\n") if l.strip()]
-    if tv_lines:
-        t_label = "XVI. TƯ VẤN" if tl_lines else "XV. TƯ VẤN"
-        add_content_with_overflow(t_label, tv_lines)
-
-    pptx_io = io.BytesIO()
-    prs.save(pptx_io)
-    pptx_io.seek(0)
-    return pptx_io.getvalue()
-
-# --- SIDEBAR: XỬ LÝ LƯU & NẠP BẢN NHÁP ---
+# ==============================================================================
+# SIDEBAR: QUẢN LÝ BẢN NHÁP & ĐĂNG XUẤT
+# ==============================================================================
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
-    
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
     
-    # 1. Nút nạp lại dữ liệu nháp đang lưu trong trình duyệt (rất quan trọng sau khi F5)
-    # 1. Nút nạp lại dữ liệu nháp đang lưu trong trình duyệt
     if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", help="Khôi phục lại bệnh án đang lưu trong trình duyệt", use_container_width=True):
         saved_raw = local_storage.getItem(STORAGE_KEY)
         if saved_raw:
             try:
                 loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
-                
-                if "so_hang_cls" in loaded_ls:
-                    st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
-                if "uu_tien_co_quan" in loaded_ls:
-                    st.session_state["uu_tien_co_quan"] = loaded_ls["uu_tien_co_quan"]
-
-                for k in FIELDS_TO_SAVE:
-                    if k in loaded_ls:
-                        st.session_state[k] = loaded_ls[k]
-
-                # Ép kiểu an toàn cho các ô số
-                try:
-                    st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
-                except (ValueError, TypeError):
-                    st.session_state["tuoi"] = 45
-
-                try:
-                    st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
-                except (ValueError, TypeError):
-                    st.session_state["sh_can_nang"] = 0.0
-
-                try:
-                    st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
-                except (ValueError, TypeError):
-                    st.session_state["sh_chieu_cao"] = 0.0
-
-                for i in range(st.session_state.get("so_hang_cls", 3)):
-                    if f"cls_kq_{i}" in loaded_ls:
-                        st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
-                    if f"cls_pg_{i}" in loaded_ls:
-                        st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
-
+                load_draft_to_session(loaded_ls)
                 st.toast("Đã khôi phục bệnh án thành công!", icon="✅")
                 st.rerun()
             except Exception as e:
@@ -1586,18 +1159,15 @@ with st.sidebar:
         else:
             st.warning("Không tìm thấy dữ liệu nháp nào trên trình duyệt này.")
 
-    # 2. Nút xóa dữ liệu nháp khi hoàn thành ca bệnh (Đã phân loại chuẩn kiểu dữ liệu)
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", help="Xóa sạch dữ liệu đã lưu trong trình duyệt và làm mới toàn bộ form", use_container_width=True):
         local_storage.deleteItem(STORAGE_KEY)
-        
-        # Đặt lại giá trị ban đầu theo đúng kiểu dữ liệu của từng widget
         for k in FIELDS_TO_SAVE:
             if k == "tuoi":
-                st.session_state[k] = 45  # Số nguyên (int)
+                st.session_state[k] = 45
             elif k in ["sh_can_nang", "sh_chieu_cao"]:
-                st.session_state[k] = 0.0  # Số thực (float)
+                st.session_state[k] = 0.0
             elif k == "gioi_tinh":
-                st.session_state[k] = "Nam"  # Selectbox
+                st.session_state[k] = "Nam"
             elif k == "dan_tok":
                 st.session_state[k] = "Kinh"
             elif k == "uu_tien_co_quan":
@@ -1605,11 +1175,10 @@ with st.sidebar:
             elif k == "ngay_vao_vien":
                 st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
             else:
-                st.session_state[k] = ""  # Các trường văn bản đặt về chuỗi rỗng
+                st.session_state[k] = ""
         
-        # Dọn sạch các hàng cận lâm sàng động
         st.session_state["so_hang_cls"] = 3
-        for i in range(10):  # Dọn sạch tối đa 10 hàng cũ
+        for i in range(10):
             st.session_state[f"cls_kq_{i}"] = ""
             st.session_state[f"cls_pg_{i}"] = ""
         
@@ -1620,7 +1189,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
     
-    current_data = {k: st.session_state.get(k, "") for k in default_fields}
+    current_data = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
     current_data["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
     for i in range(current_data["so_hang_cls"]):
         current_data[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
@@ -1647,22 +1216,13 @@ with st.sidebar:
         if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
             try:
                 loaded_data = json.load(file_nhap)
-                if "so_hang_cls" in loaded_data:
-                    st.session_state["so_hang_cls"] = int(loaded_data["so_hang_cls"])
-                for k in default_fields:
-                    if k in loaded_data:
-                        st.session_state[k] = loaded_data[k]
-                for i in range(st.session_state["so_hang_cls"]):
-                    if f"cls_kq_{i}" in loaded_data:
-                        st.session_state[f"cls_kq_{i}"] = loaded_data[f"cls_kq_{i}"]
-                    if f"cls_pg_{i}" in loaded_data:
-                        st.session_state[f"cls_pg_{i}"] = loaded_data[f"cls_pg_{i}"]
-                        
+                load_draft_to_session(loaded_data)
                 st.success("Đã nạp bản nháp thành công!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Không thể đọc file: {e}")
-    # Nút đăng xuất xóa ghi nhớ thiết bị
+
+    # Đăng xuất
     if st.session_state.get("password_correct") and not st.session_state.get("is_admin"):
         st.markdown("---")
         if st.button("🚪 Đăng xuất khỏi thiết bị này", help="Xóa vé ghi nhớ, lần sau mở máy này sẽ phải xác thực lại OTP"):
@@ -1670,14 +1230,16 @@ with st.sidebar:
             st.session_state["password_correct"] = False
             st.session_state.pop("logged_in_user", None)
             st.rerun()
-# --- GIAO DIỆN CHÍNH ---
+
+# ==============================================================================
+# GIAO DIỆN CHÍNH (3 TABS)
+# ==============================================================================
 st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng.")
 
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
-    # 1. HÀNH CHÍNH (EXPANDER)
     with st.expander("I. PHẦN HÀNH CHÍNH", expanded=True):
         c_hc1, c_hc2, c_hc3 = st.columns(3)
         with c_hc1:
@@ -1698,12 +1260,10 @@ with tab1:
         with c_hc6:
             st.text_input("Ngày giờ vào viện", key="ngay_vao_vien")
 
-    # 2. LÝ DO VÀO VIỆN & BỆNH SỬ (EXPANDER)
     with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Đau thắt ngực trái giờ thứ 2 lan vai trái...", height=65)
         st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
 
-    # 3. TIỀN SỬ (EXPANDER)
     with st.expander("IV. TIỀN SỬ", expanded=True):
         st.caption("Lưu ý: Mỗi lần nhấn xuống dòng, hệ thống sẽ tự động chuyển thành gạch đầu dòng trong tập tin xuất ra.")
         c_ts1, c_ts2 = st.columns(2)
@@ -1720,7 +1280,6 @@ with tab1:
             st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
             st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
 
-    # 4. THĂM KHÁM LÂM SÀNG (EXPANDER)
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
         st.caption("Lưu ý: Tất cả các ô thăm khám khi nhấn xuống dòng sẽ tự động tạo gạch đầu dòng trong tập tin xuất ra.")
         st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
@@ -1751,13 +1310,11 @@ with tab1:
                 st.text_input("Nhịp thở (lần/phút):", key="sh_nhip_tho", placeholder="VD: 18")
                 st.number_input("Chiều cao (cm):", key="sh_chieu_cao", min_value=0.0, max_value=230.0, value=float(st.session_state.get("sh_chieu_cao", 0.0)), step=1.0)
             
-            # Tính toán chỉ số khối cơ thể (BMI - Body Mass Index)
             w = st.session_state.get("sh_can_nang", 0.0)
             h = st.session_state.get("sh_chieu_cao", 0.0)
             if w > 0 and h > 0:
                 h_m = h / 100.0
                 bmi_val = round(w / (h_m * h_m), 1)
-                # Phân loại BMI theo tiêu chuẩn WHO cho người Châu Á (WPRO)
                 if bmi_val < 18.5:
                     bmi_eval = "Gầy / Thiếu cân (Underweight)"
                 elif bmi_val <= 22.9:
@@ -1775,7 +1332,6 @@ with tab1:
                 st.session_state["sh_bmi_eval"] = ""
         
         st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
-        # --- HÀM XỬ LÝ ĐIỀN KHÁM BÌNH THƯỜNG TRỰC TIẾP ---
         def xu_ly_dien_kham_binh_thuong():
             dem = 0
             for k_cq, norm_val in NORMAL_ORGAN_FINDINGS.items():
@@ -1818,9 +1374,7 @@ with tab1:
             st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
             
         st.markdown("---")
-    
 
-        # Danh mục 7 cơ quan khớp chuẩn với key hiện tại trong dự án của bạn
         ORGAN_DEF = [
             {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
             {"key": "kham_ho_hap", "name": "Hô hấp"},
@@ -1832,18 +1386,12 @@ with tab1:
         ]
 
         organ_names = ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF]
-        selected_organ_name = st.selectbox(
-            "Chọn cơ quan chuyên khoa ưu tiên:",
-            organ_names,
-            index=0,
-            key="uu_tien_co_quan"
-        )
+        selected_organ_name = st.selectbox("Chọn cơ quan chuyên khoa ưu tiên:", organ_names, index=0, key="uu_tien_co_quan")
 
         if selected_organ_name != "Không ưu tiên (Thứ tự mặc định)":
             fav = next(item for item in ORGAN_DEF if item["name"] == selected_organ_name)
             others = [item for item in ORGAN_DEF if item["name"] != selected_organ_name]
 
-            # 1. Hiển thị cơ quan trọng điểm lên đầu
             st.markdown(f"**1. {fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
             st.text_area(
                 f"Khám {fav['name']}:", 
@@ -1854,7 +1402,6 @@ with tab1:
             st.markdown("---")
             st.markdown("**Các cơ quan khác:**")
 
-            # 2. Hiển thị 6 cơ quan còn lại theo dạng 2 cột
             c_cq1, c_cq2 = st.columns(2)
             half = len(others) // 2 + len(others) % 2
             with c_cq1:
@@ -1864,7 +1411,6 @@ with tab1:
                 for idx, org in enumerate(others[half:]):
                     st.text_area(f"{idx + 2 + half}. {org['name']}:", key=org["key"], height=85)
         else:
-            # Thứ tự mặc định 2 cột
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
                 st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
@@ -1875,7 +1421,7 @@ with tab1:
                 st.text_area("Thận - Tiết niệu:", key="kham_tiet_nieu", height=85)
                 st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
-    # 5. TỔNG HỢP & BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ (EXPANDER)
+
     with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
         st.caption("Lưu ý: Dòng đầu tiên là câu dẫn. Từ lần xuống dòng tiếp theo sẽ tự động thụt lề và thêm gạch đầu dòng.")
         st.text_area("VI. Tóm tắt bệnh án:", key="tom_tat", height=110)
@@ -1886,7 +1432,6 @@ with tab1:
         with c_cd2:
             st.markdown("**VIII. Chẩn đoán phân biệt:**")
             
-            # Nút AI đề xuất chẩn đoán phân biệt
             if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
                 if "GEMINI_API_KEY" not in st.secrets:
                     st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
@@ -1895,7 +1440,6 @@ with tab1:
                 else:
                     with st.spinner("Bác sĩ AI đang phân tích toàn diện bệnh án để lập luận chẩn đoán phân biệt..."):
                         try:
-                            # Tập hợp toàn bộ dữ kiện lâm sàng quan trọng
                             context_cdpb = (
                                 f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
                                 f"- Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}\n"
@@ -1910,29 +1454,23 @@ with tab1:
                                 f"- CHẨN ĐOÁN SƠ BỘ: {st.session_state.get('chan_doan_so_bo')}"
                             )
 
-                            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                            model = genai.GenerativeModel('gemini-3.1-flash-lite')
+                            model = get_feature_model("KEY_AI", model_name="gemini-3.1-flash-lite")
+                            if not model: raise ValueError("Chưa thiết lập API KEY")
 
                             prompt_cdpb = f"""
                             Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis).
-
                             Dữ kiện ca bệnh:
                             {context_cdpb}
-
                             YÊU CẦU ĐẦU RA:
                             - Sắp xếp thứ tự các chẩn đoán phân biệt từ phù hợp nhất (khả năng cao nhất) đến ít phù hợp hơn. Từ cấp cứu nhất (nguy hiểm nhất) đến ít cấp cứu hơn.
-    
                             - Chỉ xuất ra danh sách đánh số dạng:
                             1. Tên bệnh A
                             2. Tên bệnh B
                             3. Tên bệnh C
                             - Tuyệt đối không viết thêm bất kỳ lời chào, câu dẫn, giải thích cơ chế hay văn bản thừa nào ngoài danh sách đánh số.
                             """
-
                             resp_cdpb = model.generate_content(prompt_cdpb)
-                            res_cdpb_text = resp_cdpb.text.strip()
-
-                            st.session_state["chan_doan_phan_biet"] = res_cdpb_text
+                            st.session_state["chan_doan_phan_biet"] = resp_cdpb.text.strip()
                             st.toast("Đã gợi ý danh sách chẩn đoán phân biệt thành công!", icon="✨")
                             st.rerun()
                         except Exception as e:
@@ -1942,19 +1480,15 @@ with tab1:
             
         st.text_area("IX. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=110)
 
-    # 6. CẬN LÂM SÀNG (EXPANDER)
     with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
         st.markdown("<div class='sub-section-header'>X. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
         
-        # Nút bấm tích hợp AI cho phần Đề xuất Cận lâm sàng
-        # THÊM key="btn_ai_cls" vào cuối:
         if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
             else:
                 with st.spinner("Bác sĩ AI đang phân tích lập luận lâm sàng để chỉ định cận lâm sàng tối ưu..."):
                     try:
-                        # Gom dữ kiện lâm sàng quan trọng để định hướng chỉ định
                         context_cls = f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
                         context_cls += f"- Tiền sử: {st.session_state.get('ts_noi_khoa')} | {st.session_state.get('ts_ngoai_khoa')}\n"
                         context_cls += f"- Lý do vào viện & Bệnh sử: {st.session_state.get('ly_do_vao_vien')} - {st.session_state.get('benh_su')}\n"
@@ -1962,18 +1496,13 @@ with tab1:
                         context_cls += f"- Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}\n"
                         context_cls += f"- Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}"
 
-                        # Nạp Key và gọi Model
-                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+                        model = get_feature_model("KEY_AI", model_name="gemini-3.1-flash-lite")
+                        if not model: raise ValueError("Chưa thiết lập API KEY")
 
-                        # Prompt chuẩn bác sĩ lâm sàng: phân tích logic trước khi chỉ định, chú thích tiếng Anh
                         prompt_cls = f"""
                         Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra các chỉ định CẬN LÂM SÀNG hợp lý, có tính ứng dụng cao, tránh lạm dụng xét nghiệm nhưng không được bỏ sót tổn thương.
-                        
-
                         Dữ kiện ca bệnh:
                         {context_cls}
-
                         YÊU CẦU ĐẦU RA:
                         Vào thẳng vấn đề không cần câu dẫn, các đề xuất viết dưới dạng xuống dòng, đơn giản, không sử dụng gạch đầu dòng đúng 3 nhóm nhãn sau (không viết thêm lời dẫn thừa):
                         [CLS_XAC_DINH]
@@ -1983,15 +1512,12 @@ with tab1:
                         [CLS_KHAC]
                         - Các cận lâm sàng thường quy, theo dõi tiến triển hoặc tầm soát thêm nếu có yếu tố nguy cơ.
                         """
-
                         response_cls = model.generate_content(prompt_cls)
                         res_cls_text = response_cls.text
 
-                        # Bóc tách kết quả đưa vào session_state
                         if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
                             p1 = res_cls_text.split("[CLS_DIEU_TRI]")
                             part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
-                            
                             if "[CLS_KHAC]" in p1[1]:
                                 p2 = p1[1].split("[CLS_KHAC]")
                                 part_dt = p2[0].strip()
@@ -2021,7 +1547,7 @@ with tab1:
             
         st.markdown(f"<div class='sub-section-header'>XI. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
         st.caption("Mỗi hàng: Cột trái nhập kết quả hoặc kèm ảnh; Cột phải nhập biện giải tương ứng. Khi xuất PDF sẽ tự động xếp thành bảng 2 cột đối chiếu.")
-        # --- TÍNH NĂNG OCR ĐA ẢNH XÉT NGHIỆM SIÊU TỐC (BATCH OCR) ---
+        
         with st.container():
             col_ocr_file, col_ocr_act = st.columns([2.5, 1])
             with col_ocr_file:
@@ -2045,39 +1571,25 @@ with tab1:
 
                     ocr_prompt = """
                     Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
-                    
                     YÊU CẦU:
                     1. Bỏ qua các thông tin hành chính.
                     2. Trả về DUY NHẤT một đối tượng JSON (Object) có 2 khóa:
-                       - "ket_qua": Liệt kê tất cả các chỉ số quan trọng (Tên + Giá trị + Đơn vị), mỗi chỉ số trên một dòng bắt đầu bằng dấu gạch đầu dòng (dùng \\n- ).
+                       - "ket_qua": Liệt kê tất cả các chỉ số quan trọng (Tên + Giá trị + Đơn vị), mỗi chỉ số trên một dòng bắt đầu bằng dấu gạch đầu dòng (dùng \n- ).
                        - "phien_giai": Tóm tắt và biện luận chung cho phiếu xét nghiệm này, tập trung phân tích các chỉ số bất thường (Tăng/Giảm) và định hướng lâm sàng tổng thể.
                     3. Không viết thêm văn bản giải thích ngoài JSON.
-                    
-                    Định dạng mẫu:
-                    {
-                      "ket_qua": "- Glucose: 8.5 mmol/L\\n- Ure: 5.2 mmol/L\\n- Creatinin: 85 umol/L",
-                      "phien_giai": "- Tăng đường huyết lúc đói.\\n- Chức năng thận trong giới hạn bình thường."
-                    }
                     """
-
-                    # Xác định vị trí bắt đầu điền (tìm hàng đầu tiên thực sự cần ghi)
                     so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
                     so_luong_anh = len(lab_photos)
                     
-                    # Tìm chỉ số của hàng đã có dữ liệu cuối cùng
                     last_used_idx = -1
                     for r in range(so_hang_cls):
                         val_k = str(st.session_state.get(f"cls_kq_{r}", "") or "").strip()
                         val_p = str(st.session_state.get(f"cls_pg_{r}", "") or "").strip()
-                        # Loại trừ cả trường hợp dính chữ "None" hoặc gạch nối
                         if val_k and val_k not in ["None", "-"] or val_p and val_p not in ["None", "-"]:
                             last_used_idx = r
 
-                    # Bắt đầu điền ngay từ hàng kế tiếp (nếu chưa có gì thì điền từ hàng 0 tức Hàng 1)
                     start_row = last_used_idx + 1
                     empty_rows = [start_row + i for i in range(so_luong_anh)]
-
-                    # Đảm bảo tổng số hàng hiển thị đủ chứa tất cả kết quả mới
                     max_row_needed = start_row + so_luong_anh
                     if max_row_needed > so_hang_cls:
                         st.session_state["so_hang_cls"] = max_row_needed
@@ -2093,16 +1605,11 @@ with tab1:
                             img_input = Image.open(photo)
                             resp = vision_model.generate_content([ocr_prompt, img_input])
                             raw_text = resp.text.strip()
-
-                            if raw_text.startswith("```json"):
-                                raw_text = raw_text[7:]
-                            elif raw_text.startswith("```"):
-                                raw_text = raw_text[3:]
-                            if raw_text.endswith("```"):
-                                raw_text = raw_text[:-3]
+                            if raw_text.startswith("```json"): raw_text = raw_text[7:]
+                            elif raw_text.startswith("```"): raw_text = raw_text[3:]
+                            if raw_text.endswith("```"): raw_text = raw_text[:-3]
 
                             lab_data = json.loads(raw_text.strip())
-
                             if isinstance(lab_data, dict):
                                 st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
                                 st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
@@ -2115,7 +1622,7 @@ with tab1:
                         st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh vào từng hàng riêng biệt!", icon="🧪")
                         st.rerun()
             st.divider()
-        # -------------------------------------------------------------------------
+
         uploaded_imgs = {}
         for i in range(st.session_state["so_hang_cls"]):
             st.markdown(f"**Hàng {i + 1}:**")
@@ -2155,13 +1662,11 @@ with tab1:
                     st.session_state["so_hang_cls"] -= 1
                     st.rerun()
 
-    # 7. CHẨN ĐOÁN XÁC ĐỊNH (EXPANDER)
     with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
         st.caption("Lưu ý: Chẩn đoán xác định sẽ được in chữ màu ĐỎ ĐẬM trong PDF.")
         st.text_area("XII. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90)
         st.text_area("XIII. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
-    # 8. ĐIỀU TRỊ (EXPANDER)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets:
@@ -2169,7 +1674,6 @@ with tab1:
             else:
                 with st.spinner("AI đang phân tích phác đồ điều trị và cá thể hóa đơn thuốc..."):
                     try:
-                        # Gom dữ kiện kết quả CLS đã có để điều trị an toàn (chức năng gan/thận...)
                         cls_da_co_str = ""
                         so_h = st.session_state.get("so_hang_cls", 3)
                         for i in range(so_h):
@@ -2183,16 +1687,14 @@ with tab1:
                         context_dt += f"- Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}\n"
                         context_dt += f"- Kết quả CLS quan trọng đã có:\n{cls_da_co_str}"
 
-                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+                        model = get_feature_model("KEY_AI", model_name="gemini-3.1-flash-lite")
+                        if not model: raise ValueError("Chưa thiết lập API KEY")
 
                         prompt_dt = f"""
                         Bạn là một bác sĩ điều trị lâm sàng chính. Hãy xây dựng một kế hoạch điều trị toàn diện, cá thể hóa cho ca bệnh dưới đây theo đúng các phác đồ y khoa chuẩn mực (Guidelines).
                         Đặc biệt lưu ý chống chỉ định hoặc chỉnh liều nếu có bệnh nền hoặc bất thường cận lâm sàng.
-
                         Thông tin ca bệnh:
                         {context_dt}
-
                         YÊU CẦU ĐẦU RA (đúng 3 tag sau, trình bày vào thẳng vấn đề không câu dẫn, ngắn gọn, viết dưới dạng xuống dòng, không sử dụng gạch đầu dòng):
                         [MUC_TIEU]
                         (Nêu mục tiêu ngắn hạn và dài hạn: kiểm soát triệu chứng, ngăn ngừa biến chứng, cải thiện chất lượng sống...)
@@ -2200,11 +1702,9 @@ with tab1:
                         - Không dùng thuốc (chế độ nghỉ ngơi, dinh dưỡng, lý liệu...)
                         - Dùng thuốc (hoặc điều trị ngoại khoa nếu cần): Ghi rõ tên hoạt chất (kèm tên thương mại phổ biến nếu có), liều lượng, số lần/ngày, đường dùng, thời điểm uống/tiêm.
                         - Có điều trị bằng ngoại khoa không, nếu có thì ghi luôn phương án điều trị. 
-                        
                         [THEO_DOI]
                         (Các chỉ số sinh tồn, triệu chứng cơ năng, xét nghiệm cần làm lại và lịch đánh giá lại đáp ứng điều trị)
                         """
-
                         resp = model.generate_content(prompt_dt)
                         txt = resp.text
 
@@ -2234,38 +1734,27 @@ with tab1:
         with c_td:
             st.text_area("3. Theo dõi:", key="dt_theo_doi", height=220)
 
-    # 9. TIÊN LƯỢNG & TƯ VẤN (EXPANDER)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
-        # Nút bấm tích hợp AI
-        # THÊM key="btn_ai_tienluong" vào cuối:
         if st.button("🪄 Làm phép", type="primary", key="btn_ai_tienluong"):
-            # Lấy API Key bí mật từ máy chủ Streamlit
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Hệ thống chưa được cài đặt API Key bí mật. Vui lòng kiểm tra lại cấu hình Secrets!")
             else:
                 with st.spinner("AI đang phân tích logic lâm sàng của ca bệnh..."):
                     try:
-                        # Gom nhặt các dữ kiện quan trọng nhất để mớm cho AI
                         context = f"- Tuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
                         context += f"- Tiền sử: {st.session_state.get('ts_noi_khoa')} {st.session_state.get('ts_ngoai_khoa')}\n"
                         context += f"- Bệnh sử: {st.session_state.get('benh_su')}\n"
                         context += f"- Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}\n"
                         context += f"- Hướng điều trị cụ thể: {st.session_state.get('dt_cu_the')}"
 
-                        # Tự động nạp Key từ máy chủ (st.secrets)
-                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                        
-                        # Chỉ định đích danh phiên bản Google yêu cầu trong thông báo lỗi
-                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+                        model = get_feature_model("KEY_AI", model_name="gemini-3.1-flash-lite")
+                        if not model: raise ValueError("Chưa thiết lập API KEY")
 
-                        # Thiết kế Prompt ép AI suy luận như Bác sĩ thực thụ
                         prompt = f"""
                         Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic trước khi đi vào chi tiết để đưa ra nội dung cho 2 mục: TIÊN LƯỢNG và TƯ VẤN.
                         Đảm bảo ưu tiên tính chính xác về mặt khoa học. Nội dung áp dụng sát với thực tế lâm sàng. Trình bày ngắn gọn, đủ, chỉ cần xuống dòng, không cần gạch đầu dòng.
-
                         Thông tin ca bệnh tóm tắt:
                         {context}
-
                         YÊU CẦU ĐẦU RA:
                         Trình bày đúng định dạng sau (không viết thêm văn vẻ thừa):
                         [TIEN_LUONG]
@@ -2273,21 +1762,18 @@ with tab1:
                         [TU_VAN]
                         (Viết tư vấn cụ thể về chế độ dinh dưỡng, sinh hoạt, phục hồi chức năng, và đặc biệt là các dấu hiệu cảnh báo nguy hiểm cần tái khám ngay. Giải thích dễ hiểu để bệnh nhân có thể áp dụng).
                         """
-
                         response = model.generate_content(prompt)
                         res_text = response.text
 
-                        # Bóc tách kết quả từ AI
                         if "[TIEN_LUONG]" in res_text and "[TU_VAN]" in res_text:
                             parts = res_text.split("[TU_VAN]")
                             tl_part = parts[0].replace("[TIEN_LUONG]", "").strip()
                             tv_part = parts[1].strip()
 
-                            # Cập nhật trực tiếp vào ô text_area
                             st.session_state["tien_luong"] = tl_part
                             st.session_state["tu_van"] = tv_part
                             st.success("✨ Đã tạo gợi ý thành công! Bạn có thể xem lại và tùy chỉnh nội dung bên dưới.")
-                            st.rerun() # Tải lại giao diện để hiện chữ
+                            st.rerun() 
                         else:
                             st.error("AI trả về sai định dạng, hãy thử bấm lại.")
                     except Exception as e:
@@ -2300,9 +1786,7 @@ with tab1:
         with c_tv:
             st.text_area("XVI. Tư vấn:", key="tu_van", height=250, placeholder="Nếu để trống, mục này sẽ không xuất hiện trong file...")
 
-# Gom dữ liệu từ session_state sang dict để chuẩn bị xuất file
-data_benh_an = {k: st.session_state.get(k, "") for k in default_fields}
-data_benh_an["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+data_benh_an = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
 data_benh_an["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
 data_benh_an["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
 data_benh_an["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
@@ -2315,8 +1799,8 @@ data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
     data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
-data_benh_an.update(uploaded_imgs)
-
+if 'uploaded_imgs' in locals():
+    data_benh_an.update(uploaded_imgs)
 
 # --- TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN ---
 with tab2:
@@ -2331,7 +1815,7 @@ with tab2:
             st.markdown(f"<div class='highlight-dx'>Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}</div>", unsafe_allow_html=True)
         
         so_hang = st.session_state.get("so_hang_cls", 3)
-        dem_cls = sum(1 for i in range(so_hang) if str(st.session_state.get(f"cls_kq_{i}", "")).strip() or uploaded_imgs.get(f"cls_img_{i}"))
+        dem_cls = sum(1 for i in range(so_hang) if str(st.session_state.get(f"cls_kq_{i}", "")).strip() or (locals().get('uploaded_imgs') and uploaded_imgs.get(f"cls_img_{i}")))
         st.write(f"Số lượng cận lâm sàng đã nhập vào bảng: {dem_cls}/{so_hang} hàng")
     else:
         st.warning("Vui lòng điền thông tin bên tab Nhập liệu hồ sơ.")
@@ -2348,11 +1832,9 @@ with tab2:
             else:
                 with st.spinner("Đang kết xuất văn bản PDF..."):
                     pdf_bytes = export_pdf(data_benh_an)
-                    # Lưu vào session_state để khi cuộn trang hoặc thao tác không bị mất bản xem trước
                     st.session_state["pdf_bytes_preview"] = pdf_bytes
                     st.session_state["ten_file_pdf"] = f"Benh_an_{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
 
-        # Nếu đã tạo PDF thành công, hiển thị nút Tải về kèm Khung xem trước trực tiếp
         if st.session_state.get("pdf_bytes_preview"):
             st.download_button(
                 label="📥 Tải PDF về máy",
@@ -2378,14 +1860,12 @@ with tab2:
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                         use_container_width=True
                     )
-    # Hiển thị PDF bằng PDF.js (chạy mượt trên Edge, Chrome, Safari)
     if st.session_state.get("pdf_bytes_preview"):
         st.markdown("---")
         st.markdown("#### Bản xem trước PDF trực tiếp:")
         pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
-# ==========================================
-# TAB 3: PHẢN BIỆN BỆNH ÁN (MOCK CLINICAL ATTENDING)
-# ==========================================
+
+# --- TAB 3: PHẢN BIỆN BỆNH ÁN ---
 with tab3:
     st.markdown("### Giảng viên lâm sàng phản biện ca bệnh")
     st.caption("Giảng viên lâm sàng giàu kinh nghiệm, rà soát tính logic toàn diện của ca bệnh và đặt câu hỏi.")
@@ -2423,7 +1903,7 @@ with tab3:
         )
 
     with col_btn_pb:
-        st.write("") # Căn chỉnh lề
+        st.write("") 
         btn_phan_bien = st.button("Giảng viên phản biện & Đặt câu hỏi", type="primary", key="btn_phan_bien_attending")
 
     if btn_phan_bien:
@@ -2435,17 +1915,13 @@ with tab3:
         else:
             with st.spinner("Thầy/Cô đang đọc kỹ bệnh án và chuẩn bị câu hỏi chất vấn..."):
                 try:
-                    import json
-
                     prompt_phan_bien = f"""
                     Bạn là một Giảng viên lâm sàng (Clinical Attending Physician) uyên bác, giàu kinh nghiệm thực chiến và sư phạm tại bệnh viện trường đại học y khoa. 
                     Người làm bệnh án là một bác sĩ nội trú / sinh viên y khoa.
                     
                     Phong cách nhận xét yêu cầu: {phong_cach}.
-
                     Dưới đây là toàn bộ bệnh án do học viên trình bày:
                     {ca_benh_summary}
-
                     HÃY TRẢ VỀ KẾT QUẢ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không viết thêm lời dẫn markdown ngoài JSON):
                     {{
                         "nhan_xet_tong_the": "Phân tích điểm mâu thuẫn, thiếu sót logic giữa bệnh sử, khám và chẩn đoán. Các triệu chứng âm tính có giá trị bị bỏ sót...",
@@ -2473,33 +1949,25 @@ with tab3:
                         ]
                     }}
                     """
-
                     res_pb = model.generate_content(prompt_phan_bien)
                     res_raw = res_pb.text.strip()
 
-                    # Làm sạch chuỗi json nếu dính tag code block ```json ... ```
-                    if res_raw.startswith("```json"):
-                        res_raw = res_raw[7:]
-                    elif res_raw.startswith("```"):
-                        res_raw = res_raw[3:]
-                    if res_raw.endswith("```"):
-                        res_raw = res_raw[:-3]
+                    if res_raw.startswith("```json"): res_raw = res_raw[7:]
+                    elif res_raw.startswith("```"): res_raw = res_raw[3:]
+                    if res_raw.endswith("```"): res_raw = res_raw[:-3]
                     
                     data_pb = json.loads(res_raw.strip())
                     st.session_state["data_phan_bien_json"] = data_pb
                 except Exception as e:
                     st.error(f"Lỗi khi kết nối hoặc xử lý phản hồi từ AI: {e}")
 
-    # Hiển thị giao diện Toggle
     if st.session_state.get("data_phan_bien_json"):
         data_pb = st.session_state["data_phan_bien_json"]
         st.divider()
 
-        # 1. Nhận xét tổng thể
         st.markdown("#### Nhận xét tổng thể & Điểm cần lưu ý:")
         st.info(data_pb.get("nhan_xet_tong_the", ""))
 
-        # 2. Danh sách câu hỏi chất vấn dạng Toggle
         st.markdown("#### ❓ Câu hỏi vấn đáp (Bấm vào từng câu để xem gợi ý đáp án):")
         questions = data_pb.get("danh_sach_cau_hoi", [])
 
@@ -2508,14 +1976,14 @@ with tab3:
             cau_hoi = item.get("cau_hoi", "")
             goi_y = item.get("goi_y_tra_loi", "")
 
-            # Tiêu đề Toggle hiển thị Chủ đề + Câu hỏi
             toggle_title = f"**Câu {idx + 1} ({chu_de}):** {cau_hoi}"
             with st.expander(toggle_title, expanded=False):
                 st.markdown("**Gợi ý hướng trả lời (Teaching Points):**")
                 st.markdown(goi_y)
-# ==========================================
-# CƠ CHẾ TỰ ĐỘNG LƯU NHÁP (NẰM NGOÀI CÙNG, CUỐI FILE APP.PY)
-# ==========================================
+
+# ==============================================================================
+# CƠ CHẾ TỰ ĐỘNG LƯU NHÁP VÀO LOCALSTORAGE TRÌNH DUYỆT
+# ==============================================================================
 co_du_lieu = any(
     bool(str(st.session_state.get(k, "")).strip()) 
     for k in ["ho_ten", "benh_su", "ly_do_vao_vien", "kham_toan_than", "sh_mach", "chan_doan_so_bo", "tom_tat", "ts_noi_khoa"]
@@ -2523,10 +1991,7 @@ co_du_lieu = any(
 
 if co_du_lieu:
     current_snapshot = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
-    current_snapshot["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
-    current_snapshot["uu_tien_co_quan"] = st.session_state.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
-
-    for i in range(current_snapshot["so_hang_cls"]):
+    for i in range(st.session_state.get("so_hang_cls", 3)):
         current_snapshot[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
         current_snapshot[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
 
