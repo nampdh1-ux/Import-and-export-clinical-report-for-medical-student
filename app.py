@@ -984,7 +984,7 @@ with tab1:
         # Giao diện động cho Bệnh sử
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
-            st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu ác triệu chứng chính và Chẩn đoán trước mổ...")
+            st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
             st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Mổ phiên hay mổ cấp cứu, ngày giờ mổ, phương pháp vô cảm, phương pháp phẫu thuật, mô tả kỹ tổn thương, tai biến trong mổ (nếu có) và phương pháp xử trí...")
             st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Đây là phần quan trọng nhất, từ lúc rời phòng hồi tỉnh đến nay: nếu bệnh nhân mới mổ trong 24-48h đầu (chưa trung tiện), cần chú trọng khai thác tỉ mỉ các triệu chứng biểu hiện của tai biến do gây mê hoặc phẫu thuật. Nếu đã mổ được nhiều ngày thì mô tả 24-48h đầu chỉ khái quát không cần chi tiết nữa. ")
         else:
