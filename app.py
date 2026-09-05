@@ -1771,7 +1771,7 @@ with tab1:
                 else:
                     progress_bar = st.progress(0, text="Bắt đầu phân tích các phiếu xét nghiệm...")
                     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    vision_model = genai.GenerativeModel("gemini-3.6-flash")
+                    vision_model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
                     ocr_prompt = """
                     Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
@@ -2166,7 +2166,7 @@ with tab3:
                 try:
                     import json
                     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    model = genai.GenerativeModel("gemini-3.6-flash")
+                    model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
                     prompt_phan_bien = f"""
                     Bạn là một Giảng viên lâm sàng (Clinical Attending Physician) uyên bác, giàu kinh nghiệm thực chiến và sư phạm tại bệnh viện trường đại học y khoa. 
