@@ -979,14 +979,14 @@ with tab1:
         with c_hc6: st.text_input("Ngày giờ vào viện", key="ngay_vao_vien")
 
     with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
-        st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Đau hố chậu phải / Mổ phiên ngày thứ 2...", height=65)
+        st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
         
         # Giao diện động cho Bệnh sử
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
-            st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Diễn biến từ lúc đau/nhập viện đến trước mổ. Các triệu chứng chính và Chẩn đoán trước mổ...")
-            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Ngày giờ mổ, phương pháp vô cảm, phương pháp phẫu thuật, tổn thương ghi nhận, tai biến trong mổ (nếu có)...")
-            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
+            st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu ác triệu chứng chính và Chẩn đoán trước mổ...")
+            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Mổ phiên hay mổ cấp cứu, ngày giờ mổ, phương pháp vô cảm, phương pháp phẫu thuật, mô tả kỹ tổn thương, tai biến trong mổ (nếu có) và phương pháp xử trí...")
+            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Đây là phần quan trọng nhất, từ lúc rời phòng hồi tỉnh đến nay: nếu bệnh nhân mới mổ trong 24-48h đầu (chưa trung tiện), cần chú trọng khai thác tỉ mỉ các triệu chứng biểu hiện của tai biến do gây mê hoặc phẫu thuật. Nếu đã mổ được nhiều ngày thì mô tả 24-48h đầu chỉ khái quát không cần chi tiết nữa. ")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
 
@@ -1100,7 +1100,7 @@ with tab1:
         st.text_area("VI. Tóm tắt bệnh án:", key="tom_tat", height=110)
         c_cd1, c_cd2 = st.columns(2)
         with c_cd1:
-            placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
+            placeholder_cd = "Hậu phẫu ngày thứ?-Chẩn đoán sau mổ?-Tình trạng hiện tại?" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
             st.text_area("VII. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85, placeholder=placeholder_cd)
         with c_cd2:
             st.markdown("**VIII. Chẩn đoán phân biệt:**")
