@@ -1229,21 +1229,34 @@ with tab1:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
 
         def xu_ly_dien_kham_binh_thuong():
-            dem = sum(1 for k_cq, norm_val in NORMAL_ORGAN_FINDINGS.items() if not str(st.session_state.get(k_cq, "")).strip() and not st.session_state.update({k_cq: norm_val}))
+            dem = 0
+            for k_cq, norm_val in NORMAL_ORGAN_FINDINGS.items():
+                noi_dung = str(st.session_state.get(k_cq, "") or "").strip()
+                if not noi_dung:
+                    st.session_state[k_cq] = norm_val
+                    dem += 1
             st.session_state["_msg_dien_cq"] = dem
 
         def xu_ly_xoa_cac_co_quan():
-            for k_cq in NORMAL_ORGAN_FINDINGS.keys(): st.session_state[k_cq] = ""
+            for k_cq in NORMAL_ORGAN_FINDINGS.keys():
+                st.session_state[k_cq] = ""
             st.session_state["_msg_xoa_cq"] = True
 
         col_btn_fill, col_clear_cq = st.columns([2, 1])
-        with col_btn_fill: st.button("⚡ Điền khám bình thường cho các cơ quan để trống", on_click=xu_ly_dien_kham_binh_thuong, use_container_width=True)
-        with col_clear_cq: st.button("🔄 Đặt lại các cơ quan", on_click=xu_ly_xoa_cac_co_quan, use_container_width=True)
+        with col_btn_fill:
+            st.button("⚡ Điền khám bình thường cho các cơ quan để trống", on_click=xu_ly_dien_kham_binh_thuong, use_container_width=True)
+        with col_clear_cq:
+            st.button("🔄 Đặt lại các cơ quan", on_click=xu_ly_xoa_cac_co_quan, use_container_width=True)
 
         if "_msg_dien_cq" in st.session_state:
             d = st.session_state.pop("_msg_dien_cq")
-            st.toast(f"Đã điền mẫu cho {d} cơ quan còn lại!", icon="✨") if d > 0 else st.info("Tất cả các cơ quan đều đã có dữ liệu.")
-        if st.session_state.pop("_msg_xoa_cq", False): st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
+            if d > 0:
+                st.toast(f"Đã điền mẫu cho {d} cơ quan còn lại!", icon="✨")
+            else:
+                st.info("Tất cả các cơ quan đều đã có dữ liệu.")
+
+        if st.session_state.pop("_msg_xoa_cq", False):
+            st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
             
         st.markdown("---")
 
