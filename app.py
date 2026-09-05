@@ -482,7 +482,7 @@ def export_pdf(data):
     
     if pdf.loai_ba == "Hậu phẫu":
         pdf.add_subsection_header("1. Thăm khám hiện tại:")
-        pdf.add_highlight_text(f"Đánh giá ngày hậu phẫu thứ: {data.get('ngay_hau_phau', '...')}")
+        pdf.add_highlight_text(f"Hậu phẫu: {data.get('ngay_hau_phau', '...')}")
         pdf.add_body_text("a. Toàn thân:")
     else:
         pdf.add_subsection_header("1. Thăm khám lúc vào viện:")
