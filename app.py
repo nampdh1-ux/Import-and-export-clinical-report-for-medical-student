@@ -149,7 +149,7 @@ def send_login_notification(user_email):
 def check_password():
     # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?admin_key=...)
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
-    url_admin_key = st.query_params.get("admin_key", "")
+    url_admin_key = st.query_params.get("nam", "")
     
     if admin_token_secret and url_admin_key == admin_token_secret:
         st.session_state["password_correct"] = True
