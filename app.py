@@ -106,6 +106,33 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN ---
 st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
+# --- BẢO MẬT: MÀN HÌNH KHÓA TRUY CẬP BẰNG MẬT KHẨU NỘI BỘ ---
+def check_password():
+    def password_entered():
+        # Đối chiếu mật khẩu nhập vào với mật khẩu trong Secrets (mặc định fallback là 123456 nếu quên cài)
+        mat_khau_chuan = str(st.secrets.get("APP_PASSWORD", "123456")).strip()
+        if str(st.session_state.get("password_input", "")).strip() == mat_khau_chuan:
+            st.session_state["password_correct"] = True
+            if "password_input" in st.session_state:
+                del st.session_state["password_input"]  # Xóa password khỏi state để bảo mật
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.markdown("### 🔒 Ứng dụng Bệnh án Lâm sàng (Nội bộ)")
+        st.caption("Ứng dụng dành riêng cho nhóm thực hành lâm sàng. Vui lòng nhập mã bảo vệ để tiếp tục:")
+        st.text_input("Mã truy cập:", type="password", on_change=password_entered, key="password_input")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.markdown("### 🔒 Ứng dụng Bệnh án Lâm sàng (Nội bộ)")
+        st.text_input("Mã truy cập:", type="password", on_change=password_entered, key="password_input")
+        st.error("❌ Mật khẩu không chính xác, vui lòng thử lại.")
+        return False
+    return True
+
+if not check_password():
+    st.stop()  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
+# -------------------------------------------------------------
 
 # --- CSS TÙY BIẾN DẢI ĐỀ MỤC THEO MÀU XANH AMBOSS KẾT HỢP VẠCH KÉP HMU ---
 st.markdown("""
