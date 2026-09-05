@@ -1004,8 +1004,91 @@ st.markdown("</div>", unsafe_allow_html=True)
 uploaded_imgs = {}
 
 # CÁC HÀM UI RỜI RẠC DÙNG CHUNG (Để hoán đổi vị trí)
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN NỘI KHOA (KHÔNG DÙNG AI) ---
+def generate_intro_tom_tat_noi_khoa():
+    gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
+    tuoi = st.session_state.get("tuoi", "")
+    tuoi_str = f"{tuoi} tuổi" if tuoi else ""
+    
+    # 1. Tổng hợp tiền sử
+    ts_list = []
+    for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
+        val = str(st.session_state.get(k, "")).strip()
+        if val:
+            lines = [l.strip().lstrip("-*• ") for l in val.split("\n") if l.strip()]
+            if lines:
+                ts_list.append(", ".join(lines))
+    tien_su_str = "; ".join(ts_list) if ts_list else "chưa ghi nhận bất thường"
+
+    # 2. Lý do vào viện
+    ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
+
+    # 3. Tính số ngày nằm viện (Ngày làm bệnh án - Ngày vào viện)
+    ngay_vv_raw = str(st.session_state.get("ngay_vao_vien", "")).strip()
+    so_ngay_nam_vien = 0
+    if ngay_vv_raw:
+        try:
+            date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{4})", ngay_vv_raw)
+            if date_match:
+                d_vv = datetime.strptime(date_match.group(1), "%d/%m/%Y").date()
+                d_hientai = datetime.now().date()
+                so_ngay_nam_vien = max(0, (d_hientai - d_vv).days)
+        except Exception:
+            so_ngay_nam_vien = 0
+
+    # 4. Trích xuất số ngày khởi phát từ bệnh sử ("cách vào viện ... ngày")
+    benh_su = str(st.session_state.get("benh_su", "")).lower()
+    so_ngay_truoc_vv = 0
+    match_ngay = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*ngày", benh_su)
+    match_gio = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*giờ", benh_su)
+    match_tuan = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*tuần", benh_su)
+
+    if match_ngay:
+        so_ngay_truoc_vv = int(match_ngay.group(1))
+    elif match_gio:
+        so_ngay_truoc_vv = max(1, round(int(match_gio.group(1)) / 24))
+    elif match_tuan:
+        so_ngay_truoc_vv = int(match_tuan.group(1)) * 7
+
+    # 5. Tổng hợp thời gian diễn biến
+    tong_ngay = so_ngay_truoc_vv + so_ngay_nam_vien
+    if tong_ngay > 0:
+        dien_bien_str = f"bệnh diễn biến {tong_ngay} ngày nay"
+    else:
+        dien_bien_str = "bệnh diễn biến cấp tính"
+
+    # 6. Ghép câu dẫn chuẩn
+    return (
+        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
+        f"{dien_bien_str}. Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
+    )
+
 def ui_tom_tat(num):
-    st.text_area(f"{num}. Tóm tắt bệnh án:", key="tom_tat", height=110)
+    col_tt_title, col_tt_btn = st.columns([1.5, 0.5])
+    with col_tt_title:
+        st.markdown(f"**{num}. Tóm tắt bệnh án:**")
+    with col_tt_btn:
+        if loai_benh_an != "Hậu phẫu":
+            if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help="Tự động tính ngày và điền câu dẫn mở đầu", use_container_width=True):
+                cau_dan_moi = generate_intro_tom_tat_noi_khoa()
+                current_tt = str(st.session_state.get("tom_tat", "")).strip()
+                if current_tt:
+                    lines = current_tt.split("\n")
+                    if len(lines) > 1 and (lines[1].strip().startswith("-") or lines[1].strip().startswith("*")):
+                        st.session_state["tom_tat"] = cau_dan_moi + "\n" + "\n".join(lines[1:])
+                    else:
+                        st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
+                else:
+                    st.session_state["tom_tat"] = cau_dan_moi + "\n- Hội chứng...\n- Triệu chứng..."
+                st.rerun()
+
+    st.text_area(
+        f"{num}. Tóm tắt bệnh án:", 
+        key="tom_tat", 
+        height=130, 
+        label_visibility="collapsed",
+        placeholder="Dòng đầu tiên là câu dẫn tóm tắt. Các dòng tiếp theo ghi các hội chứng và triệu chứng có giá trị..."
+    )
 
 def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 1: Tiêu đề + Nút bấm căn ngang hàng
