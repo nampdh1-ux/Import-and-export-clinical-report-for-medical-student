@@ -1482,7 +1482,7 @@ with tab1:
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
     # --- KHỐI ĐỘNG CHUYỂN MẠCH VỊ TRÍ THEO LOẠI BỆNH ÁN ---
-    # ==============================================================================
+# ==============================================================================
 # ĐỊNH NGHĨA CÁC HÀM GIAO DIỆN CHUYỂN MẠCH ĐỘNG (DYNAMIC UI COMPONENTS)
 # ==============================================================================
 
@@ -1815,7 +1815,7 @@ def ui_cls(num_dx, num_kq):
 def ui_cdxd(num_xd, num_blxd):
     placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
-    st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
+    st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)   
     if loai_benh_an == "Hậu phẫu":
         with st.expander("VI VÀ VII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", expanded=True):
             ui_cdsb("VI", "VII", "VIII")
