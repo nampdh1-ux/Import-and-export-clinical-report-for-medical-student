@@ -1077,18 +1077,29 @@ def generate_intro_tom_tat_noi_khoa():
     )
 
 # --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
-# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_hau_phau():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
     tuoi_str = f"{tuoi} tuổi" if tuoi else "..."
+
+    # 1. Trích xuất tiền sử (Nội khoa & Ngoại khoa)
+    ts_list = []
+    for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
+        val = str(st.session_state.get(k, "")).strip()
+        if val:
+            lines = [l.strip().lstrip("-*• ") for l in val.split("\n") if l.strip()]
+            if lines:
+                ts_list.append(", ".join(lines))
+    tien_su_str = "; ".join(ts_list) if ts_list else "chưa ghi nhận bất thường"
+
+    # 2. Lý do vào viện
     ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
 
     bs_truoc_mo = str(st.session_state.get("bs_truoc_mo", "")).strip()
     bs_trong_mo = str(st.session_state.get("bs_trong_mo", "")).strip()
     cd_so_bo = str(st.session_state.get("chan_doan_so_bo", "")).strip()
 
-    # 1. Trích xuất Chẩn đoán trước mổ
+    # 3. Trích xuất Chẩn đoán trước mổ
     cd_truoc_mo = "..."
     m_cdtm = re.search(r"(?:chẩn đoán trước mổ|cđ trước mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_truoc_mo, re.IGNORECASE)
     if m_cdtm and m_cdtm.group(1).strip():
@@ -1096,7 +1107,7 @@ def generate_intro_tom_tat_hau_phau():
     elif bs_truoc_mo:
         cd_truoc_mo = bs_truoc_mo.split("\n")[-1].strip().lstrip("-*• ")
 
-    # 2. Trích xuất các trường từ form mẫu 5 dòng trong mổ
+    # 4. Trích xuất các trường từ form mẫu 5 dòng trong mổ
     pp_mo = "..."
     loai_mo = "cấp cứu/phiên"
     cd_sau_mo = "..."
@@ -1117,11 +1128,10 @@ def generate_intro_tom_tat_hau_phau():
         if m_pp and m_pp.group(1).strip():
             pp_mo = m_pp.group(1).strip()
 
-        # Quá trình mổ: Đọc trực tiếp nội dung người dùng nhập, không gán mặc định
+        # Quá trình mổ
         m_qtm = re.search(r"(?:quá trình mổ|diễn biến mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
         if m_qtm and m_qtm.group(1).strip():
             val_qtm = m_qtm.group(1).strip().rstrip(".")
-            # Viết hoa chữ cái đầu và kết thúc bằng dấu chấm
             dien_bien_phau_thuat = f"Quá trình mổ {val_qtm[0].lower() + val_qtm[1:] if val_qtm.lower().startswith('không') or val_qtm.lower().startswith('có') or val_qtm.lower().startswith('thuận') else val_qtm}."
 
         # Chẩn đoán sau mổ
@@ -1129,12 +1139,12 @@ def generate_intro_tom_tat_hau_phau():
         if m_sm and m_sm.group(1).strip():
             cd_sau_mo = m_sm.group(1).strip()
 
-    # Dự phòng lấy chẩn đoán sau mổ từ chẩn đoán sơ bộ nếu chưa điền ở mục trong mổ
+    # Dự phòng chẩn đoán sau mổ từ chẩn đoán sơ bộ nếu chưa điền ở mục trong mổ
     if cd_sau_mo == "..." and cd_so_bo:
         cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
         cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
 
-    # 3. Trích xuất Ngày hậu phẫu
+    # 5. Trích xuất Ngày hậu phẫu
     ngay_hp_val = str(st.session_state.get("ngay_hau_phau", "")).strip()
     m_hp = re.search(r"(?:ngày\s*(?:thứ)?\s*)(\d+)", ngay_hp_val, re.IGNORECASE)
     if m_hp:
@@ -1145,7 +1155,7 @@ def generate_intro_tom_tat_hau_phau():
         ngay_hp_str = "ngày thứ ..."
 
     return (
-        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str} vào viện vì {ly_do}, "
+        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
         f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
         f"mổ {loai_mo}, chẩn đoán sau mổ là {cd_sau_mo}. "
         f"{dien_bien_phau_thuat} Hiện tại hậu phẫu {ngay_hp_str}. "
