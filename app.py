@@ -958,6 +958,14 @@ with st.sidebar:
             elif k == "gioi_tinh": st.session_state[k] = "Nam"
             elif k == "dan_tok": st.session_state[k] = "Kinh"
             elif k == "loai_benh_an": st.session_state[k] = "Nội khoa / Tiền phẫu"
+            elif k == "bs_trong_mo":
+                st.session_state[k] = (
+                    "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+                    "- Phương pháp mổ: \n"
+                    "- Phương pháp gây mê: \n"
+                    "- Quá trình mổ: Không có tai biến, biến chứng\n"
+                    "- Chẩn đoán sau mổ: "
+                )
             elif k == "uu_tien_co_quan": st.session_state[k] = "Không ưu tiên (Thứ tự mặc định)"
             elif k == "ngay_vao_vien": st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
             else: st.session_state[k] = ""
