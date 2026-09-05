@@ -1482,6 +1482,340 @@ with tab1:
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
     # --- KHỐI ĐỘNG CHUYỂN MẠCH VỊ TRÍ THEO LOẠI BỆNH ÁN ---
+    # ==============================================================================
+# ĐỊNH NGHĨA CÁC HÀM GIAO DIỆN CHUYỂN MẠCH ĐỘNG (DYNAMIC UI COMPONENTS)
+# ==============================================================================
+
+def generate_intro_tom_tat_noi_khoa():
+    gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
+    tuoi = st.session_state.get("tuoi", "")
+    tuoi_str = f"{tuoi} tuổi" if tuoi else ""
+    
+    ts_list = []
+    for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
+        val = str(st.session_state.get(k, "")).strip()
+        if val:
+            lines = [l.strip().lstrip("-*• ") for l in val.split("\n") if l.strip()]
+            if lines:
+                ts_list.append(", ".join(lines))
+    tien_su_str = "; ".join(ts_list) if ts_list else "chưa ghi nhận bất thường"
+
+    ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
+
+    ngay_vv_raw = str(st.session_state.get("ngay_vao_vien", "")).strip()
+    so_ngay_nam_vien = 0
+    if ngay_vv_raw:
+        try:
+            date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{4})", ngay_vv_raw)
+            if date_match:
+                d_vv = datetime.strptime(date_match.group(1), "%d/%m/%Y").date()
+                d_hientai = datetime.now().date()
+                so_ngay_nam_vien = max(0, (d_hientai - d_vv).days)
+        except Exception:
+            so_ngay_nam_vien = 0
+
+    benh_su = str(st.session_state.get("benh_su", "")).lower()
+    so_ngay_truoc_vv = 0
+    match_ngay = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*ngày", benh_su)
+    match_gio = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*giờ", benh_su)
+    match_tuan = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*tuần", benh_su)
+
+    if match_ngay:
+        so_ngay_truoc_vv = int(match_ngay.group(1))
+    elif match_gio:
+        so_ngay_truoc_vv = max(1, round(int(match_gio.group(1)) / 24))
+    elif match_tuan:
+        so_ngay_truoc_vv = int(match_tuan.group(1)) * 7
+
+    tong_ngay = so_ngay_truoc_vv + so_ngay_nam_vien
+    dien_bien_str = f"bệnh diễn biến {tong_ngay} ngày nay" if tong_ngay > 0 else "bệnh diễn biến cấp tính"
+
+    return (
+        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
+        f"{dien_bien_str}. Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
+    )
+
+def generate_intro_tom_tat_hau_phau():
+    gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
+    tuoi = st.session_state.get("tuoi", "")
+    tuoi_str = f"{tuoi} tuổi" if tuoi else "..."
+    ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
+
+    bs_truoc_mo = str(st.session_state.get("bs_truoc_mo", "")).strip()
+    bs_trong_mo = str(st.session_state.get("bs_trong_mo", "")).strip()
+    cd_so_bo = str(st.session_state.get("chan_doan_so_bo", "")).strip()
+
+    cd_truoc_mo = "..."
+    m_cdtm = re.search(r"(?:chẩn đoán trước mổ|cđ trước mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_truoc_mo, re.IGNORECASE)
+    if m_cdtm:
+        cd_truoc_mo = m_cdtm.group(1).strip()
+    elif bs_truoc_mo:
+        cd_truoc_mo = bs_truoc_mo.split("\n")[-1].strip().lstrip("-*• ")
+
+    pp_mo = "..."
+    loai_mo = "cấp cứu/phiên"
+    cd_sau_mo = "..."
+
+    if bs_trong_mo:
+        m_ht = re.search(r"(?:hình thức mổ|mổ phiên/mổ cấp cứu|mổ phiên hay mổ cấp cứu)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_ht:
+            txt_ht = m_ht.group(1).lower()
+            if "cấp cứu" in txt_ht and "phiên" not in txt_ht:
+                loai_mo = "cấp cứu"
+            elif "phiên" in txt_ht or "chương trình" in txt_ht:
+                loai_mo = "chương trình"
+
+        m_pp = re.search(r"(?:phương pháp mổ|phương pháp phẫu thuật|pt)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_pp and m_pp.group(1).strip():
+            pp_mo = m_pp.group(1).strip()
+
+        m_sm = re.search(r"(?:chẩn đoán sau mổ|cđ sau mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
+        if m_sm and m_sm.group(1).strip():
+            cd_sau_mo = m_sm.group(1).strip()
+
+    if cd_sau_mo == "..." and cd_so_bo:
+        cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
+        cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
+
+    ngay_hp_val = str(st.session_state.get("ngay_hau_phau", "")).strip()
+    m_hp = re.search(r"(?:ngày\s*(?:thứ)?\s*)(\d+)", ngay_hp_val, re.IGNORECASE)
+    if m_hp:
+        ngay_hp_str = f"ngày thứ {m_hp.group(1)}"
+    elif ngay_hp_val:
+        ngay_hp_str = ngay_hp_val
+    else:
+        ngay_hp_str = "ngày thứ ..."
+
+    return (
+        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str} vào viện vì {ly_do}, "
+        f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
+        f"mổ {loai_mo}, chẩn đoán sau mổ là {cd_sau_mo}. "
+        f"Quá trình mổ không có biến chứng. Hiện tại hậu phẫu {ngay_hp_str}. "
+        f"Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
+    )
+
+def ui_tom_tat(num):
+    col_tt_title, col_tt_btn = st.columns([1.5, 0.5])
+    with col_tt_title:
+        st.markdown(f"**{num}. Tóm tắt bệnh án:**")
+    with col_tt_btn:
+        help_text = "Tự động trích xuất thông tin phẫu thuật và điền câu dẫn" if loai_benh_an == "Hậu phẫu" else "Tự động tính ngày và điền câu dẫn mở đầu"
+        if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help=help_text, use_container_width=True):
+            cau_dan_moi = generate_intro_tom_tat_hau_phau() if loai_benh_an == "Hậu phẫu" else generate_intro_tom_tat_noi_khoa()
+            current_tt = str(st.session_state.get("tom_tat", "")).strip()
+            if current_tt:
+                lines = current_tt.split("\n")
+                if len(lines) > 1 and (lines[1].strip().startswith("-") or lines[1].strip().startswith("*")):
+                    st.session_state["tom_tat"] = cau_dan_moi + "\n" + "\n".join(lines[1:])
+                else:
+                    st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
+            else:
+                st.session_state["tom_tat"] = cau_dan_moi + "\n- Hội chứng...\n- Triệu chứng..."
+            st.rerun()
+
+    st.text_area(
+        f"{num}. Tóm tắt bệnh án:", 
+        key="tom_tat", 
+        height=130, 
+        label_visibility="collapsed",
+        placeholder="Dòng đầu tiên là câu dẫn tóm tắt. Các dòng tiếp theo ghi các hội chứng và triệu chứng có giá trị..."
+    )
+
+def ui_cdsb(num_sb, num_pb, num_bl):
+    col_h_left, col_h_right_title, col_h_right_btn = st.columns([1, 0.65, 0.35])
+    with col_h_left:
+        st.markdown(f"**{num_sb}. Chẩn đoán sơ bộ:**")
+    with col_h_right_title:
+        st.markdown(f"**{num_pb}. Chẩn đoán phân biệt:**")
+    with col_h_right_btn:
+        btn_ai_cdpb = st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary", use_container_width=True)
+
+    if btn_ai_cdpb:
+        if "GEMINI_API_KEY" not in st.secrets:
+            st.error("⚠️ Chưa cài đặt API Key bí mật!")
+        elif not str(st.session_state.get("chan_doan_so_bo", "")).strip():
+            st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ!")
+        else:
+            with st.spinner("AI đang phân tích lập luận lâm sàng để tạo Chẩn đoán phân biệt & Biện luận..."):
+                try:
+                    benh_su_str = get_benh_su_text_for_ai()
+                    context_cdpb = (
+                        f"Loại bệnh án: {loai_benh_an}\n"
+                        f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                        f"Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}\n"
+                        f"Bệnh sử: {benh_su_str}\n"
+                        f"Tiền sử: {st.session_state.get('ts_noi_khoa')} | Ngoại khoa: {st.session_state.get('ts_ngoai_khoa')}\n"
+                        f"Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}\n"
+                        f"Khám toàn thân: {st.session_state.get('kham_toan_than')}\n"
+                    )
+                    if loai_benh_an == "Hậu phẫu":
+                        context_cdpb += (
+                            f"Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau')}\n"
+                            f"Khám vết mổ: {st.session_state.get('kham_vet_mo')}\n"
+                            f"Khám dẫn lưu: {st.session_state.get('kham_dan_luu')}\n"
+                        )
+                    context_cdpb += f"CHẨN ĐOÁN SƠ BỘ: {st.session_state.get('chan_doan_so_bo')}"
+
+                    model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
+                    prompt_cdpb = f"""
+                    Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra:
+                    1. Danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis): sắp xếp thứ tự từ khả năng cao nhất đến thấp hơn, từ bệnh lý cấp cứu nguy hiểm đến ít cấp cứu hơn.
+                    2. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ: Lập luận chặt chẽ vì sao nghĩ đến chẩn đoán sơ bộ và vì sao cần phân biệt với các bệnh lý nêu trên.
+
+                    Dữ kiện ca bệnh:
+                    {context_cdpb}
+
+                    YÊU CẦU ĐẦU RA:
+                    [CHAN_DOAN_PHAN_BIET]
+                    1. Tên bệnh A
+                    2. Tên bệnh B
+                    3. Tên bệnh C
+
+                    [BIEN_LUAN_SO_BO]
+                    (Nội dung đoạn văn biện luận logic, súc tích).
+                    """
+                    res_text = model.generate_content(prompt_cdpb).text
+
+                    if "[CHAN_DOAN_PHAN_BIET]" in res_text and "[BIEN_LUAN_SO_BO]" in res_text:
+                        parts = res_text.split("[BIEN_LUAN_SO_BO]")
+                        st.session_state["chan_doan_phan_biet"] = parts[0].replace("[CHAN_DOAN_PHAN_BIET]", "").strip()
+                        st.session_state["bien_luan"] = parts[1].strip()
+                        st.toast("✨ Đã tạo gợi ý Chẩn đoán phân biệt & Biện luận!", icon="🪄")
+                        st.rerun()
+                    else:
+                        st.session_state["chan_doan_phan_biet"] = res_text.strip()
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi AI: {e}")
+
+    c_cd1, c_cd2 = st.columns(2)
+    with c_cd1:
+        placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
+        st.text_area(f"{num_sb}. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=100, placeholder=placeholder_cd, label_visibility="collapsed")
+    with c_cd2:
+        st.text_area(f"{num_pb}. Chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=100, label_visibility="collapsed")
+
+    st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
+    st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
+
+def ui_cls(num_dx, num_kq):
+    st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
+    if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
+        if "GEMINI_API_KEY" not in st.secrets:
+            st.error("⚠️ Chưa cài đặt API Key!")
+        else:
+            with st.spinner("AI đang phân tích chỉ định cận lâm sàng tối ưu..."):
+                try:
+                    benh_su_str = get_benh_su_text_for_ai()
+                    context_cls = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
+                    model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
+                    prompt_cls = f"Bạn là bác sĩ lâm sàng. Phân tích ca bệnh ({context_cls}) để chỉ định CẬN LÂM SÀNG. Nếu là Hậu phẫu, ưu tiên các xét nghiệm theo dõi biến chứng mổ. Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng xuống dòng, không dùng gạch đầu dòng."
+                    res_cls_text = model.generate_content(prompt_cls).text
+                    if "[CLS_XAC_DINH]" in res_cls_text and "[CLS_DIEU_TRI]" in res_cls_text:
+                        p1 = res_cls_text.split("[CLS_DIEU_TRI]")
+                        part_xd = p1[0].replace("[CLS_XAC_DINH]", "").strip()
+                        if "[CLS_KHAC]" in p1[1]:
+                            p2 = p1[1].split("[CLS_KHAC]")
+                            part_dt, part_khac = p2[0].strip(), p2[1].strip()
+                        else:
+                            part_dt, part_khac = p1[1].strip(), ""
+                        st.session_state["cls_dx_xac_dinh"] = part_xd
+                        st.session_state["cls_dx_dieu_tri"] = part_dt
+                        st.session_state["cls_dx_khac"] = part_khac
+                        st.success("✨ Đã gợi ý danh mục CLS thành công!")
+                        st.rerun()
+                    else:
+                        st.error("AI trả về sai định dạng.")
+                except Exception as e:
+                    st.error(f"Lỗi AI: {e}")
+
+    c_cls1, c_cls2, c_cls3 = st.columns(3)
+    with c_cls1: st.text_area("1. Phục vụ chẩn đoán xác định:", key="cls_dx_xac_dinh", height=130)
+    with c_cls2: st.text_area("2. Phục vụ điều trị:", key="cls_dx_dieu_tri", height=130)
+    with c_cls3: st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
+        
+    st.markdown(f"<div class='sub-section-header'>{num_kq}. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
+    with st.container():
+        col_ocr_file, col_ocr_act = st.columns([2.5, 1])
+        with col_ocr_file:
+            lab_photos = st.file_uploader("📷 Tải lên ảnh phiếu xét nghiệm (cho phép nhiều ảnh):", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="uploader_ocr_lab_multi")
+        with col_ocr_act: 
+            st.write(""); st.write("")
+            btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
+
+        if btn_ocr and lab_photos:
+            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
+            if not vision_model:
+                st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
+            else:
+                progress_bar = st.progress(0, text="Bắt đầu phân tích...")
+                ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \\n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
+                so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
+                last_used_idx = -1
+                for r in range(so_hang_cls):
+                    val_k, val_p = str(st.session_state.get(f"cls_kq_{r}", "")).strip(), str(st.session_state.get(f"cls_pg_{r}", "")).strip()
+                    if (val_k and val_k not in ["None", "-"]) or (val_p and val_p not in ["None", "-"]):
+                        last_used_idx = r
+
+                start_row = last_used_idx + 1
+                empty_rows = [start_row + i for i in range(len(lab_photos))]
+                if start_row + len(lab_photos) > so_hang_cls:
+                    st.session_state["so_hang_cls"] = start_row + len(lab_photos)
+
+                thanh_cong = 0
+                for idx, photo in enumerate(lab_photos):
+                    target_row = empty_rows[idx]
+                    progress_bar.progress(int((idx + 1) / len(lab_photos) * 100), text=f"Xử lý ảnh {idx + 1}/{len(lab_photos)}...")
+                    try:
+                        img_input = optimize_lab_image(photo)
+                        resp = vision_model.generate_content([ocr_prompt, img_input])
+                        raw_text = resp.text.strip()
+                        if raw_text.startswith("```json"): raw_text = raw_text[7:]
+                        elif raw_text.startswith("```"): raw_text = raw_text[3:]
+                        if raw_text.endswith("```"): raw_text = raw_text[:-3]
+
+                        lab_data = json.loads(raw_text.strip())
+                        if isinstance(lab_data, dict):
+                            st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
+                            st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
+                            thanh_cong += 1
+                    except Exception as e:
+                        st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
+
+                progress_bar.empty()
+                if thanh_cong > 0:
+                    st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
+                    st.rerun()
+        st.divider()
+
+    for i in range(st.session_state["so_hang_cls"]):
+        st.markdown(f"**Hàng {i + 1}:**")
+        col_left, col_right = st.columns([1, 1])
+        with col_left:
+            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
+            img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
+            if img:
+                uploaded_imgs[f"cls_img_{i}"] = img
+                st.image(img, width=180, caption=f"Ảnh hàng {i + 1}")
+        with col_right:
+            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
+        st.divider()
+
+    col_btn_them, col_btn_bot, _ = st.columns([2, 2, 6])
+    with col_btn_them:
+        if st.button("➕ Thêm kết quả cận lâm sàng"):
+            st.session_state["so_hang_cls"] += 1
+            st.rerun()
+    with col_btn_bot:
+        if st.session_state["so_hang_cls"] > 1:
+            if st.button("➖ Bớt hàng cuối"):
+                st.session_state["so_hang_cls"] -= 1
+                st.rerun()
+
+def ui_cdxd(num_xd, num_blxd):
+    placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
+    st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
+    st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
     if loai_benh_an == "Hậu phẫu":
         with st.expander("VI VÀ VII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", expanded=True):
             ui_cdsb("VI", "VII", "VIII")
