@@ -40,6 +40,39 @@ def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
         return None
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
+    # --- HÀM NÉN VÀ TỐI ƯU ẢNH PHIẾU XÉT NGHIỆM TRƯỚC KHI OCR ---
+def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
+    """
+    Tự động resize và nén ảnh phiếu xét nghiệm để tăng tốc độ truyền qua API.
+    Giữ nguyên độ sắc nét của chữ số và kết quả xét nghiệm.
+    """
+    try:
+        photo_file.seek(0)
+        img = Image.open(photo_file)
+        
+        # Chuyển đổi về RGB nếu ảnh ở định dạng PNG/RGBA/P
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        # Thu nhỏ nếu cạnh dài nhất vượt quá 1600px
+        width, height = img.size
+        if max(width, height) > max_dimension:
+            if width > height:
+                new_width = max_dimension
+                new_height = int(height * (max_dimension / width))
+            else:
+                new_height = max_dimension
+                new_width = int(width * (max_dimension / height))
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+        # Nén chất lượng ảnh ra bộ nhớ đệm (RAM)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+        buffer.seek(0)
+        return Image.open(buffer)
+    except Exception:
+        photo_file.seek(0)
+        return Image.open(photo_file)
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
@@ -1602,7 +1635,7 @@ with tab1:
                             text=f"Đang xử lý ảnh {idx + 1}/{so_luong_anh} vào Hàng {target_row + 1}..."
                         )
                         try:
-                            img_input = Image.open(photo)
+                            img_input = optimize_lab_image(photo)
                             resp = vision_model.generate_content([ocr_prompt, img_input])
                             raw_text = resp.text.strip()
                             if raw_text.startswith("```json"): raw_text = raw_text[7:]
