@@ -1077,6 +1077,7 @@ def generate_intro_tom_tat_noi_khoa():
     )
 
 # --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_hau_phau():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
@@ -1139,7 +1140,7 @@ def generate_intro_tom_tat_hau_phau():
         if m_sm and m_sm.group(1).strip():
             cd_sau_mo = m_sm.group(1).strip()
 
-    # Dự phòng chẩn đoán sau mổ từ chẩn đoán sơ bộ nếu chưa điền ở mục trong mổ
+    # Dự phòng chẩn đoán sau mổ từ chẩn đoán sơ bộ
     if cd_sau_mo == "..." and cd_so_bo:
         cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
         cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
@@ -1154,13 +1155,46 @@ def generate_intro_tom_tat_hau_phau():
     else:
         ngay_hp_str = "ngày thứ ..."
 
-    return (
+    # Đoạn dẫn chính
+    cau_dan_chinh = (
         f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
         f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
         f"mổ {loai_mo}, chẩn đoán sau mổ là {cd_sau_mo}. "
         f"{dien_bien_phau_thuat} Hiện tại hậu phẫu {ngay_hp_str}. "
         f"Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
     )
+
+    # 6. Trích xuất Sinh hiệu để tạo dòng 1
+    sh_items = []
+    if str(st.session_state.get("sh_mach", "")).strip():
+        sh_items.append(f"Mạch {st.session_state.get('sh_mach')} lần/phút")
+    if str(st.session_state.get("sh_ha", "")).strip():
+        sh_items.append(f"HA {st.session_state.get('sh_ha')} mmHg")
+    if str(st.session_state.get("sh_nhiet_do", "")).strip():
+        sh_items.append(f"Nhiệt độ {st.session_state.get('sh_nhiet_do')} °C")
+    if str(st.session_state.get("sh_nhip_tho", "")).strip():
+        sh_items.append(f"Nhịp thở {st.session_state.get('sh_nhip_tho')} lần/phút")
+    sh_str = ", ".join(sh_items) if sh_items else "Mạch, HA, Nhiệt độ trong giới hạn bình thường"
+    line_sh = f"- Tỉnh, tiếp xúc tốt, Sinh hiệu: {sh_str}"
+
+    # 7. Trích xuất Khám vết mổ để tạo dòng 2
+    raw_vm = str(st.session_state.get("kham_vet_mo", "")).strip()
+    if raw_vm:
+        vm_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_vm.split("\n") if l.strip()])
+    else:
+        vm_clean = "khô, không sưng đỏ, chân chỉ sạch"
+    line_vm = f"- Vết mổ: {vm_clean}"
+
+    # 8. Trích xuất Khám dẫn lưu để tạo dòng 3
+    raw_dl = str(st.session_state.get("kham_dan_luu", "")).strip()
+    if raw_dl:
+        dl_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_dl.split("\n") if l.strip()])
+    else:
+        dl_clean = "chân dẫn lưu sạch, không rỉ dịch bất thường"
+    line_dl = f"- Dẫn lưu: {dl_clean}"
+
+    # Ghép câu dẫn hoàn chỉnh kèm 3 dòng xuống hàng
+    return f"{cau_dan_chinh}\n{line_sh}\n{line_vm}\n{line_dl}"
 
 def ui_tom_tat(num):
     col_tt_title, col_tt_btn = st.columns([1.5, 0.5])
