@@ -247,6 +247,14 @@ if "so_hang_cls" not in st.session_state: st.session_state["so_hang_cls"] = 3
 for field in FIELDS_TO_SAVE:
     if field not in st.session_state:
         if field == "loai_benh_an": st.session_state[field] = "Nội khoa / Tiền phẫu"
+        elif field == "bs_trong_mo":
+            st.session_state[field] = (
+                "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+                "- Phương pháp mổ: \n"
+                "- Phương pháp gây mê: \n"
+                "- Quá trình mổ: Không có biến chứng\n"
+                "- Chẩn đoán sau mổ: "
+            )
         elif field == "tuoi": st.session_state[field] = 45
         elif field == "gioi_tinh": st.session_state[field] = "Nam"
         elif field == "dan_tok": st.session_state[field] = "Kinh"
@@ -949,9 +957,22 @@ with st.sidebar:
             elif k == "gioi_tinh": st.session_state[k] = "Nam"
             elif k == "dan_tok": st.session_state[k] = "Kinh"
             elif k == "loai_benh_an": st.session_state[k] = "Nội khoa / Tiền phẫu"
+            elif k == "bs_trong_mo":
+                st.session_state[k] = (
+                    "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+                    "- Phương pháp mổ: \n"
+                    "- Phương pháp gây mê: \n"
+                    "- Quá trình mổ: Không có biến chứng\n"
+                    "- Chẩn đoán sau mổ: "
+                )
             elif k == "uu_tien_co_quan": st.session_state[k] = "Không ưu tiên (Thứ tự mặc định)"
             elif k == "ngay_vao_vien": st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
             else: st.session_state[k] = ""
+        st.session_state["so_hang_cls"] = 3
+        for i in range(10): st.session_state[f"cls_kq_{i}"], st.session_state[f"cls_pg_{i}"] = "", ""
+        st.session_state["last_saved_snapshot"] = ""
+        st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
+        st.rerun()
         st.session_state["so_hang_cls"] = 3
         for i in range(10): st.session_state[f"cls_kq_{i}"], st.session_state[f"cls_pg_{i}"] = "", ""
         st.session_state["last_saved_snapshot"] = ""
