@@ -1790,22 +1790,27 @@ with tab1:
                     }
                     """
 
-                    # Tìm các vị trí hàng trống hiện tại
+                    # Xác định vị trí bắt đầu điền (tìm hàng đầu tiên thực sự cần ghi)
                     so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
-                    empty_rows = []
-                    for r in range(so_hang_cls):
-                        kq_r = str(st.session_state.get(f"cls_kq_{r}", "") or "").strip()
-                        pg_r = str(st.session_state.get(f"cls_pg_{r}", "") or "").strip()
-                        if not kq_r and not pg_r:
-                            empty_rows.append(r)
-
                     so_luong_anh = len(lab_photos)
-                    # Nếu số hàng trống không đủ chứa số ảnh, tự động tăng số hàng
-                    while len(empty_rows) < so_luong_anh:
-                        new_r = so_hang_cls
-                        empty_rows.append(new_r)
-                        so_hang_cls += 1
-                    st.session_state["so_hang_cls"] = so_hang_cls
+                    
+                    # Tìm chỉ số của hàng đã có dữ liệu cuối cùng
+                    last_used_idx = -1
+                    for r in range(so_hang_cls):
+                        val_k = str(st.session_state.get(f"cls_kq_{r}", "") or "").strip()
+                        val_p = str(st.session_state.get(f"cls_pg_{r}", "") or "").strip()
+                        # Loại trừ cả trường hợp dính chữ "None" hoặc gạch nối
+                        if val_k and val_k not in ["None", "-"] or val_p and val_p not in ["None", "-"]:
+                            last_used_idx = r
+
+                    # Bắt đầu điền ngay từ hàng kế tiếp (nếu chưa có gì thì điền từ hàng 0 tức Hàng 1)
+                    start_row = last_used_idx + 1
+                    empty_rows = [start_row + i for i in range(so_luong_anh)]
+
+                    # Đảm bảo tổng số hàng hiển thị đủ chứa tất cả kết quả mới
+                    max_row_needed = start_row + so_luong_anh
+                    if max_row_needed > so_hang_cls:
+                        st.session_state["so_hang_cls"] = max_row_needed
 
                     thanh_cong = 0
                     for idx, photo in enumerate(lab_photos):
