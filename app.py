@@ -158,8 +158,11 @@ def generate_auth_token(email):
 
 # --- BẢO MẬT: XÁC THỰC OTP + GHI NHỚ THIẾT BỊ BẰNG LOCALSTORAGE ---
 def check_password():
-    # 1. Admin truy cập nhanh qua đuôi ?admin
-    if "admin" in st.query_params:
+    # 1. Cơ chế Bypass tự động dành riêng cho Admin qua tham số URL (?admin_key=...)
+    admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
+    url_admin_key = st.query_params.get("nam", "")
+    
+    if admin_token_secret and url_admin_key == admin_token_secret:
         st.session_state["password_correct"] = True
         st.session_state["is_admin"] = True
         if "logged_in_user" not in st.session_state:
