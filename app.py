@@ -1014,23 +1014,73 @@ def ui_cdsb(num_sb, num_pb, num_bl):
         st.text_area(f"{num_sb}. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85, placeholder=placeholder_cd)
     with c_cd2:
         st.markdown(f"**{num_pb}. Chẩn đoán phân biệt:**")
-        if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
-            if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key bí mật!")
-            elif not str(st.session_state.get("chan_doan_so_bo", "")).strip(): st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ!")
+        if st.button("🪄 Làm phép (CĐPB & Biện luận)", key="btn_ai_cdpb", type="primary"):
+            if "GEMINI_API_KEY" not in st.secrets:
+                st.error("⚠️ Chưa cài đặt API Key bí mật!")
+            elif not str(st.session_state.get("chan_doan_so_bo", "")).strip():
+                st.warning("⚠️ Vui lòng nhập Chẩn đoán sơ bộ trước khi yêu cầu gợi ý!")
             else:
-                with st.spinner("AI đang phân tích lập luận chẩn đoán phân biệt..."):
+                with st.spinner("AI đang phân tích lập luận lâm sàng để tạo Chẩn đoán phân biệt & Biện luận..."):
                     try:
                         benh_su_str = get_benh_su_text_for_ai()
-                        context_cdpb = f"Loại bệnh án: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nLý do vào viện: {st.session_state.get('ly_do_vao_vien')}\nBệnh sử: {benh_su_str}\nChẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}"
+                        
+                        # Gom nhặt đầy đủ dữ kiện để AI biện luận sát thực tế lâm sàng
+                        context_cdpb = (
+                            f"Loại bệnh án: {loai_benh_an}\n"
+                            f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                            f"Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}\n"
+                            f"Bệnh sử: {benh_su_str}\n"
+                            f"Tiền sử: {st.session_state.get('ts_noi_khoa')} | Ngoại khoa: {st.session_state.get('ts_ngoai_khoa')}\n"
+                            f"Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}\n"
+                            f"Khám toàn thân: {st.session_state.get('kham_toan_than')}\n"
+                        )
+                        if loai_benh_an == "Hậu phẫu":
+                            context_cdpb += (
+                                f"Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau')}\n"
+                                f"Khám vết mổ: {st.session_state.get('kham_vet_mo')}\n"
+                                f"Khám dẫn lưu: {st.session_state.get('kham_dan_luu')}\n"
+                            )
+                        context_cdpb += f"CHẨN ĐOÁN SƠ BỘ: {st.session_state.get('chan_doan_so_bo')}"
+
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt_cdpb = f"Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cdpb}), hãy đưa ra CHẨN ĐOÁN PHÂN BIỆT dạng danh sách đánh số từ khả năng cao nhất đến thấp nhất. Chỉ ghi danh sách, không văn vẻ thừa."
-                        resp_cdpb = model.generate_content(prompt_cdpb)
-                        st.session_state["chan_doan_phan_biet"] = resp_cdpb.text.strip()
-                        st.toast("Đã gợi ý danh sách chẩn đoán phân biệt!", icon="✨")
-                        st.rerun()
-                    except Exception as e: st.error(f"Lỗi AI: {e}")
+                        prompt_cdpb = f"""
+                        Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra:
+                        1. Danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis): sắp xếp thứ tự từ khả năng cao nhất đến thấp hơn, từ bệnh lý cấp cứu nguy hiểm đến ít cấp cứu hơn.
+                        2. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ: Lập luận chặt chẽ vì sao nghĩ đến chẩn đoán sơ bộ (các dấu chứng/hội chứng ủng hộ) và vì sao cần phân biệt với các bệnh lý nêu trên (điểm tương đồng và các điểm chưa hoàn toàn phù hợp cần cận lâm sàng kiểm chứng).
+
+                        Dữ kiện ca bệnh:
+                        {context_cdpb}
+
+                        YÊU CẦU ĐẦU RA (Xuất ra đúng 2 khối nhãn sau, không viết thêm lời dẫn chào hỏi ngoài định dạng):
+                        [CHAN_DOAN_PHAN_BIET]
+                        1. Tên bệnh A
+                        2. Tên bệnh B
+                        3. Tên bệnh C
+
+                        [BIEN_LUAN_SO_BO]
+                        (Nội dung đoạn văn biện luận logic, súc tích, chuyên nghiệp theo phong cách thi lâm sàng y khoa).
+                        """
+                        res_text = model.generate_content(prompt_cdpb).text
+
+                        if "[CHAN_DOAN_PHAN_BIET]" in res_text and "[BIEN_LUAN_SO_BO]" in res_text:
+                            parts = res_text.split("[BIEN_LUAN_SO_BO]")
+                            cdpb_part = parts[0].replace("[CHAN_DOAN_PHAN_BIET]", "").strip()
+                            bien_luan_part = parts[1].strip()
+
+                            st.session_state["chan_doan_phan_biet"] = cdpb_part
+                            st.session_state["bien_luan"] = bien_luan_part
+                            st.toast("✨ Đã tạo gợi ý Chẩn đoán phân biệt & Biện luận thành công!", icon="🪄")
+                            st.rerun()
+                        else:
+                            # Fallback nếu model không tạo đúng nhãn
+                            st.session_state["chan_doan_phan_biet"] = res_text.strip()
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Lỗi AI: {e}")
+
         st.text_area("Nội dung chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=85, label_visibility="collapsed")
-    st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=110)
+    
+    st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=120)
 
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
