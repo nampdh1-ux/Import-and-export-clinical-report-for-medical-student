@@ -15,6 +15,17 @@ from streamlit_local_storage import LocalStorage
 import base64
 from PIL import Image
 from streamlit_pdf_viewer import pdf_viewer
+# --- HÀM ĐIỀU PHỐI API KEY THEO TỪNG TÍNH NĂNG ĐỂ TRÁNH QUÁ TẢI (RATE LIMIT) ---
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
+    """
+    Lấy model AI với API key chuyên biệt cho từng tác vụ.
+    Nếu chưa cài key riêng thì tự động fallback về GEMINI_API_KEY mặc định.
+    """
+    api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel(model_name)
 # 1. Khởi tạo đối tượng LocalStorage & Key lưu trữ
 local_storage = LocalStorage()
 STORAGE_KEY = "clinical_report_draft"
@@ -1766,12 +1777,11 @@ with tab1:
                 btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
 
             if btn_ocr and lab_photos:
-                if "GEMINI_API_KEY" not in st.secrets:
+                vision_model = get_feature_model("KEY_OCR", model_name="gemini-3.1-flash-lite")
+                if not vision_model:
                     st.error("⚠️ Hệ thống chưa được cấu hình API Key trong Secrets!")
                 else:
                     progress_bar = st.progress(0, text="Bắt đầu phân tích các phiếu xét nghiệm...")
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    vision_model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
                     ocr_prompt = """
                     Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
@@ -2157,7 +2167,8 @@ with tab3:
         btn_phan_bien = st.button("Giảng viên phản biện & Đặt câu hỏi", type="primary", key="btn_phan_bien_attending")
 
     if btn_phan_bien:
-        if "GEMINI_API_KEY" not in st.secrets:
+        model = get_feature_model("KEY_ATTENDING", model_name="gemini-3.6-flash")
+        if not model:
             st.error("⚠️ Hệ thống chưa được cấu hình API Key trong Secrets!")
         elif not st.session_state.get("benh_su") or not st.session_state.get("chan_doan_so_bo"):
             st.warning("⚠️ Vui lòng nhập tối thiểu Bệnh sử và Chẩn đoán sơ bộ ở Tab 1 trước khi yêu cầu phản biện!")
@@ -2165,8 +2176,6 @@ with tab3:
             with st.spinner("Thầy/Cô đang đọc kỹ bệnh án và chuẩn bị câu hỏi chất vấn..."):
                 try:
                     import json
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
                     prompt_phan_bien = f"""
                     Bạn là một Giảng viên lâm sàng (Clinical Attending Physician) uyên bác, giàu kinh nghiệm thực chiến và sư phạm tại bệnh viện trường đại học y khoa. 
