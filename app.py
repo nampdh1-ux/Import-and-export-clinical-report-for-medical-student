@@ -1010,7 +1010,6 @@ def generate_intro_tom_tat_noi_khoa():
     tuoi = st.session_state.get("tuoi", "")
     tuoi_str = f"{tuoi} tuổi" if tuoi else ""
     
-    # 1. Tổng hợp tiền sử
     ts_list = []
     for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
         val = str(st.session_state.get(k, "")).strip()
@@ -1020,10 +1019,8 @@ def generate_intro_tom_tat_noi_khoa():
                 ts_list.append(", ".join(lines))
     tien_su_str = "; ".join(ts_list) if ts_list else "chưa ghi nhận bất thường"
 
-    # 2. Lý do vào viện
     ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
 
-    # 3. Tính số ngày nằm viện (Ngày làm bệnh án - Ngày vào viện)
     ngay_vv_raw = str(st.session_state.get("ngay_vao_vien", "")).strip()
     so_ngay_nam_vien = 0
     if ngay_vv_raw:
@@ -1036,7 +1033,6 @@ def generate_intro_tom_tat_noi_khoa():
         except Exception:
             so_ngay_nam_vien = 0
 
-    # 4. Trích xuất số ngày khởi phát từ bệnh sử ("cách vào viện ... ngày")
     benh_su = str(st.session_state.get("benh_su", "")).lower()
     so_ngay_truoc_vv = 0
     match_ngay = re.search(r"cách (?:vào viện|nhập viện)\s*(?:khoảng|tầm)?\s*(\d+)\s*ngày", benh_su)
@@ -1050,17 +1046,79 @@ def generate_intro_tom_tat_noi_khoa():
     elif match_tuan:
         so_ngay_truoc_vv = int(match_tuan.group(1)) * 7
 
-    # 5. Tổng hợp thời gian diễn biến
     tong_ngay = so_ngay_truoc_vv + so_ngay_nam_vien
     if tong_ngay > 0:
         dien_bien_str = f"bệnh diễn biến {tong_ngay} ngày nay"
     else:
         dien_bien_str = "bệnh diễn biến cấp tính"
 
-    # 6. Ghép câu dẫn chuẩn
     return (
         f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
         f"{dien_bien_str}. Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
+    )
+
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
+def generate_intro_tom_tat_hau_phau():
+    gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
+    tuoi = st.session_state.get("tuoi", "")
+    tuoi_str = f"{tuoi} tuổi" if tuoi else "..."
+    ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
+
+    bs_truoc_mo = str(st.session_state.get("bs_truoc_mo", "")).strip()
+    bs_trong_mo = str(st.session_state.get("bs_trong_mo", "")).strip()
+    cd_so_bo = str(st.session_state.get("chan_doan_so_bo", "")).strip()
+
+    # 1. Trích xuất Chẩn đoán trước mổ
+    cd_truoc_mo = "..."
+    m_cdtm = re.search(r"(?:chẩn đoán trước mổ|cđ trước mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_truoc_mo, re.IGNORECASE)
+    if m_cdtm:
+        cd_truoc_mo = m_cdtm.group(1).strip()
+    elif bs_truoc_mo:
+        cd_truoc_mo = bs_truoc_mo.split("\n")[-1].strip().lstrip("-*• ")
+
+    # 2. Trích xuất Phương pháp mổ & Cấp cứu hay Chương trình/Phiên
+    pp_mo = "..."
+    loai_mo = "cấp cứu/phiên"
+    if bs_trong_mo:
+        m_pp = re.search(r"(?:phương pháp phẫu thuật|phương pháp mổ|phẫu thuật|pt)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_trong_mo, re.IGNORECASE)
+        if m_pp:
+            pp_mo = m_pp.group(1).strip()
+        else:
+            first_line = bs_trong_mo.split("\n")[0].strip().lstrip("-*• ")
+            pp_mo = first_line if len(first_line) < 60 else "phẫu thuật"
+
+        bs_tm_lower = bs_trong_mo.lower()
+        if "cấp cứu" in bs_tm_lower:
+            loai_mo = "cấp cứu"
+        elif "chương trình" in bs_tm_lower or "mổ phiên" in bs_tm_lower:
+            loai_mo = "chương trình"
+
+    # 3. Trích xuất Chẩn đoán sau mổ
+    cd_sau_mo = "..."
+    m_cdsm = re.search(r"(?:chẩn đoán sau mổ|cđ sau mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_trong_mo, re.IGNORECASE)
+    if m_cdsm:
+        cd_sau_mo = m_cdsm.group(1).strip()
+    elif cd_so_bo:
+        # Nếu đã ghi ở CĐ sơ bộ: "Hậu phẫu ngày 3 - Viêm phúc mạc ruột thừa..." -> lấy phần bệnh học
+        cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
+        cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
+
+    # 4. Trích xuất Ngày hậu phẫu
+    ngay_hp_val = str(st.session_state.get("ngay_hau_phau", "")).strip()
+    m_hp = re.search(r"(?:ngày\s*(?:thứ)?\s*)(\d+)", ngay_hp_val, re.IGNORECASE)
+    if m_hp:
+        ngay_hp_str = f"ngày thứ {m_hp.group(1)}"
+    elif ngay_hp_val:
+        ngay_hp_str = ngay_hp_val
+    else:
+        ngay_hp_str = "ngày thứ ..."
+
+    return (
+        f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str} vào viện vì {ly_do}, "
+        f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
+        f"mổ {loai_mo}, chẩn đoán sau mổ là {cd_sau_mo}. "
+        f"Quá trình mổ không có biến chứng. Hiện tại hậu phẫu {ngay_hp_str}. "
+        f"Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
     )
 
 def ui_tom_tat(num):
@@ -1068,19 +1126,24 @@ def ui_tom_tat(num):
     with col_tt_title:
         st.markdown(f"**{num}. Tóm tắt bệnh án:**")
     with col_tt_btn:
-        if loai_benh_an != "Hậu phẫu":
-            if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help="Tự động tính ngày và điền câu dẫn mở đầu", use_container_width=True):
+        # Tự động chọn câu dẫn phù hợp với loại bệnh án
+        help_text = "Tự động trích xuất thông tin phẫu thuật và điền câu dẫn" if loai_benh_an == "Hậu phẫu" else "Tự động tính ngày và điền câu dẫn mở đầu"
+        if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help=help_text, use_container_width=True):
+            if loai_benh_an == "Hậu phẫu":
+                cau_dan_moi = generate_intro_tom_tat_hau_phau()
+            else:
                 cau_dan_moi = generate_intro_tom_tat_noi_khoa()
-                current_tt = str(st.session_state.get("tom_tat", "")).strip()
-                if current_tt:
-                    lines = current_tt.split("\n")
-                    if len(lines) > 1 and (lines[1].strip().startswith("-") or lines[1].strip().startswith("*")):
-                        st.session_state["tom_tat"] = cau_dan_moi + "\n" + "\n".join(lines[1:])
-                    else:
-                        st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
+
+            current_tt = str(st.session_state.get("tom_tat", "")).strip()
+            if current_tt:
+                lines = current_tt.split("\n")
+                if len(lines) > 1 and (lines[1].strip().startswith("-") or lines[1].strip().startswith("*")):
+                    st.session_state["tom_tat"] = cau_dan_moi + "\n" + "\n".join(lines[1:])
                 else:
-                    st.session_state["tom_tat"] = cau_dan_moi
-                st.rerun()
+                    st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
+            else:
+                st.session_state["tom_tat"] = cau_dan_moi + "\n- Hội chứng...\n- Triệu chứng..."
+            st.rerun()
 
     st.text_area(
         f"{num}. Tóm tắt bệnh án:", 
