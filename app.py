@@ -1750,52 +1750,75 @@ with tab1:
             
         st.markdown(f"<div class='sub-section-header'>XI. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
         st.caption("Mỗi hàng: Cột trái nhập kết quả hoặc kèm ảnh; Cột phải nhập biện giải tương ứng. Khi xuất PDF sẽ tự động xếp thành bảng 2 cột đối chiếu.")
-        # --- TÍNH NĂNG OCR KẾT QUẢ XÉT NGHIỆM SIÊU TỐC BẰNG AI VISION ---
+        # --- TÍNH NĂNG OCR ĐA ẢNH XÉT NGHIỆM SIÊU TỐC (BATCH OCR) ---
         with st.container():
             col_ocr_file, col_ocr_act = st.columns([2.5, 1])
             with col_ocr_file:
-                lab_photo = st.file_uploader(
-                    "📷 Quét ảnh phiếu xét nghiệm (Huyết học, Sinh hóa, Nước tiểu...):",
+                lab_photos = st.file_uploader(
+                    "📷 Tải lên các ảnh phiếu xét nghiệm (cho phép chọn nhiều ảnh cùng lúc):",
                     type=["png", "jpg", "jpeg"],
-                    key="uploader_ocr_lab"
+                    accept_multiple_files=True,
+                    key="uploader_ocr_lab_multi"
                 )
             with col_ocr_act:
                 st.write("")
                 st.write("")
-                btn_ocr = st.button("⚡ Trích xuất kết quả tức thì", type="primary", use_container_width=True, key="btn_ocr_lab")
+                btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
 
-            if btn_ocr and lab_photo:
+            if btn_ocr and lab_photos:
                 if "GEMINI_API_KEY" not in st.secrets:
                     st.error("⚠️ Hệ thống chưa được cấu hình API Key trong Secrets!")
                 else:
-                    with st.spinner("AI đang quét bảng xét nghiệm và phiên giải bệnh lý..."):
+                    progress_bar = st.progress(0, text="Bắt đầu phân tích các phiếu xét nghiệm...")
+                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                    vision_model = genai.GenerativeModel("gemini-3.6-flash")
+
+                    ocr_prompt = """
+                    Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
+                    
+                    YÊU CẦU:
+                    1. Bỏ qua các thông tin hành chính.
+                    2. Trả về DUY NHẤT một đối tượng JSON (Object) có 2 khóa:
+                       - "ket_qua": Liệt kê tất cả các chỉ số quan trọng (Tên + Giá trị + Đơn vị), mỗi chỉ số trên một dòng bắt đầu bằng dấu gạch đầu dòng (dùng \\n- ).
+                       - "phien_giai": Tóm tắt và biện luận chung cho phiếu xét nghiệm này, tập trung phân tích các chỉ số bất thường (Tăng/Giảm) và định hướng lâm sàng tổng thể.
+                    3. Không viết thêm văn bản giải thích ngoài JSON.
+                    
+                    Định dạng mẫu:
+                    {
+                      "ket_qua": "- Glucose: 8.5 mmol/L\\n- Ure: 5.2 mmol/L\\n- Creatinin: 85 umol/L",
+                      "phien_giai": "- Tăng đường huyết lúc đói.\\n- Chức năng thận trong giới hạn bình thường."
+                    }
+                    """
+
+                    # Tìm các vị trí hàng trống hiện tại
+                    so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
+                    empty_rows = []
+                    for r in range(so_hang_cls):
+                        kq_r = str(st.session_state.get(f"cls_kq_{r}", "") or "").strip()
+                        pg_r = str(st.session_state.get(f"cls_pg_{r}", "") or "").strip()
+                        if not kq_r and not pg_r:
+                            empty_rows.append(r)
+
+                    so_luong_anh = len(lab_photos)
+                    # Nếu số hàng trống không đủ chứa số ảnh, tự động tăng số hàng
+                    while len(empty_rows) < so_luong_anh:
+                        new_r = so_hang_cls
+                        empty_rows.append(new_r)
+                        so_hang_cls += 1
+                    st.session_state["so_hang_cls"] = so_hang_cls
+
+                    thanh_cong = 0
+                    for idx, photo in enumerate(lab_photos):
+                        target_row = empty_rows[idx]
+                        progress_bar.progress(
+                            int((idx + 1) / so_luong_anh * 100), 
+                            text=f"Đang xử lý ảnh {idx + 1}/{so_luong_anh} vào Hàng {target_row + 1}..."
+                        )
                         try:
-                            img_input = Image.open(lab_photo)
-                            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                            vision_model = genai.GenerativeModel("gemini-3.6-flash")
-
-                            # 3. Prompt chuyên biệt trích xuất JSON gom nhóm
-                            ocr_prompt = """
-                            Bạn là một bác sĩ xét nghiệm lâm sàng. Hãy đọc hình ảnh phiếu xét nghiệm này (có thể chứa nhiều chỉ số như Sinh hóa, Huyết học...) và GOM TOÀN BỘ vào thành 1 kết quả duy nhất.
-                            
-                            YÊU CẦU:
-                            1. Bỏ qua các thông tin hành chính.
-                            2. Trả về DUY NHẤT một đối tượng JSON (Object) có 2 khóa:
-                               - "ket_qua": Liệt kê tất cả các chỉ số quan trọng (Tên + Giá trị + Đơn vị), mỗi chỉ số trên một dòng (dùng \n).
-                               - "phien_giai": Tóm tắt và biện luận chung cho toàn bộ phiếu xét nghiệm này, tập trung phân tích các chỉ số bất thường (Tăng/Giảm) và gợi ý ý nghĩa lâm sàng tổng thể.
-                            3. Không viết thêm văn bản giải thích ngoài JSON.
-                            
-                            Định dạng mẫu:
-                            {
-                              "ket_qua": "- Glucose: 8.5 mmol/L\n- Ure: 5.2 mmol/L\n- Creatinin: 85 umol/L\n- AST: 45 U/L\n- ALT: 50 U/L",
-                              "phien_giai": "- Tăng đường huyết lúc đói.\n- Men gan (AST, ALT) tăng nhẹ.\n- Chức năng thận (Ure, Creatinin) trong giới hạn bình thường."
-                            }
-                            """
-
+                            img_input = Image.open(photo)
                             resp = vision_model.generate_content([ocr_prompt, img_input])
                             raw_text = resp.text.strip()
 
-                            # Làm sạch Markdown json nếu có
                             if raw_text.startswith("```json"):
                                 raw_text = raw_text[7:]
                             elif raw_text.startswith("```"):
@@ -1805,35 +1828,17 @@ with tab1:
 
                             lab_data = json.loads(raw_text.strip())
 
-                            # Điền vào 1 hàng duy nhất (BẢO TOÀN HÀNG CŨ, ĐIỀN HÀNG MỚI)
-                            if isinstance(lab_data, dict) and ("ket_qua" in lab_data or "phien_giai" in lab_data):
-                                so_hang_hien_tai = int(st.session_state.get("so_hang_cls", 3))
-                                target_row = -1
-                                
-                                # Quét tìm hàng đầu tiên mà cả 2 ô đều thực sự rỗng
-                                for i in range(so_hang_hien_tai):
-                                    kq_val = str(st.session_state.get(f"cls_kq_{i}", "") or "").strip()
-                                    pg_val = str(st.session_state.get(f"cls_pg_{i}", "") or "").strip()
-                                    if not kq_val and not pg_val:
-                                        target_row = i
-                                        break
-                                
-                                # Nếu tất cả các hàng cũ đều đã có dữ liệu (ví dụ Hàng 1 đã có ảnh 1)
-                                # thì tự động mở thêm hàng mới ở cuối
-                                if target_row == -1:
-                                    target_row = so_hang_hien_tai
-                                    st.session_state["so_hang_cls"] = target_row + 1
-
-                                # Gán dữ liệu của ảnh mới vào đúng hàng mục tiêu
+                            if isinstance(lab_data, dict):
                                 st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
                                 st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
-
-                                st.toast(f"✅ Đã thêm kết quả vào Hàng {target_row + 1} (giữ nguyên các hàng trước)!", icon="🧪")
-                                st.rerun()
-                            else:
-                                st.warning("Không tìm thấy dữ liệu xét nghiệm rõ ràng trong ảnh, vui lòng chụp lại góc rõ hơn.")
+                                thanh_cong += 1
                         except Exception as e:
-                            st.error(f"Lỗi khi xử lý ảnh xét nghiệm: {e}")
+                            st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
+
+                    progress_bar.empty()
+                    if thanh_cong > 0:
+                        st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh vào từng hàng riêng biệt!", icon="🧪")
+                        st.rerun()
             st.divider()
         # -------------------------------------------------------------------------
         uploaded_imgs = {}
