@@ -1013,8 +1013,8 @@ def ui_cdsb(num_sb, num_pb, num_bl):
         placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
         st.text_area(f"{num_sb}. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=85, placeholder=placeholder_cd)
     with c_cd2:
-        st.markdown(f"**{num_pb}. Chẩn đoán phân biệt:**")
-        if st.button("🪄 Làm phép (CĐPB & Biện luận)", key="btn_ai_cdpb", type="primary"):
+        st.markdown(f"{num_pb}. Chẩn đoán phân biệt:")
+        if st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets:
                 st.error("⚠️ Chưa cài đặt API Key bí mật!")
             elif not str(st.session_state.get("chan_doan_so_bo", "")).strip():
