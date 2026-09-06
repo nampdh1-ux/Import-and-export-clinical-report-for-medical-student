@@ -1528,7 +1528,7 @@ with tab1:
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
             
-            # Khung sườn 5 dòng cố định
+            # Khung sườn 5 dòng chuẩn
             mau_5_dong = (
                 "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
                 "- Phương pháp mổ: \n"
@@ -1536,11 +1536,19 @@ with tab1:
                 "- Quá trình mổ: Không có biến chứng\n"
                 "- Chẩn đoán sau mổ: "
             )
-            # Tự động điền mẫu nếu ô đang trống hoặc chưa có nội dung
-            if not str(st.session_state.get("bs_trong_mo", "")).strip():
+            
+            # Lấy giá trị hiện tại, nếu trống thì bắt buộc lấy mẫu 5 dòng
+            val_trong_mo = st.session_state.get("bs_trong_mo", "")
+            if not str(val_trong_mo).strip():
+                val_trong_mo = mau_5_dong
                 st.session_state["bs_trong_mo"] = mau_5_dong
-                
-            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=130)
+
+            st.text_area(
+                "2. Tình trạng trong mổ:", 
+                value=val_trong_mo, 
+                key="bs_trong_mo", 
+                height=130
+            )
             st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
