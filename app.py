@@ -355,44 +355,47 @@ st.markdown("""
     }
 
     /* ==============================================================================
-       AMBOSS SIGNATURE FOCUS RING (TRIỆT TIÊU VIỀN ĐÔI - CHUẨN XÁC 100%)
+       AMBOSS SIGNATURE FOCUS RING (ÁP DỤNG ĐỒNG BỘ MỌI Ô NHẬP LIỆU)
        ============================================================================== */
 
-    /* 1. TẤT CẢ VIỀN VÀ BO GÓC ĐƯA RA LỚP VỎ NGOÀI (BASEWEB WRAPPER) */
-    div[data-baseweb="input"],
-    div[data-baseweb="textarea"],
+    /* 1. LỚP VỎ BAO NGOÀI CỦA MỌI Ô (TEXT INPUT, TEXTAREA, NUMBER, SELECTBOX) */
+    div[data-testid="stTextInput"] > div,
+    div[data-testid="stTextArea"] > div,
+    div[data-testid="stNumberInput"] > div,
     div[data-testid="stSelectbox"] > div > div {
         border-radius: 12px !important;
         border: 1.5px solid rgba(10, 166, 184, 0.3) !important;
         background-color: transparent !important;
         transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-        overflow: hidden !important; /* Cắt sạch mọi góc thừa lọt ra ngoài */
+        overflow: hidden !important;
     }
 
-    /* 2. RÊ CHUỘT QUA VỎ NGOÀI (HOVER) */
-    div[data-baseweb="input"]:hover,
-    div[data-baseweb="textarea"]:hover,
+    /* 2. HIỆU ỨNG RÊ CHUỘT (HOVER) */
+    div[data-testid="stTextInput"] > div:hover,
+    div[data-testid="stTextArea"] > div:hover,
+    div[data-testid="stNumberInput"] > div:hover,
     div[data-testid="stSelectbox"] > div > div:hover {
         border-color: rgba(10, 166, 184, 0.65) !important;
     }
 
-    /* 3. VIỀN SÁNG AMBOSS KHI FOCUS VÀO BẤT KỲ ĐÂU BÊN TRONG (FOCUS-WITHIN) */
-    div[data-baseweb="input"]:focus-within,
-    div[data-baseweb="textarea"]:focus-within,
+    /* 3. VÒNG HÀO QUANG AMBOSS KHI CLICK VÀO NHẬP LIỆU (FOCUS-WITHIN) */
+    div[data-testid="stTextInput"] > div:focus-within,
+    div[data-testid="stTextArea"] > div:focus-within,
+    div[data-testid="stNumberInput"] > div:focus-within,
     div[data-testid="stSelectbox"] > div > div:focus-within {
         border-color: #0aa6b8 !important;
-        box-shadow: 0 0 0 1px #0aa6b8, 0 0 0 4px rgba(10, 166, 184, 0.22) !important;
+        box-shadow: 0 0 0 1px #0aa6b8, 0 0 0 4px rgba(10, 166, 184, 0.25) !important;
     }
 
-    /* 4. TRIỆT TIÊU HOÀN TOÀN VIỀN VÀ BÓNG CỦA THẺ RUỘT (INPUT / TEXTAREA) */
-    div[data-baseweb="input"] input,
-    div[data-baseweb="textarea"] textarea {
+    /* 4. TRIỆT TIÊU VIỀN THỪA CỦA THẺ RUỘT BÊN TRONG */
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
         background-color: transparent !important;
         border-radius: 0 !important;
-        padding: 8px 12px !important;
     }
 
     /* Tắt đường viền xanh mặc định của trình duyệt */
