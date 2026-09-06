@@ -950,32 +950,51 @@ with st.sidebar:
         else: st.warning("Không tìm thấy dữ liệu nháp nào.")
 
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", use_container_width=True):
-        local_storage.deleteItem(STORAGE_KEY)
+        # 1. Xóa an toàn chống KeyError từ streamlit_local_storage
+        try:
+            local_storage.deleteItem(STORAGE_KEY)
+        except Exception:
+            pass
+
+        # 2. Xóa snapshot đệm để tránh ghi đè dữ liệu rác
+        st.session_state["last_saved_snapshot"] = ""
+
+        # Mẫu khung sườn cố định cho phần Trong mổ
+        mau_trong_mo = (
+            "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+            "- Phương pháp mổ: \n"
+            "- Phương pháp gây mê: \n"
+            "- Quá trình mổ: Không có biến chứng\n"
+            "- Chẩn đoán sau mổ: "
+        )
+
+        # 3. Đặt lại tất cả các trường dữ liệu
         for k in FIELDS_TO_SAVE:
-            if k == "tuoi": st.session_state[k] = 45
-            elif k in ["sh_can_nang", "sh_chieu_cao"]: st.session_state[k] = 0.0
-            elif k == "gioi_tinh": st.session_state[k] = "Nam"
-            elif k == "dan_tok": st.session_state[k] = "Kinh"
-            elif k == "loai_benh_an": st.session_state[k] = "Nội khoa / Tiền phẫu"
+            if k == "tuoi":
+                st.session_state[k] = 45
+            elif k in ["sh_can_nang", "sh_chieu_cao"]:
+                st.session_state[k] = 0.0
+            elif k == "gioi_tinh":
+                st.session_state[k] = "Nam"
+            elif k == "dan_tok":
+                st.session_state[k] = "Kinh"
+            elif k == "loai_benh_an":
+                st.session_state[k] = "Nội khoa / Tiền phẫu"
             elif k == "bs_trong_mo":
-                st.session_state[k] = (
-                    "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
-                    "- Phương pháp mổ: \n"
-                    "- Phương pháp gây mê: \n"
-                    "- Quá trình mổ: Không có biến chứng\n"
-                    "- Chẩn đoán sau mổ: "
-                )
-            elif k == "uu_tien_co_quan": st.session_state[k] = "Không ưu tiên (Thứ tự mặc định)"
-            elif k == "ngay_vao_vien": st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
-            else: st.session_state[k] = ""
+                st.session_state[k] = mau_trong_mo
+            elif k == "uu_tien_co_quan":
+                st.session_state[k] = "Không ưu tiên (Thứ tự mặc định)"
+            elif k == "ngay_vao_vien":
+                st.session_state[k] = datetime.now().strftime("%d/%m/%Y %H:%M")
+            else:
+                st.session_state[k] = ""
+
+        # 4. Đặt lại số hàng cận lâm sàng
         st.session_state["so_hang_cls"] = 3
-        for i in range(10): st.session_state[f"cls_kq_{i}"], st.session_state[f"cls_pg_{i}"] = "", ""
-        st.session_state["last_saved_snapshot"] = ""
-        st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
-        st.rerun()
-        st.session_state["so_hang_cls"] = 3
-        for i in range(10): st.session_state[f"cls_kq_{i}"], st.session_state[f"cls_pg_{i}"] = "", ""
-        st.session_state["last_saved_snapshot"] = ""
+        for i in range(15):
+            st.session_state[f"cls_kq_{i}"] = ""
+            st.session_state[f"cls_pg_{i}"] = ""
+
         st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
         st.rerun()
 
