@@ -1939,6 +1939,63 @@ def ui_cdxd(num_xd, num_blxd):
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
     st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
+# --- ÉP GIAO DIỆN TABS VÀ RADIO WIN2K ---
+st.markdown("""
+<style>
+    /* 1. THANH TABS DẠNG THẺ FOLDER 3D */
+    #root div[role="tablist"] {
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: 0 2px 0px #404040 !important;
+        padding-bottom: 0px !important;
+        gap: 2px !important;
+    }
+
+    #root button[role="tab"] {
+        background-color: #d4d0c8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0px !important;
+        color: #000000 !important;
+        padding: 5px 16px !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+    }
+
+    #root button[role="tab"][aria-selected="true"] {
+        background-color: #ece9d8 !important;
+        border-bottom: 2px solid #ece9d8 !important;
+        font-weight: 700 !important;
+        position: relative !important;
+        top: 2px !important;
+        z-index: 10 !important;
+    }
+
+    #root div[data-baseweb="tab-highlight"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 2. NÚT RADIO CHỌN MẪU BỆNH ÁN DẠNG LÕM 3D */
+    #root div[role="radiogroup"] label > div:first-child {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        border-radius: 50% !important;
+        box-shadow: none !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    #root div[role="radiogroup"] label > div:first-child > div {
+        background-color: #000000 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
