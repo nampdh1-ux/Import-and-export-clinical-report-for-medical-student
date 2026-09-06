@@ -1,0 +1,8 @@
+[theme]
+# Đổi màu đỏ mặc định (primaryColor) sang màu đen để tiệp với viền Win2K
+primaryColor = "#000000"
+
+# (Tùy chọn) Đồng bộ phông nền hệ thống sang xám công nghiệp
+backgroundColor = "#ece9d8"
+secondaryBackgroundColor = "#d4d0c8"
+textColor = "#000000"
