@@ -283,146 +283,169 @@ for i in range(st.session_state["so_hang_cls"]):
 st.markdown("""
 <style>
     /* ==============================================================================
-       Y2K CYBER-CLINICAL RETRO DESIGN (CYBERSPACE & JELLY AQUA 2000)
+       RETRO OS DESKTOP Y2K (WINDOWS 2000 / MAC OS 9 CLASSIC SYSTEM AESTHETIC)
+       Màu xám công nghiệp dịu mắt, hiệu ứng vát viền Bevel 3D kinh điển
        ============================================================================== */
-
-    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=VT323&display=swap');
 
     html {
         scroll-behavior: smooth;
     }
 
-    /* 1. KHỐI EXPANDER KIỂU CỬA SỔ WIN 2000 / AQUA OS */
+    /* 1. KHỐI CỬA SỔ HỆ THỐNG (WINDOW BOX & DIALOG) */
     div[data-testid="stExpander"] {
-        border: 2px solid #5b5f97 !important;
-        border-radius: 10px !important;
-        margin-bottom: 16px !important;
-        background: linear-gradient(180deg, rgba(240, 243, 255, 0.95) 0%, rgba(220, 227, 255, 0.9) 100%) !important;
-        box-shadow: 4px 4px 0px #2a2b4a !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0px !important;
+        margin-bottom: 14px !important;
+        background-color: #ece9d8 !important;
+        box-shadow: 1px 1px 0px #000000 !important;
         overflow: hidden !important;
     }
 
+    /* Thanh tiêu đề cửa sổ màu xanh Classic Navy đặc trưng */
     div[data-testid="stExpander"] > details > summary {
-        background: linear-gradient(180deg, #ff70a6 0%, #ff477e 40%, #d90368 100%) !important;
-        border-bottom: 2px solid #2a2b4a !important;
-        padding: 8px 16px !important;
-        font-family: 'Chakra Petch', sans-serif !important;
+        background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%) !important;
+        border-left: none !important;
+        border-radius: 0px !important;
+        padding: 6px 12px 6px 14px !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
         font-weight: 700 !important;
-        font-size: 1.0rem !important;
-        letter-spacing: 1px !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.5px !important;
         color: #ffffff !important;
-        text-shadow: 1px 1px 0px #000000 !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+        text-shadow: 1px 1px 1px #000000 !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stExpander"] > details > summary:hover {
-        background: linear-gradient(180deg, #ff9ebb 0%, #ff5c8d 100%) !important;
-        color: #fffbfe !important;
+        background: linear-gradient(90deg, #1842a8 0%, #b8d5f5 100%) !important;
+        color: #ffffff !important;
     }
 
     div[data-testid="stExpander"] > details > summary svg {
         fill: #ffffff !important;
     }
 
-    /* 2. TIÊU ĐỀ PHÂN MỤC Y2K PIXEL / CHROME ACCENT */
+    /* 2. THANH TIÊU ĐỀ PHÂN MỤC (MENUBAR / STATUS STRIP) */
     .sidebar-header-amboss {
-        background: linear-gradient(90deg, #70d6ff 0%, #ff70a6 100%) !important;
-        color: #1a1a2e !important;
-        border: 2px solid #2a2b4a !important;
-        box-shadow: 3px 3px 0px #2a2b4a !important;
-        padding: 6px 14px !important;
-        border-radius: 6px !important;
-        font-family: 'Chakra Petch', sans-serif !important;
-        font-size: 0.95rem !important;
+        background: #d4d0c8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #808080 !important;
+        border-bottom: 2px solid #808080 !important;
+        box-shadow: 1px 1px 0px #000000 !important;
+        padding: 5px 12px !important;
+        border-radius: 0px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.92rem !important;
         font-weight: 700 !important;
-        text-transform: uppercase !important;
-        margin-bottom: 12px !important;
+        color: #000000 !important;
+        margin-bottom: 10px !important;
     }
 
     .sub-section-header {
-        background: #e0e7ff !important;
-        border-left: 5px solid #ff477e !important;
-        border-top: 1px solid #2a2b4a !important;
-        border-right: 1px solid #2a2b4a !important;
-        border-bottom: 1px solid #2a2b4a !important;
-        box-shadow: 2px 2px 0px #2a2b4a !important;
-        padding: 4px 12px !important;
-        border-radius: 4px !important;
-        margin-top: 12px !important;
-        margin-bottom: 10px !important;
-        font-family: 'Chakra Petch', sans-serif !important;
-        font-size: 0.9rem !important;
+        background: #e4e2d5 !important;
+        border-top: 1px solid #ffffff !important;
+        border-left: 4px solid #0a246a !important;
+        border-right: 1px solid #808080 !important;
+        border-bottom: 1px solid #808080 !important;
+        padding: 4px 10px !important;
+        border-radius: 0px !important;
+        margin-top: 10px !important;
+        margin-bottom: 8px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.88rem !important;
         font-weight: 700 !important;
-        color: #1a1a2e !important;
+        color: #102542 !important;
     }
 
     .highlight-dx {
-        background-color: #ffeef2 !important;
-        border: 2px dashed #ff0055 !important;
-        color: #ff0055 !important;
+        background-color: #fffde6 !important;
+        border: 1px solid #b8860b !important;
+        color: #8b0000 !important;
         padding: 6px 12px !important;
-        border-radius: 6px !important;
+        border-radius: 0px !important;
         font-weight: 700 !important;
-        font-family: 'Chakra Petch', sans-serif !important;
+        font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CẮT KHỐI RETRO DIGITAL */
+    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES) */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
     div[data-testid="stSelectbox"] > div > div {
-        border-radius: 6px !important;
-        border: 2px solid #2a2b4a !important;
-        background: #ffffff !important;
-        box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.15) !important;
-        transition: all 0.1s ease-in-out !important;
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        border-radius: 0px !important;
+        box-shadow: inset 1px 1px 0px #808080 !important;
+        transition: none !important;
     }
 
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
     div[data-testid="stSelectbox"] > div > div:focus-within {
-        border-color: #06d6a0 !important;
-        box-shadow: 0 0 0 3px rgba(6, 214, 160, 0.45), inset 1px 1px 0px rgba(0,0,0,0.1) !important;
-        background: #fafffd !important;
+        border-top: 2px solid #000000 !important;
+        border-left: 2px solid #000000 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #fffff8 !important;
+        outline: 1px dotted #0a246a !important;
     }
 
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stNumberInput"] input {
-        color: #101026 !important;
-        font-weight: 500 !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.9rem !important;
+        padding: 5px 8px !important;
     }
 
-    /* 4. NÚT BẤM JELLY / CANDY BUTTONS CỰC ĐẶC TRƯNG NĂM 2000 */
+    /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
     button[kind="primary"] {
-        background: linear-gradient(180deg, #48cae4 0%, #0096c7 50%, #023e8a 100%) !important;
-        border: 2px solid #03045e !important;
-        border-radius: 20px !important;
-        color: #ffffff !important;
-        font-family: 'Chakra Petch', sans-serif !important;
+        background: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        box-shadow: 1px 1px 0px #000000 !important;
+        border-radius: 0px !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', sans-serif !important;
         font-weight: 700 !important;
-        letter-spacing: 0.5px !important;
-        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.6) !important;
-        box-shadow: 3px 3px 0px #03045e, inset 0 2px 0 rgba(255, 255, 255, 0.6) !important;
-        transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+        font-size: 0.88rem !important;
+        padding: 4px 14px !important;
     }
 
-    button[kind="primary"]:hover {
+    /* Hiệu ứng lún nút khi nhấn xuống (Pressed) */
+    button[kind="primary"]:active {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: none !important;
         transform: translate(1px, 1px) !important;
-        box-shadow: 2px 2px 0px #03045e !important;
     }
 
     button[kind="secondary"] {
-        background: linear-gradient(180deg, #f3f4f6 0%, #d1d5db 100%) !important;
-        border: 2px solid #374151 !important;
-        border-radius: 20px !important;
-        color: #111827 !important;
-        font-weight: 700 !important;
-        box-shadow: 2px 2px 0px #374151 !important;
+        background: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
     }
 
-    /* 5. THANH MỤC LỤC KIỂU MENU WINAMP / CYBER DECK */
+    /* 5. THANH MỤC LỤC BÊN PHẢI DẠNG HỘP CÔNG CỤ SYSTEM TOOLBOX */
     .right-toc-container {
         position: fixed !important;
         top: 75px !important;
@@ -431,60 +454,77 @@ st.markdown("""
     }
 
     .right-toc-trigger {
-        background: linear-gradient(180deg, #b5179e 0%, #7209b7 100%) !important;
-        color: #f72585 !important;
-        border: 2px solid #2a2b4a !important;
-        padding: 7px 16px !important;
-        border-radius: 16px !important;
-        font-family: 'Chakra Petch', sans-serif !important;
-        font-size: 0.85rem !important;
+        background: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        box-shadow: 1px 1px 0px #000000 !important;
+        color: #000000 !important;
+        padding: 5px 12px !important;
+        border-radius: 0px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.82rem !important;
         font-weight: 700 !important;
         cursor: pointer !important;
-        box-shadow: 3px 3px 0px #2a2b4a, inset 0 1px 0 rgba(255,255,255,0.5) !important;
-        color: #ffffff !important;
-        text-shadow: 1px 1px 0px #000 !important;
         list-style: none !important;
+        user-select: none !important;
+    }
+
+    .right-toc-trigger:hover {
+        background: #f5f4ea !important;
+    }
+
+    .right-toc-trigger:active {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: none !important;
     }
 
     .right-toc-menu {
         position: absolute !important;
-        top: 36px !important;
+        top: 30px !important;
         right: 0 !important;
         width: 250px !important;
-        background: #f8f9fa !important;
-        border: 2px solid #2a2b4a !important;
-        border-radius: 8px !important;
-        box-shadow: 5px 5px 0px #2a2b4a !important;
-        padding: 8px 0 !important;
+        background: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        box-shadow: 3px 3px 0px #000000 !important;
+        padding: 4px !important;
         display: flex !important;
         flex-direction: column !important;
+        max-height: 75vh !important;
+        overflow-y: auto !important;
     }
 
     .right-toc-header {
-        font-family: 'Chakra Petch', sans-serif !important;
-        font-size: 0.75rem !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.72rem !important;
         font-weight: 700 !important;
-        background: #2a2b4a !important;
-        color: #4cc9f0 !important;
-        padding: 4px 10px !important;
-        letter-spacing: 1px !important;
+        background: #0a246a !important;
+        color: #ffffff !important;
+        padding: 3px 8px !important;
+        letter-spacing: 0.5px !important;
+        margin-bottom: 4px !important;
     }
 
     .toc-item {
-        color: #1a1a2e !important;
-        font-family: 'Chakra Petch', sans-serif !important;
-        font-size: 0.84rem !important;
-        font-weight: 600 !important;
-        padding: 7px 14px !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-size: 0.82rem !important;
+        padding: 5px 8px !important;
         text-decoration: none !important;
         display: block !important;
-        border-bottom: 1px dashed rgba(42, 43, 74, 0.2) !important;
+        border: 1px solid transparent !important;
     }
 
     .toc-item:hover {
-        background: #ffe5ec !important;
-        color: #d90429 !important;
-        padding-left: 18px !important;
+        background-color: #0a246a !important;
+        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
