@@ -291,21 +291,7 @@ st.markdown("""
     .sidebar-header-amboss { background-color: #ebf7f9; box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1; padding: 8px 12px 8px 16px; border-radius: 4px; font-size: 1.05rem; font-weight: 700; color: #06445c; margin-bottom: 8px; }
     .sub-section-header { background-color: #f2fafb; box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1; padding: 6px 12px 6px 14px; border-radius: 3px; margin-top: 10px; margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; color: #0c4d63; }
     .highlight-dx { color: #b40000; font-weight: bold; font-size: 1.02rem; }
-
-    /* TỰ ĐỘNG CO GIÃN THEO NỘI DUNG CHO TẤT CẢ Ô TEXTAREA */
-    div[data-testid="stTextArea"] textarea {
-        min-height: 75px !important;
-        max-height: 500px !important;
-        field-sizing: content;
-        line-height: 1.5 !important;
-        resize: vertical !important;
-        overflow-y: auto !important;
-        transition: height 0.15s ease;
-    }
-    div[data-testid="stTextArea"] textarea:focus {
-        border-color: #0d47a1 !important;
-        box-shadow: 0 0 0 1px #0d47a1 !important;
-    }
+    .type-selector { padding: 15px; background-color: #fff9e6; border-left: 5px solid #ffc107; border-radius: 5px; margin-bottom: 20px;}
 </style>
 """, unsafe_allow_html=True)
 
