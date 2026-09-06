@@ -1619,16 +1619,21 @@ with tab1:
 
         col_tt_mo_ta, col_tt_sh = st.columns([1.25, 1])
         with col_tt_mo_ta:
-            st.markdown("**Mô tả khám toàn thân:**")
-            with st.expander("📋 Danh sách chọn nhanh triệu chứng toàn thân", expanded=False):
-                for label, full_text in LIST_TOAN_THAN:
-                    c_txt, c_btn = st.columns([4, 1])
-                    with c_txt:
-                        st.markdown(f"<span style='font-size: 0.9rem;'>{label}</span>", unsafe_allow_html=True)
-                    with c_btn:
-                        st.button("➕ Thêm", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
+            # Hàng tiêu đề kết hợp nút Popover nổi bên phải
+            c_title_tt, c_pop_tt = st.columns([2, 1.2])
+            with c_title_tt:
+                st.markdown("**Mô tả khám toàn thân:**")
+            with c_pop_tt:
+                with st.popover("⚡ Chọn nhanh", use_container_width=True):
+                    st.caption("Danh mục triệu chứng (Ưu tiên bình thường):")
+                    for label, full_text in LIST_TOAN_THAN:
+                        c_txt, c_btn = st.columns([3.5, 1.2])
+                        with c_txt:
+                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                        with c_btn:
+                            st.button("➕", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
 
-            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=125, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
+            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=155, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
 
         with col_tt_sh:
             st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
@@ -1655,26 +1660,34 @@ with tab1:
             st.markdown("<div class='sub-section-header'>2. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
             c_vm, c_dl = st.columns(2)
             with c_vm:
-                st.markdown("**Tình trạng vết mổ:**")
-                with st.expander("📋 Chọn nhanh dấu hiệu vết mổ", expanded=False):
-                    for label, full_text in LIST_VET_MO:
-                        c_txt, c_btn = st.columns([3.8, 1.2])
-                        with c_txt:
-                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
-                        with c_btn:
-                            st.button("➕ Thêm", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
+                c_title_vm, c_pop_vm = st.columns([2, 1.2])
+                with c_title_vm:
+                    st.markdown("**Tình trạng vết mổ:**")
+                with c_pop_vm:
+                    with st.popover("⚡ Chọn nhanh", use_container_width=True):
+                        st.caption("Dấu hiệu vết mổ:")
+                        for label, full_text in LIST_VET_MO:
+                            c_txt, c_btn = st.columns([3.5, 1.2])
+                            with c_txt:
+                                st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                            with c_btn:
+                                st.button("➕", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
 
                 st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
 
             with c_dl:
-                st.markdown("**Tình trạng ống dẫn lưu:**")
-                with st.expander("📋 Chọn nhanh dấu hiệu dẫn lưu", expanded=False):
-                    for label, full_text in LIST_DAN_LUU:
-                        c_txt, c_btn = st.columns([3.8, 1.2])
-                        with c_txt:
-                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
-                        with c_btn:
-                            st.button("➕ Thêm", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
+                c_title_dl, c_pop_dl = st.columns([2, 1.2])
+                with c_title_dl:
+                    st.markdown("**Tình trạng ống dẫn lưu:**")
+                with c_pop_dl:
+                    with st.popover("⚡ Chọn nhanh", use_container_width=True):
+                        st.caption("Dấu hiệu dẫn lưu:")
+                        for label, full_text in LIST_DAN_LUU:
+                            c_txt, c_btn = st.columns([3.5, 1.2])
+                            with c_txt:
+                                st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                            with c_btn:
+                                st.button("➕", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
 
                 st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=90, label_visibility="collapsed", placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
