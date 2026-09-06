@@ -637,71 +637,72 @@ st.markdown("""
         box-shadow: none !important;
         transform: translate(1px, 1px) !important;
     /* ==============================================================================
-       7. ĐỒNG BỘ PHẦN ĐẦU TRANG (TABS, RADIO & TIÊU ĐỀ WIN2K)
+       7. ĐỒNG BỘ PHẦN ĐẦU TRANG (CHUẨN DOM STREAMLIT MỚI NHẤT)
        ============================================================================== */
 
-    /* Ẩn icon link mỏ neo mặc định cạnh tiêu đề */
+    /* 1. TIÊU ĐỀ: ẨN NÚT LINK ANCHOR & ĐỔI PHÔNG */
     .stApp h1 a, 
-    .stApp [data-testid="stHeaderActionElements"] {
+    .stApp [data-testid="stHeaderActionElements"],
+    .stApp h1 span:last-child {
         display: none !important;
     }
 
-    /* Tiêu đề & mô tả đầu trang */
     .stApp h1 {
         font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
         font-weight: 700 !important;
-        letter-spacing: -0.5px !important;
         color: #000000 !important;
-        margin-bottom: 4px !important;
+        letter-spacing: -0.5px !important;
     }
 
-    /* --- THANH TABS DẠNG THẺ FOLDER 3D --- */
-    /* Container viền đế ngang */
-    div[data-testid="stTabs"] div[data-baseweb="tab-list"] {
+    /* 2. THANH TABS: THẺ FOLDER WIN2K NỔI 3D */
+    /* Khung danh sách tab */
+    .stApp [data-testid="stTabs"] [role="tablist"] {
         border-bottom: 2px solid #ffffff !important;
         box-shadow: 0 2px 0px #404040 !important;
         background-color: transparent !important;
         padding-bottom: 0px !important;
-        margin-bottom: 16px !important;
-        gap: 4px !important;
+        gap: 3px !important;
     }
 
-    /* Ẩn hoàn toàn thanh gạch chân chạy qua lại mặc định */
-    div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
+    /* Tắt thanh gạch chân màu đỏ/đen chạy ngầm */
+    .stApp [data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    .stApp [data-testid="stTabs"] hr {
         display: none !important;
     }
 
-    /* Nút từng Tab */
-    div[data-testid="stTabs"] button[data-baseweb="tab"] {
+    /* Từng tab bình thường */
+    .stApp [data-testid="stTabs"] button[role="tab"] {
         background-color: #d4d0c8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
         border-right: 2px solid #404040 !important;
         border-bottom: 2px solid #404040 !important;
         border-radius: 0px !important;
-        padding: 5px 16px !important;
+        padding: 5px 14px !important;
         color: #000000 !important;
         font-family: 'Tahoma', sans-serif !important;
         font-weight: 600 !important;
         font-size: 0.88rem !important;
+        box-shadow: none !important;
     }
 
-    /* Tab đang được kích hoạt (Active) */
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+    /* Tab đang chọn (Active): Đẩy trồi lên che viền chân */
+    .stApp [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
         background-color: #ece9d8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
         border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #ece9d8 !important; /* Che đường viền ngang bên dưới */
+        border-bottom: 2px solid #ece9d8 !important;
+        font-weight: 700 !important;
         position: relative !important;
         top: 2px !important;
-        z-index: 5 !important;
-        font-weight: 700 !important;
+        z-index: 2 !important;
     }
 
-    /* --- NÚT CHỌN RADIO DẠNG LÕM 3D --- */
+    /* 3. NÚT RADIO (CHỌN MẪU BỆNH ÁN) LÕM 3D */
     /* Vòng tròn ngoài */
-    div[data-testid="stRadio"] div[data-baseweb="radio"] > div:first-child {
+    .stApp [data-testid="stRadio"] [role="radiogroup"] label > div:first-child,
+    .stApp [data-testid="stRadio"] label > div:first-child {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
         border-right: 2px solid #ffffff !important;
@@ -711,8 +712,9 @@ st.markdown("""
         border-radius: 50% !important;
     }
 
-    /* Dấu chấm tròn khi được chọn */
-    div[data-testid="stRadio"] div[data-baseweb="radio"] div[data-testid="stRadioButtonDot"] {
+    /* Chấm tròn đen khi chọn */
+    .stApp [data-testid="stRadio"] [role="radiogroup"] label div[data-testid="stRadioButtonDot"],
+    .stApp [data-testid="stRadio"] label div[data-testid="stRadioButtonDot"] {
         background-color: #000000 !important;
     }
     }
