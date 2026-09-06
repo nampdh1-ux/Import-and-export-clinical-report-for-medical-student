@@ -282,98 +282,141 @@ for i in range(st.session_state["so_hang_cls"]):
 # --- CSS TÙY BIẾN AN TOÀN THEO THEME GỐC CỦA STREAMLIT ---
 st.markdown("""
 <style>
-    /* Cuộn trang mượt */
+    <style>
+    /* ==============================================================================
+       AMBOSS CLINICAL DESIGN SYSTEM FOR STREAMLIT
+       Brand: Pacific Teal (#0aa6b8), Clinical Navy (#0f4c81), Crimson Alert (#e11d48)
+       ============================================================================== */
+
+    /* 1. MƯỢT MÀ CUỘN TRANG & TYPOGRAPHY */
     html {
         scroll-behavior: smooth;
     }
 
-    /* 1. KHỐI EXPANDER TỰ THÍCH ỨNG THEME CHÍNH THỨC */
+    /* 2. KHỐI EXPANDER KIỂU BẢNG TRI THỨC AMBOSS (COLLAPSIBLE ARTICLE CARD) */
     div[data-testid="stExpander"] {
-        border: 1px solid rgba(128, 128, 128, 0.25) !important;
-        border-radius: 6px;
-        margin-bottom: 12px;
+        border: 1px solid rgba(10, 166, 184, 0.28) !important;
+        border-radius: 6px !important;
+        margin-bottom: 14px !important;
         background-color: transparent !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+        overflow: hidden !important;
     }
 
+    /* Thanh tiêu đề thẻ mục (Summary Bar) mang phong cách AMBOSS Header */
     div[data-testid="stExpander"] > details > summary {
-        background-color: rgba(13, 71, 161, 0.08) !important;
-        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1 !important;
+        background-color: rgba(10, 166, 184, 0.08) !important;
+        box-shadow: inset 4px 0 0 #0aa6b8, inset 8px 0 0 #0f4c81 !important;
         border-left: none !important;
-        border-radius: 5px 5px 0 0;
+        border-radius: 5px 5px 0 0 !important;
         padding: 10px 14px 10px 18px !important;
         font-weight: 700 !important;
-        font-size: 1.05rem !important;
+        font-size: 1.02rem !important;
+        letter-spacing: 0.2px !important;
+        transition: all 0.2s ease !important;
     }
 
     div[data-testid="stExpander"] > details > summary:hover {
-        background-color: rgba(13, 71, 161, 0.15) !important;
+        background-color: rgba(10, 166, 184, 0.16) !important;
+        color: #0aa6b8 !important;
     }
 
-    /* 2. TIÊU ĐỀ PHỤ */
+    /* 3. TIÊU ĐỀ PHÂN MỤC (SUB-SECTION HEADERS & HIGHLIGHTS) */
     .sidebar-header-amboss {
-        background-color: rgba(13, 71, 161, 0.08);
-        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1;
-        padding: 8px 12px 8px 16px;
-        border-radius: 4px;
-        font-size: 1.05rem;
-        font-weight: 700;
-        margin-bottom: 8px;
+        background-color: rgba(10, 166, 184, 0.1) !important;
+        box-shadow: inset 4px 0 0 #0aa6b8, inset 8px 0 0 #0f4c81 !important;
+        padding: 8px 12px 8px 16px !important;
+        border-radius: 4px !important;
+        font-size: 1.0rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 10px !important;
+        letter-spacing: 0.3px !important;
     }
 
     .sub-section-header {
-        background-color: rgba(13, 71, 161, 0.06);
-        box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1;
-        padding: 6px 12px 6px 14px;
-        border-radius: 3px;
-        margin-top: 10px;
-        margin-bottom: 8px;
-        font-size: 0.95rem;
-        font-weight: 600;
+        background-color: rgba(10, 166, 184, 0.06) !important;
+        box-shadow: inset 3px 0 0 #0aa6b8, inset 6px 0 0 #0f4c81 !important;
+        padding: 6px 12px 6px 14px !important;
+        border-radius: 3px !important;
+        margin-top: 10px !important;
+        margin-bottom: 8px !important;
+        font-size: 0.94rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.1px !important;
     }
 
+    /* Chữ cảnh báo/Chẩn đoán xác định kiểu AMBOSS Red/Amber Callout */
     .highlight-dx {
-        color: #d32f2f !important;
-        font-weight: bold;
-        font-size: 1.02rem;
+        color: #e11d48 !important;
+        font-weight: 700 !important;
+        font-size: 1.02rem !important;
+        border-left: 3px solid #e11d48 !important;
+        padding-left: 8px !important;
     }
 
-    /* 3. THANH MỤC LỤC NỔI CỐ ĐỊNH BÊN PHẢI (LUÔN NỔI LÊN TRÊN CÙNG) */
+    /* 4. TỐI ƯU CÁC Ô NHẬP LIỆU & NÚT BẤM (AMBOSS BUTTONS & INPUTS) */
+    div[data-testid="stTextArea"] textarea:focus,
+    div[data-testid="stTextInput"] input:focus {
+        border-color: #0aa6b8 !important;
+        box-shadow: 0 0 0 1px #0aa6b8 !important;
+    }
+
+    /* Nút Primary mang màu Pacific Teal đặc trưng của AMBOSS */
+    button[kind="primary"] {
+        background-color: #0aa6b8 !important;
+        border-color: #0aa6b8 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    button[kind="primary"]:hover {
+        background-color: #088b9a !important;
+        border-color: #088b9a !important;
+        box-shadow: 0 4px 12px rgba(10, 166, 184, 0.28) !important;
+    }
+
+    /* 5. THANH MỤC LỤC BÊN PHẢI ĐẬM CHẤT AMBOSS TABLE OF CONTENTS */
     .right-toc-container {
         position: fixed !important;
-        top: 80px !important;
-        right: 25px !important;
+        top: 78px !important;
+        right: 22px !important;
         z-index: 999999 !important;
     }
 
     .right-toc-trigger {
-        background: #0d47a1 !important;
+        background: #0aa6b8 !important;
         color: #ffffff !important;
-        padding: 8px 14px !important;
+        padding: 7px 14px !important;
         border-radius: 20px !important;
-        font-size: 0.88rem !important;
+        font-size: 0.85rem !important;
         font-weight: 600 !important;
         cursor: pointer !important;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+        box-shadow: 0 3px 12px rgba(10, 166, 184, 0.35) !important;
         list-style: none !important;
         user-select: none !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        transition: all 0.2s ease !important;
     }
 
     .right-toc-trigger:hover {
-        background: #1565c0 !important;
+        background: #088b9a !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 5px 16px rgba(10, 166, 184, 0.45) !important;
     }
 
     .right-toc-menu {
         position: absolute !important;
-        top: 38px !important;
+        top: 36px !important;
         right: 0 !important;
         width: 260px !important;
         background: var(--background-color, #ffffff) !important;
         color: var(--text-color, #1e293b) !important;
-        border: 1px solid rgba(128, 128, 128, 0.3) !important;
+        border: 1px solid rgba(10, 166, 184, 0.35) !important;
         border-radius: 8px !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
-        padding: 10px 0 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+        padding: 8px 0 !important;
         display: flex !important;
         flex-direction: column !important;
         max-height: 75vh !important;
@@ -383,25 +426,28 @@ st.markdown("""
     .right-toc-header {
         font-size: 0.72rem !important;
         font-weight: 700 !important;
-        letter-spacing: 0.5px !important;
-        opacity: 0.7 !important;
+        letter-spacing: 0.6px !important;
+        color: #0aa6b8 !important;
         padding: 4px 14px 8px 14px !important;
-        border-bottom: 1px solid rgba(128, 128, 128, 0.2) !important;
+        border-bottom: 1px solid rgba(10, 166, 184, 0.2) !important;
     }
 
     .toc-item {
         color: var(--text-color, #1e293b) !important;
         text-decoration: none !important;
-        font-size: 0.85rem !important;
-        padding: 8px 14px !important;
+        font-size: 0.84rem !important;
+        padding: 7px 14px !important;
         display: block !important;
-        transition: background 0.15s ease !important;
+        transition: all 0.15s ease !important;
     }
 
     .toc-item:hover {
-        background-color: rgba(13, 71, 161, 0.12) !important;
+        background-color: rgba(10, 166, 184, 0.12) !important;
+        color: #0aa6b8 !important;
         font-weight: 600 !important;
+        padding-left: 18px !important;
     }
+</style>
 </style>
 """, unsafe_allow_html=True)
 
