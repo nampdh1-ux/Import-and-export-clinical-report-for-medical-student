@@ -371,7 +371,18 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES) */
+    /* ==============================================================================
+       3. Ô NHẬP LIỆU CHÌM (TRIỆT TIÊU TOÀN DIỆN VIỀN ĐỎ & GIỮ HIỆU ỨNG 3D WIN2K)
+       ============================================================================== */
+
+    /* Đè biến màu hệ thống của Streamlit để không sinh ra mã màu đỏ */
+    div[data-testid="stTextInput"],
+    div[data-testid="stTextArea"],
+    div[data-testid="stNumberInput"] {
+        --primary-color: #000000 !important;
+    }
+
+    /* 1. KHUNG CHÌM 3D WIN2K NGOÀI CÙNG */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
@@ -383,9 +394,10 @@ st.markdown("""
         background-color: #ffffff !important;
         border-radius: 0px !important;
         box-shadow: inset 1px 1px 0px #808080 !important;
-        transition: none !important;
+        overflow: hidden !important;
     }
 
+    /* 2. KHI ĐƯỢC BẤM VÀO (FOCUS-WITHIN): HIỆU ỨNG CHÌM SÂU ĐẬM NÉT */
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
@@ -394,17 +406,57 @@ st.markdown("""
         border-left: 2px solid #000000 !important;
         border-right: 2px solid #ffffff !important;
         border-bottom: 2px solid #ffffff !important;
-        background-color: #fffff8 !important;
-        outline: 1px dotted #0a246a !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #000000 !important;
     }
 
+    /* 3. TẨY SẠCH HOÀN TOÀN VIỀN ĐỎ & GÓC BO CỦA TẤT CẢ PHẦN TỬ BÊN TRONG */
+    div[data-testid="stTextInput"] *,
+    div[data-testid="stTextArea"] *,
+    div[data-testid="stNumberInput"] * {
+        border-radius: 0px !important;
+    }
+
+    div[data-testid="stTextInput"] [data-baseweb],
+    div[data-testid="stTextArea"] [data-baseweb],
+    div[data-testid="stNumberInput"] [data-baseweb],
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input {
+        border: none !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        -webkit-box-shadow: none !important;
+    }
+
+    /* 4. ĐỊNH DẠNG VĂN BẢN TRONG Ô */
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stNumberInput"] input {
         color: #000000 !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.9rem !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 0.92rem !important;
         padding: 5px 8px !important;
+        background-color: transparent !important;
+    }
+
+    /* 5. NÚT TĂNG GIẢM (+ / -) Ô TUỔI THEO STYLE WIN2K */
+    div[data-testid="stNumberInput"] button {
+        border-radius: 0px !important;
+        border-top: 1px solid #ffffff !important;
+        border-left: 1px solid #ffffff !important;
+        border-right: 1px solid #404040 !important;
+        border-bottom: 1px solid #404040 !important;
+        background-color: #ece9d8 !important;
+        color: #000000 !important;
+    }
+
+    div[data-testid="stNumberInput"] button:active {
+        border-top: 1px solid #404040 !important;
+        border-left: 1px solid #404040 !important;
+        border-right: 1px solid #ffffff !important;
+        border-bottom: 1px solid #ffffff !important;
     }
 
     /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
