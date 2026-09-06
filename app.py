@@ -637,41 +637,44 @@ st.markdown("""
         box-shadow: none !important;
         transform: translate(1px, 1px) !important;
     /* ==============================================================================
-       7. ĐỒNG BỘ PHẦN ĐẦU TRANG (CHUẨN DOM STREAMLIT MỚI NHẤT)
+       7. ĐỒNG BỘ ĐẦU TRANG (QUÉT DIỆN RỘNG BẤT CHẤP PHIÊN BẢN STREAMLIT)
        ============================================================================== */
 
-    /* 1. TIÊU ĐỀ: ẨN NÚT LINK ANCHOR & ĐỔI PHÔNG */
-    .stApp h1 a, 
-    .stApp [data-testid="stHeaderActionElements"],
-    .stApp h1 span:last-child {
+    /* --- 1. TIÊU ĐỀ: ẨN MỌI THỂ LOẠI ICON LINK MỎ NEO --- */
+    h1 a, h2 a, h3 a, 
+    .stHeadingContainer a, 
+    a.header-anchor, 
+    svg.header-anchor {
         display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
     }
 
-    .stApp h1 {
+    h1, .stHeadingContainer h1 {
         font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
         font-weight: 700 !important;
         color: #000000 !important;
         letter-spacing: -0.5px !important;
     }
 
-    /* 2. THANH TABS: THẺ FOLDER WIN2K NỔI 3D */
-    /* Khung danh sách tab */
-    .stApp [data-testid="stTabs"] [role="tablist"] {
+    /* --- 2. THANH TABS: ÉP TOÀN BỘ BUTTON THÀNH THẺ FOLDER --- */
+    /* Đường kẻ ngang làm đế */
+    div[data-testid="stTabs"] > div:first-of-type {
         border-bottom: 2px solid #ffffff !important;
         box-shadow: 0 2px 0px #404040 !important;
         background-color: transparent !important;
         padding-bottom: 0px !important;
-        gap: 3px !important;
     }
 
-    /* Tắt thanh gạch chân màu đỏ/đen chạy ngầm */
-    .stApp [data-testid="stTabs"] [data-baseweb="tab-highlight"],
-    .stApp [data-testid="stTabs"] hr {
+    /* Ẩn dải màu gạch dưới chuyển động */
+    div[data-testid="stTabs"] > div:first-of-type > div:last-of-type,
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
         display: none !important;
+        opacity: 0 !important;
     }
 
-    /* Từng tab bình thường */
-    .stApp [data-testid="stTabs"] button[role="tab"] {
+    /* Định dạng mọi nút bấm (Tab) nằm trong vùng Tabs */
+    div[data-testid="stTabs"] button {
         background-color: #d4d0c8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
@@ -679,6 +682,7 @@ st.markdown("""
         border-bottom: 2px solid #404040 !important;
         border-radius: 0px !important;
         padding: 5px 14px !important;
+        margin-right: 2px !important;
         color: #000000 !important;
         font-family: 'Tahoma', sans-serif !important;
         font-weight: 600 !important;
@@ -686,37 +690,37 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* Tab đang chọn (Active): Đẩy trồi lên che viền chân */
-    .stApp [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    /* Khi Tab được kích hoạt (Active) */
+    div[data-testid="stTabs"] button[aria-selected="true"],
+    div[data-testid="stTabs"] button[tabindex="0"] {
         background-color: #ece9d8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
         border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #ece9d8 !important;
-        font-weight: 700 !important;
+        border-bottom: 2px solid #ece9d8 !important; /* Xóa viền đáy */
         position: relative !important;
         top: 2px !important;
-        z-index: 2 !important;
+        z-index: 99 !important;
+        font-weight: 700 !important;
     }
 
-    /* 3. NÚT RADIO (CHỌN MẪU BỆNH ÁN) LÕM 3D */
-    /* Vòng tròn ngoài */
-    .stApp [data-testid="stRadio"] [role="radiogroup"] label > div:first-child,
-    .stApp [data-testid="stRadio"] label > div:first-child {
+    /* --- 3. NÚT RADIO: ÉP VÒNG TRÒN THÀNH RÃNH CHÌM --- */
+    /* Target thẳng vào vòng tròn đồ họa của mọi nhãn Radio */
+    div[data-testid="stRadio"] label > div:first-child,
+    div[data-testid="stRadio"] div[role="radio"] {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
         border-right: 2px solid #ffffff !important;
         border-bottom: 2px solid #ffffff !important;
         background-color: #ffffff !important;
         box-shadow: inset 1px 1px 0px #808080 !important;
-        border-radius: 50% !important;
+        border-radius: 50% !important; /* Giữ hình tròn */
     }
 
-    /* Chấm tròn đen khi chọn */
-    .stApp [data-testid="stRadio"] [role="radiogroup"] label div[data-testid="stRadioButtonDot"],
-    .stApp [data-testid="stRadio"] label div[data-testid="stRadioButtonDot"] {
+    /* Đổi màu chấm bên trong (nếu Streamlit render chấm bằng thẻ div con) */
+    div[data-testid="stRadio"] label > div:first-child > div,
+    div[data-testid="stRadio"] div[role="radio"] > div {
         background-color: #000000 !important;
-    }
     }
 </style>
 """, unsafe_allow_html=True)
