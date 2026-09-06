@@ -354,11 +354,45 @@ st.markdown("""
         padding-left: 8px !important;
     }
 
-    /* 4. TỐI ƯU CÁC Ô NHẬP LIỆU & NÚT BẤM (AMBOSS BUTTONS & INPUTS) */
+    /* ==============================================================================
+       AMBOSS SIGNATURE FOCUS GLOW (VIỀN SÁNG BO TRÒN KHI BẤM VÀO Ô NHẬP)
+       ============================================================================== */
+    
+    /* 1. Thiết lập bo tròn và viền cơ bản cho tất cả các ô nhập liệu */
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stSelectbox"] > div > div {
+        border-radius: 12px !important;
+        border: 1.5px solid rgba(10, 166, 184, 0.25) !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        padding: 10px 14px !important;
+    }
+
+    /* 2. Hiệu ứng khi rê chuột qua (Hover) */
+    div[data-testid="stTextInput"] input:hover,
+    div[data-testid="stTextArea"] textarea:hover,
+    div[data-testid="stNumberInput"] input:hover,
+    div[data-testid="stSelectbox"] > div > div:hover {
+        border-color: rgba(10, 166, 184, 0.6) !important;
+    }
+
+    /* 3. HIỆU ỨNG VIỀN SÁNG TOẢ HÀO QUANG KHI BẤM VÀO (AMBOSS FOCUS RING) */
+    div[data-testid="stTextInput"] input:focus,
     div[data-testid="stTextArea"] textarea:focus,
-    div[data-testid="stTextInput"] input:focus {
+    div[data-testid="stNumberInput"] input:focus,
+    div[data-testid="stSelectbox"] > div > div:focus-within {
         border-color: #0aa6b8 !important;
-        box-shadow: 0 0 0 1px #0aa6b8 !important;
+        /* Hào quang kép: viền sắc nét phía trong + ánh sáng teal lan tỏa 4px phía ngoài */
+        box-shadow: 0 0 0 1px #0aa6b8, 0 0 0 4px rgba(10, 166, 184, 0.25) !important;
+        outline: none !important;
+    }
+
+    /* 4. Thùng chứa bên ngoài của Streamlit (bỏ viền thừa để không bị đè viền đôi) */
+    div[data-baseweb="input"],
+    div[data-baseweb="textarea"] {
+        background-color: transparent !important;
+        border: none !important;
     }
 
     /* Nút Primary mang màu Pacific Teal đặc trưng của AMBOSS */
