@@ -372,91 +372,71 @@ st.markdown("""
     }
 
     /* ==============================================================================
-       3. Ô NHẬP LIỆU CHÌM (TRIỆT TIÊU 100% VIỀN ĐỎ BASEWEB CHO TEXT & NUMBER INPUT)
+       3. Ô NHẬP LIỆU CHÌM (DIỆT TẬN GỐC VIỀN ĐỎ BASEWEB & EMOTION CSS)
        ============================================================================== */
 
-    /* Khung ngoài 3D Sunken phong cách Win2K */
+    /* Xóa viền của thẻ bọc ngoài cùng để không bị bóng đen 2 lớp */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
-    div[data-testid="stNumberInput"] > div,
+    div[data-testid="stNumberInput"] > div {
+        border: none !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* GÁN TRỰC TIẾP KHUNG 3D WIN2K VÀO CHÍNH THẺ BASEWEB CÓ VIỀN ĐỎ */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[data-baseweb="textarea"],
     div[data-testid="stSelectbox"] > div > div {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
         border-right: 2px solid #ffffff !important;
         border-bottom: 2px solid #ffffff !important;
         background-color: #ffffff !important;
-        border-radius: 0px !important;
-        box-shadow: inset 1px 1px 0px #808080 !important;
-        outline: none !important;
-        overflow: hidden !important;
+        border-radius: 0px !important; /* Triệt tiêu góc bo tròn */
+        box-shadow: inset 1px 1px 0px #808080 !important; /* Xóa sạch viền đỏ box-shadow */
+        transition: none !important;
     }
 
-    /* Triệt tiêu TẤT CẢ các lớp div trung gian của BaseWeb/Emotion */
-    div[data-testid="stTextInput"] div[data-baseweb="base-input"],
-    div[data-testid="stTextInput"] div[data-baseweb="input"],
-    div[data-testid="stNumberInput"] div[data-baseweb="base-input"],
-    div[data-testid="stNumberInput"] div[data-baseweb="input"],
-    div[data-testid="stTextArea"] div[data-baseweb="base-input"],
-    div[data-testid="stTextArea"] div[data-baseweb="textarea"] {
-        border: none !important;
-        border-color: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-        border-radius: 0px !important;
-        background-color: transparent !important;
-    }
-
-    /* Triệt tiêu viền đỏ khi click chuột (Focus/Focus-within trên mọi cấp) */
-    div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within,
-    div[data-testid="stTextInput"] div[data-baseweb="base-input"]:focus-within,
-    div[data-testid="stNumberInput"] div[data-baseweb="input"]:focus-within,
-    div[data-testid="stNumberInput"] div[data-baseweb="base-input"]:focus-within {
-        border: none !important;
-        border-color: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-        border-radius: 0px !important;
-    }
-
-    /* Cắt đứt hoàn toàn viền đỏ ở chính thẻ input và thẻ textarea */
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-testid="stNumberInput"] input {
-        border: none !important;
-        border-color: transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        border-radius: 0px !important;
-        color: #000000 !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-size: 0.92rem !important;
-        padding: 5px 8px !important;
-        background-color: transparent !important;
-    }
-
-    div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stTextArea"] textarea:focus,
-    div[data-testid="stNumberInput"] input:focus {
-        border: none !important;
-        border-color: transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Khi ô đang được kích hoạt: Viền ngoài giữ đúng chuẩn Win2K sunken đậm */
-    div[data-testid="stTextInput"] > div:focus-within,
-    div[data-testid="stTextArea"] > div:focus-within,
-    div[data-testid="stNumberInput"] > div:focus-within,
+    /* KHI FOCUS: CHẶN ĐỨNG MÀU ĐỎ RGB(255, 75, 75) VÀ GIỮ NGUYÊN VIỀN VUÔNG WIN2K */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="base-input"]:focus-within,
+    div[data-baseweb="textarea"]:focus-within,
     div[data-testid="stSelectbox"] > div > div:focus-within {
         border-top: 2px solid #000000 !important;
         border-left: 2px solid #000000 !important;
         border-right: 2px solid #ffffff !important;
         border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
+        border-color: #000000 #ffffff #ffffff #000000 !important; /* Đè bẹp mã màu đỏ */
+        border-radius: 0px !important;
         box-shadow: inset 1px 1px 0px #000000 !important;
+        background-color: #ffffff !important;
     }
 
-    /* Tắt đường viền xanh/đen mặc định của trình duyệt */
+    /* THẺ INPUT VÀ NÚT TĂNG GIẢM (+/-) CỦA NUMBER INPUT */
+    div[data-baseweb="input"] input,
+    div[data-baseweb="base-input"] input,
+    div[data-baseweb="textarea"] textarea {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        border-radius: 0px !important;
+        background-color: transparent !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 0.92rem !important;
+        padding: 5px 8px !important;
+    }
+
+    /* Các nút cộng trừ (+ / -) ở ô Tuổi */
+    div[data-testid="stNumberInput"] button {
+        border-radius: 0px !important;
+        border: 1px solid #808080 !important;
+        background-color: #ece9d8 !important;
+    }
+
+    /* Tắt vệt outline mặc định của trình duyệt */
     *:focus, *:focus-visible {
         outline: none !important;
     }
