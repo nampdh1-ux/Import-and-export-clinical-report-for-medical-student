@@ -202,7 +202,7 @@ def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
 STORAGE_KEY = "clinical_report_draft"
 
 FIELDS_TO_SAVE = [
-    "loai_benh_an",
+    "loai_benh_an",  # Phân loại bệnh án
     "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
     "ly_do_vao_vien", "benh_su", 
     "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", 
@@ -224,6 +224,7 @@ def load_draft_to_session(loaded_ls):
     for k in FIELDS_TO_SAVE:
         if k in loaded_ls: st.session_state[k] = loaded_ls[k]
         
+    # Đảm bảo ô bs_trong_mo luôn có mẫu nếu bản nháp lưu chuỗi rỗng
     mau_5_dong = (
         "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
         "- Phương pháp mổ: \n"
@@ -252,6 +253,7 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
     except Exception: pass
     st.session_state["da_khoi_phuc_tu_dong"] = True
 
+# Khởi tạo giá trị mặc định
 if "so_hang_cls" not in st.session_state: st.session_state["so_hang_cls"] = 3
 for field in FIELDS_TO_SAVE:
     if field not in st.session_state:
@@ -276,20 +278,20 @@ for i in range(st.session_state["so_hang_cls"]):
     if f"cls_kq_{i}" not in st.session_state: st.session_state[f"cls_kq_{i}"] = ""
     if f"cls_pg_{i}" not in st.session_state: st.session_state[f"cls_pg_{i}"] = ""
 
-# ==============================================================================
-# CSS RETRO OS WIN2K CHUẨN XÁC ĐỒNG BỘ TOÀN DIỆN
-# ==============================================================================
+
+# --- CSS TÙY BIẾN AN TOÀN THEO THEME GỐC CỦA STREAMLIT ---
 st.markdown("""
 <style>
+    /* ==============================================================================
+       RETRO OS DESKTOP Y2K (WINDOWS 2000 / MAC OS 9 CLASSIC SYSTEM AESTHETIC)
+       Màu xám công nghiệp dịu mắt, hiệu ứng vát viền Bevel 3D kinh điển
+       ============================================================================== */
+
     html {
         scroll-behavior: smooth;
     }
 
-    *:focus, *:focus-visible {
-        outline: none !important;
-    }
-
-    /* 1. KHỐI CỬA SỔ HỆ THỐNG (EXPANDER BOX) */
+    /* 1. KHỐI CỬA SỔ HỆ THỐNG (WINDOW BOX & DIALOG) */
     div[data-testid="stExpander"] {
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
@@ -302,22 +304,19 @@ st.markdown("""
         overflow: hidden !important;
     }
 
+    /* Thanh tiêu đề cửa sổ màu xanh Classic Navy đặc trưng */
     div[data-testid="stExpander"] > details > summary {
         background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%) !important;
         border-left: none !important;
         border-radius: 0px !important;
         padding: 6px 12px 6px 14px !important;
-        color: #ffffff !important;
-        text-shadow: 1px 1px 1px #000000 !important;
-        box-shadow: none !important;
-    }
-
-    div[data-testid="stExpander"] > details > summary p {
         font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
         font-weight: 700 !important;
         font-size: 0.95rem !important;
         letter-spacing: 0.5px !important;
-        margin: 0 !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 1px #000000 !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stExpander"] > details > summary:hover {
@@ -329,7 +328,7 @@ st.markdown("""
         fill: #ffffff !important;
     }
 
-    /* 2. THANH TIÊU ĐỀ PHÂN MỤC */
+    /* 2. THANH TIÊU ĐỀ PHÂN MỤC (MENUBAR / STATUS STRIP) */
     .sidebar-header-amboss {
         background: #d4d0c8 !important;
         border-top: 2px solid #ffffff !important;
@@ -372,7 +371,11 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES) */
+    /* ==============================================================================
+       3. Ô NHẬP LIỆU CHÌM (CHUYỂN VIỀN ĐỎ BASEWEB THÀNH ĐEN HOÀN TOÀN)
+       ============================================================================== */
+
+    /* 1. KHUNG CHÌM 3D WIN2K NGOÀI CÙNG */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
@@ -387,6 +390,7 @@ st.markdown("""
         overflow: hidden !important;
     }
 
+    /* 2. CHẶN VÀ ĐỔI TOÀN BỘ MÀU VIỀN ĐỎ NỘI BỘ SANG TRONG SUỐT / ĐEN */
     div[data-baseweb="base-input"],
     div[data-baseweb="input"],
     div[data-baseweb="textarea"] {
@@ -396,6 +400,7 @@ st.markdown("""
         box-shadow: none !important;
     }
 
+    /* Đổi màu đỏ khi focus sang đen hoặc triệt tiêu */
     div[data-baseweb="base-input"]:focus-within,
     div[data-baseweb="input"]:focus-within,
     div[data-baseweb="textarea"]:focus-within,
@@ -405,6 +410,7 @@ st.markdown("""
         box-shadow: none !important;
     }
 
+    /* 3. KHI FOCUS: KHUNG NGOÀI CHUYỂN SANG ĐEN ĐẬM ĐỒNG BỘ */
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
@@ -417,6 +423,7 @@ st.markdown("""
         box-shadow: inset 1px 1px 0px #000000 !important;
     }
 
+    /* 4. TẤT CẢ CÁC THẺ CON VÀ INPUT THUẦN */
     div[data-testid="stTextInput"] *,
     div[data-testid="stTextArea"] *,
     div[data-testid="stNumberInput"] * {
@@ -437,6 +444,7 @@ st.markdown("""
         background-color: transparent !important;
     }
 
+    /* 5. NÚT TĂNG GIẢM (+ / -) CỦA NUMBER INPUT */
     div[data-testid="stNumberInput"] button {
         border-radius: 0px !important;
         border-top: 1px solid #ffffff !important;
@@ -454,7 +462,11 @@ st.markdown("""
         border-bottom: 1px solid #ffffff !important;
     }
 
-    /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D */
+    *:focus, *:focus-visible {
+        outline: none !important;
+    }
+
+    /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
     button[kind="primary"] {
         background: #ece9d8 !important;
         border-top: 2px solid #ffffff !important;
@@ -470,6 +482,7 @@ st.markdown("""
         padding: 4px 14px !important;
     }
 
+    /* Hiệu ứng lún nút khi nhấn xuống (Pressed) */
     button[kind="primary"]:active {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
@@ -491,7 +504,7 @@ st.markdown("""
         color: #000000 !important;
     }
 
-    /* 5. THANH MỤC LỤC BÊN PHẢI */
+    /* 5. THANH MỤC LỤC BÊN PHẢI DẠNG HỘP CÔNG CỤ SYSTEM TOOLBOX */
     .right-toc-container {
         position: fixed !important;
         top: 75px !important;
@@ -517,7 +530,10 @@ st.markdown("""
         user-select: none !important;
     }
 
-    .right-toc-trigger:hover { background: #f5f4ea !important; }
+    .right-toc-trigger:hover {
+        background: #f5f4ea !important;
+    }
+
     .right-toc-trigger:active {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
@@ -569,107 +585,10 @@ st.markdown("""
         background-color: #0a246a !important;
         color: #ffffff !important;
     }
-
-    /* 6. KHUNG TẢI FILE (FILE UPLOADER SUNKEN BOX WIN2K) */
-    div[data-testid="stFileUploader"],
-    div[data-testid="stFileUploader"] * {
-        border-radius: 0px !important;
-    }
-
-    div[data-testid="stFileUploader"] section,
-    div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"],
-    div[data-testid="stFileUploader"] [data-testid="stFileUploadDropzone"] {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0px #808080 !important;
-        padding: 10px 14px !important;
-    }
-
-    div[data-testid="stFileUploader"] section > div {
-        background-color: transparent !important;
-    }
-
-    div[data-testid="stFileUploader"] button {
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        background-color: #ece9d8 !important;
-        color: #000000 !important;
-        border-radius: 0px !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        padding: 3px 12px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 0.85rem !important;
-    }
-
-    div[data-testid="stFileUploader"] button:active {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        box-shadow: none !important;
-        transform: translate(1px, 1px) !important;
-    }
-
-    /* 7. NÚT CHỌN MẪU BỆNH ÁN (RADIO LÕM 3D) */
-    div[data-testid="stRadio"]:not(.win2k-tab-container div[data-testid="stRadio"]) label > div:first-child {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0px #808080 !important;
-        border-radius: 50% !important;
-    }
-
-    /* 8. THANH CHUYỂN TAB WIN2K TOOLBAR DẠNG THẺ FOLDER */
-    .win2k-tab-container {
-        border-bottom: 2px solid #ffffff !important;
-        box-shadow: 0 2px 0px #404040 !important;
-        margin-top: 14px !important;
-        margin-bottom: 18px !important;
-        padding-bottom: 0px !important;
-    }
-
-    /* Ẩn dấu chấm radio trong container tab */
-    .win2k-tab-container div[data-testid="stRadio"] [role="radiogroup"] label > div:first-child {
-        display: none !important;
-    }
-
-    /* Biến các lựa chọn thành các tab dập nổi */
-    .win2k-tab-container div[data-testid="stRadio"] [role="radiogroup"] label {
-        background-color: #d4d0c8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        border-radius: 0px !important;
-        padding: 6px 18px !important;
-        margin-right: 3px !important;
-        margin-bottom: 0px !important;
-        cursor: pointer !important;
-        color: #000000 !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        box-shadow: none !important;
-    }
-
-    /* Tab đang Active: Trồi lên, che viền đáy và chuyển sang màu nền chính */
-    .win2k-tab-container div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
-        background-color: #ece9d8 !important;
-        border-bottom: 2px solid #ece9d8 !important;
-        position: relative !important;
-        top: 2px !important;
-        font-weight: 700 !important;
-    }
+    
 </style>
 """, unsafe_allow_html=True)
+
 
 # ==============================================================================
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
@@ -678,15 +597,14 @@ def get_benh_su_text_for_ai():
     if st.session_state.get("loai_benh_an") == "Hậu phẫu":
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
     return st.session_state.get("benh_su")
-
 def add_symptom_to_field(field_key, symptom_text):
+    """Hàm chèn an toàn triệu chứng vào ô text_area mà không gây lỗi session_state"""
     val = str(st.session_state.get(field_key, "")).strip()
     lines = [l.strip() for l in val.split("\n") if l.strip()]
     formatted_sym = f"- {symptom_text}"
     if formatted_sym not in lines:
         lines.append(formatted_sym)
         st.session_state[field_key] = "\n".join(lines)
-
 def format_bullet_points(text):
     if not text or not str(text).strip(): return "Chưa ghi nhận thông tin."
     lines = str(text).strip().split("\n")
@@ -894,6 +812,7 @@ def export_pdf(data):
 
     pdf.add_body_text(format_bullet_points(data.get('kham_toan_than', '')))
     
+    # BẢNG SINH HIỆU
     mach_val = data.get('sh_mach') or "--"
     nhiet_val = data.get('sh_nhiet_do') or "--"
     ha_val = data.get('sh_ha') or "--"
@@ -961,6 +880,7 @@ def export_pdf(data):
         pdf.line(x, y, x + text_w, y)
         pdf.add_body_text(content)
 
+    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG THEO LOẠI BỆNH ÁN
     if pdf.loai_ba == "Hậu phẫu":
         num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
     else:
@@ -1008,6 +928,7 @@ def export_pdf(data):
             pdf.add_section_header(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
             pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
 
+    # TRIỂN KHAI TRẬT TỰ ĐỘNG
     if pdf.loai_ba == "Hậu phẫu":
         pdf_cdsb()
         pdf_cls()
@@ -1189,6 +1110,7 @@ def export_pptx(data):
         if val: tk_items.append((f"- {name}: {val}", False))
     if tk_items: add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_items)
 
+    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG PPTX
     if loai_ba == "Hậu phẫu":
         num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
     else:
@@ -1290,6 +1212,7 @@ def export_pptx(data):
         blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
         if blxd_lines: add_content_with_overflow(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", [("Biện luận chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in blxd_lines])
 
+    # THỰC THI PPTX TRẬT TỰ ĐỘNG
     if loai_ba == "Hậu phẫu":
         pptx_cdsb()
         pptx_cls()
@@ -1339,13 +1262,16 @@ with st.sidebar:
         else: st.warning("Không tìm thấy dữ liệu nháp nào.")
 
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", use_container_width=True):
+        # 1. Xóa an toàn chống KeyError từ streamlit_local_storage
         try:
             local_storage.deleteItem(STORAGE_KEY)
         except Exception:
             pass
 
+        # 2. Xóa snapshot đệm để tránh ghi đè dữ liệu rác
         st.session_state["last_saved_snapshot"] = ""
 
+        # Mẫu khung sườn cố định cho phần Trong mổ
         mau_trong_mo = (
             "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
             "- Phương pháp mổ: \n"
@@ -1354,6 +1280,7 @@ with st.sidebar:
             "- Chẩn đoán sau mổ: "
         )
 
+        # 3. Đặt lại tất cả các trường dữ liệu
         for k in FIELDS_TO_SAVE:
             if k == "tuoi":
                 st.session_state[k] = 45
@@ -1374,6 +1301,7 @@ with st.sidebar:
             else:
                 st.session_state[k] = ""
 
+        # 4. Đặt lại số hàng cận lâm sàng
         st.session_state["so_hang_cls"] = 3
         for i in range(15):
             st.session_state[f"cls_kq_{i}"] = ""
@@ -1415,16 +1343,19 @@ with st.sidebar:
             st.rerun()
 
 # ==============================================================================
-# GIAO DIỆN CHÍNH
+# GIAO DIỆN CHÍNH (3 TABS)
 # ==============================================================================
-st.title("Bệnh Án Lâm Sàng", anchor=False)
+st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
 
 loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
 
+# Khai báo Dictionary lưu trữ ảnh toàn cục
 uploaded_imgs = {}
 
-# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT ---
+
+# CÁC HÀM UI RỜI RẠC DÙNG CHUNG (Để hoán đổi vị trí)
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN NỘI KHOA (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_noi_khoa():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
@@ -1477,11 +1408,14 @@ def generate_intro_tom_tat_noi_khoa():
         f"{dien_bien_str}. Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
     )
 
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
+# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_hau_phau():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
     tuoi_str = f"{tuoi} tuổi" if tuoi else "..."
 
+    # 1. Trích xuất tiền sử (Nội khoa & Ngoại khoa)
     ts_list = []
     for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
         val = str(st.session_state.get(k, "")).strip()
@@ -1491,11 +1425,14 @@ def generate_intro_tom_tat_hau_phau():
                 ts_list.append(", ".join(lines))
     tien_su_str = "; ".join(ts_list) if ts_list else "chưa ghi nhận bất thường"
 
+    # 2. Lý do vào viện
     ly_do = str(st.session_state.get("ly_do_vao_vien", "")).strip() or "..."
+
     bs_truoc_mo = str(st.session_state.get("bs_truoc_mo", "")).strip()
     bs_trong_mo = str(st.session_state.get("bs_trong_mo", "")).strip()
     cd_so_bo = str(st.session_state.get("chan_doan_so_bo", "")).strip()
 
+    # 3. Trích xuất Chẩn đoán trước mổ
     cd_truoc_mo = "..."
     m_cdtm = re.search(r"(?:chẩn đoán trước mổ|cđ trước mổ)(?:\s*là)?[:\s\-]+([^.\n;]+)", bs_truoc_mo, re.IGNORECASE)
     if m_cdtm and m_cdtm.group(1).strip():
@@ -1503,12 +1440,14 @@ def generate_intro_tom_tat_hau_phau():
     elif bs_truoc_mo:
         cd_truoc_mo = bs_truoc_mo.split("\n")[-1].strip().lstrip("-*• ")
 
+    # 4. Trích xuất các trường từ form mẫu 5 dòng trong mổ
     pp_mo = "..."
     loai_mo = "cấp cứu/phiên"
     cd_sau_mo = "..."
     dien_bien_phau_thuat = "Quá trình mổ không có biến chứng."
 
     if bs_trong_mo:
+        # Hình thức mổ: Mổ phiên hay Mổ cấp cứu
         m_ht = re.search(r"(?:hình thức mổ|mổ phiên/mổ cấp cứu|mổ phiên hay mổ cấp cứu)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
         if m_ht:
             txt_ht = m_ht.group(1).lower().strip()
@@ -1517,23 +1456,28 @@ def generate_intro_tom_tat_hau_phau():
             elif "phiên" in txt_ht or "chương trình" in txt_ht:
                 loai_mo = "chương trình"
 
+        # Phương pháp mổ
         m_pp = re.search(r"(?:phương pháp mổ|phương pháp phẫu thuật|pt)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
         if m_pp and m_pp.group(1).strip():
             pp_mo = m_pp.group(1).strip()
 
+        # Quá trình mổ
         m_qtm = re.search(r"(?:quá trình mổ|diễn biến mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
         if m_qtm and m_qtm.group(1).strip():
             val_qtm = m_qtm.group(1).strip().rstrip(".")
             dien_bien_phau_thuat = f"Quá trình mổ {val_qtm[0].lower() + val_qtm[1:] if val_qtm.lower().startswith('không') or val_qtm.lower().startswith('có') or val_qtm.lower().startswith('thuận') else val_qtm}."
 
+        # Chẩn đoán sau mổ
         m_sm = re.search(r"(?:chẩn đoán sau mổ|cđ sau mổ)[:\s\-]+([^\n]+)", bs_trong_mo, re.IGNORECASE)
         if m_sm and m_sm.group(1).strip():
             cd_sau_mo = m_sm.group(1).strip()
 
+    # Dự phòng chẩn đoán sau mổ từ chẩn đoán sơ bộ
     if cd_sau_mo == "..." and cd_so_bo:
         cd_clean = re.sub(r"^hậu phẫu ngày[^-\:]*[-\:]\s*", "", cd_so_bo, flags=re.IGNORECASE)
         cd_sau_mo = cd_clean.split("-")[0].strip() or cd_so_bo
 
+    # 5. Trích xuất Ngày hậu phẫu
     ngay_hp_val = str(st.session_state.get("ngay_hau_phau", "")).strip()
     m_hp = re.search(r"(?:ngày\s*(?:thứ)?\s*)(\d+)", ngay_hp_val, re.IGNORECASE)
     if m_hp:
@@ -1543,6 +1487,7 @@ def generate_intro_tom_tat_hau_phau():
     else:
         ngay_hp_str = "ngày thứ ..."
 
+    # Đoạn dẫn chính
     cau_dan_chinh = (
         f"Bệnh nhân {gioi_tinh.lower()} {tuoi_str}, tiền sử {tien_su_str} vào viện vì {ly_do}, "
         f"chẩn đoán trước mổ là {cd_truoc_mo}, được mổ bằng phương pháp {pp_mo}, "
@@ -1551,22 +1496,36 @@ def generate_intro_tom_tat_hau_phau():
         f"Qua thăm khám và hỏi bệnh phát hiện các hội chứng và triệu chứng sau:"
     )
 
+    # 6. Trích xuất Sinh hiệu để tạo dòng 1
     sh_items = []
-    if str(st.session_state.get("sh_mach", "")).strip(): sh_items.append(f"Mạch {st.session_state.get('sh_mach')} lần/phút")
-    if str(st.session_state.get("sh_ha", "")).strip(): sh_items.append(f"HA {st.session_state.get('sh_ha')} mmHg")
-    if str(st.session_state.get("sh_nhiet_do", "")).strip(): sh_items.append(f"Nhiệt độ {st.session_state.get('sh_nhiet_do')} °C")
-    if str(st.session_state.get("sh_nhip_tho", "")).strip(): sh_items.append(f"Nhịp thở {st.session_state.get('sh_nhip_tho')} lần/phút")
+    if str(st.session_state.get("sh_mach", "")).strip():
+        sh_items.append(f"Mạch {st.session_state.get('sh_mach')} lần/phút")
+    if str(st.session_state.get("sh_ha", "")).strip():
+        sh_items.append(f"HA {st.session_state.get('sh_ha')} mmHg")
+    if str(st.session_state.get("sh_nhiet_do", "")).strip():
+        sh_items.append(f"Nhiệt độ {st.session_state.get('sh_nhiet_do')} °C")
+    if str(st.session_state.get("sh_nhip_tho", "")).strip():
+        sh_items.append(f"Nhịp thở {st.session_state.get('sh_nhip_tho')} lần/phút")
     sh_str = ", ".join(sh_items) if sh_items else "Mạch, HA, Nhiệt độ trong giới hạn bình thường"
     line_sh = f"- Tỉnh, tiếp xúc tốt, Sinh hiệu: {sh_str}"
 
+    # 7. Trích xuất Khám vết mổ để tạo dòng 2
     raw_vm = str(st.session_state.get("kham_vet_mo", "")).strip()
-    vm_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_vm.split("\n") if l.strip()]) if raw_vm else "khô, không sưng đỏ, chân chỉ sạch"
+    if raw_vm:
+        vm_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_vm.split("\n") if l.strip()])
+    else:
+        vm_clean = "khô, không sưng đỏ, chân chỉ sạch"
     line_vm = f"- Vết mổ: {vm_clean}"
 
+    # 8. Trích xuất Khám dẫn lưu để tạo dòng 3
     raw_dl = str(st.session_state.get("kham_dan_luu", "")).strip()
-    dl_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_dl.split("\n") if l.strip()]) if raw_dl else "chân dẫn lưu sạch, không rỉ dịch bất thường"
+    if raw_dl:
+        dl_clean = "; ".join([l.strip().lstrip("-*• ") for l in raw_dl.split("\n") if l.strip()])
+    else:
+        dl_clean = "chân dẫn lưu sạch, không rỉ dịch bất thường"
     line_dl = f"- Dẫn lưu: {dl_clean}"
 
+    # Ghép câu dẫn hoàn chỉnh kèm 3 dòng xuống hàng
     return f"{cau_dan_chinh}\n{line_sh}\n{line_vm}\n{line_dl}"
 
 def ui_tom_tat(num):
@@ -1574,6 +1533,7 @@ def ui_tom_tat(num):
     with col_tt_title:
         st.markdown(f"**{num}. Tóm tắt bệnh án:**")
     with col_tt_btn:
+        # Tự động chọn câu dẫn phù hợp với loại bệnh án
         help_text = "Tự động trích xuất thông tin phẫu thuật và điền câu dẫn" if loai_benh_an == "Hậu phẫu" else "Tự động tính ngày và điền câu dẫn mở đầu"
         if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help=help_text, use_container_width=True):
             if loai_benh_an == "Hậu phẫu":
@@ -1601,6 +1561,7 @@ def ui_tom_tat(num):
     )
 
 def ui_cdsb(num_sb, num_pb, num_bl):
+    # Hàng 1: Tiêu đề + Nút bấm căn ngang hàng
     col_h_left, col_h_right_title, col_h_right_btn = st.columns([1, 0.65, 0.35])
     with col_h_left:
         st.markdown(f"**{num_sb}. Chẩn đoán sơ bộ:**")
@@ -1609,6 +1570,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     with col_h_right_btn:
         btn_ai_cdpb = st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary", use_container_width=True)
 
+    # Xử lý logic AI khi bấm nút
     if btn_ai_cdpb:
         if "GEMINI_API_KEY" not in st.secrets:
             st.error("⚠️ Chưa cài đặt API Key bí mật!")
@@ -1667,6 +1629,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
                 except Exception as e:
                     st.error(f"Lỗi AI: {e}")
 
+    # Hàng 2: Hai ô nhập liệu ngang hàng nhau, cùng chiều cao
     c_cd1, c_cd2 = st.columns(2)
     with c_cd1:
         placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
@@ -1674,6 +1637,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     with c_cd2:
         st.text_area(f"{num_pb}. Chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=100, label_visibility="collapsed")
 
+    # Hàng 3: Biện luận chẩn đoán sơ bộ
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
 
@@ -1689,6 +1653,7 @@ def ui_cls(num_dx, num_kq):
                     model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                     
                     if loai_benh_an == "Hậu phẫu":
+                        # Prompt chuyên biệt hóa tuyệt đối cho Hậu phẫu
                         context_cls = (
                             f"LOẠI BỆNH ÁN: HẬU PHẪU\n"
                             f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
@@ -1703,21 +1668,24 @@ def ui_cls(num_dx, num_kq):
                         prompt_cls = f"""
                         Bạn là một phẫu thuật viên / bác sĩ ngoại khoa giàu kinh nghiệm. 
                         Đối với ca bệnh HẬU PHẪU dưới đây, chẩn đoán bệnh nguyên đã rõ ràng qua phẫu thuật. 
-                        QUY TẮC CỐT LÕI: TUYỆT ĐỐI KHÔNG đề xuất lại các xét nghiệm chẩn đoán bệnh ban đầu. 
-                        CHỈ ĐỀ XUẤT các cận lâm sàng để theo dõi và phát hiện CÁC VẤN ĐỀ SAU MỔ.
+                        QUY TẮC CỐT LÕI: TUYỆT ĐỐI KHÔNG đề xuất lại các xét nghiệm chẩn đoán bệnh ban đầu (như siêu âm tìm sỏi, nội soi chẩn đoán u...). 
+                        CHỈ ĐỀ XUẤT các cận lâm sàng để theo dõi và phát hiện CÁC VẤN ĐỀ SAU MỔ, bao gồm:
+                        - Tầm soát và đánh giá biến chứng ngoại khoa khi cần thiết và nghi ngờ như: Chảy máu sau mổ (Hemoglobin/Hct tụt), tụ dịch/áp xe tồn dư, rò miệng nối/xì rò tiêu hóa, bục vết mổ, xẹp phổi/viêm phổi hậu phẫu, tắc ruột sau mổ.
+                        - Đánh giá hồi phục chức năng và chuyển hóa: Điện giải đồ (đặc biệt K+ trong hồi phục nhu động ruột), bilan viêm/nhiễm trùng (CTM, CRP/PCT), chức năng thận (Ure, Creatinine), vi sinh cấy dịch vết mổ/dẫn lưu nếu nghi nhiễm trùng.
 
                         Dữ kiện ca bệnh:
                         {context_cls}
 
-                        YÊU CẦU ĐẦU RA:
+                        YÊU CẦU ĐẦU RA (Xuất đúng 3 nhãn sau, mỗi xét nghiệm xuống 1 dòng, không dùng gạch đầu dòng, không giải thích dài dòng):
                         [CLS_XAC_DINH]
-                        (Các CLS để phát hiện/loại trừ biến chứng sau mổ đang theo dõi)
+                        (Các CLS để phát hiện/loại trừ biến chứng sau mổ đang theo dõi: VD Siêu âm ổ bụng kiểm tra dịch tồn dư, X-quang ngực thẳng, X-quang bụng không chuẩn bị...)
                         [CLS_DIEU_TRI]
-                        (Các CLS theo dõi hồi phục và định hướng điều trị/chăm sóc)
+                        (Các CLS theo dõi hồi phục và định hướng điều trị/chăm sóc: VD Tổng phân tích tế bào máu, Điện giải đồ, CRP, Ure, Creatinine, đường huyết...)
                         [CLS_KHAC]
-                        (Cấy vi sinh dịch dẫn lưu/mủ vết mổ làm kháng sinh đồ nếu có chỉ định...)
+                        (Cấy vi sinh dịch dẫn lưu/mủ vết mổ làm kháng sinh đồ nếu có chỉ định, khí máu động mạch, đông máu toàn bộ...)
                         """
                     else:
+                        # Prompt chuẩn cho Nội khoa / Tiền phẫu
                         context_cls = (
                             f"Loại bệnh án: {loai_benh_an}\n"
                             f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
@@ -1728,7 +1696,7 @@ def ui_cls(num_dx, num_kq):
                         )
                         prompt_cls = f"""
                         Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cls}), hãy chỉ định CẬN LÂM SÀNG cần thiết, hợp lý, tránh lạm dụng xét nghiệm:
-                        Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng danh sách xuống dòng.
+                        Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng danh sách xuống dòng, không dùng gạch đầu dòng, không giải thích thừa.
                         """
 
                     res_cls_text = model.generate_content(prompt_cls).text
@@ -1744,7 +1712,7 @@ def ui_cls(num_dx, num_kq):
                         st.session_state["cls_dx_xac_dinh"] = part_xd
                         st.session_state["cls_dx_dieu_tri"] = part_dt
                         st.session_state["cls_dx_khac"] = part_khac
-                        st.success("✨ Đã gợi ý danh mục CLS thành công!")
+                        st.success("✨ Đã gợi ý danh mục CLS theo dõi sau mổ thành công!")
                         st.rerun()
                     else:
                         st.error("AI trả về sai định dạng cấu trúc nhãn.")
@@ -1835,23 +1803,12 @@ def ui_cdxd(num_xd, num_blxd):
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
     st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 
-# ==============================================================================
-# BỘ ĐIỀU HƯỚNG TABS KIỂU WIN2K TOOLBAR THẺ HỒ SƠ
-# ==============================================================================
-st.markdown('<div class="win2k-tab-container">', unsafe_allow_html=True)
-selected_tab = st.radio(
-    "Tabs Menu",
-    ["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"],
-    horizontal=True,
-    label_visibility="collapsed",
-    key="main_win2k_tabs"
-)
-st.markdown('</div>', unsafe_allow_html=True)
+tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
-# ------------------------------------------------------------------------------
-# TAB 1: NHẬP LIỆU HỒ SƠ
-# ------------------------------------------------------------------------------
-if selected_tab == "Nhập liệu hồ sơ":
+with tab1:
+    # ==============================================================================
+    # THANH MỤC LỤC NHANH BÊN PHẢI (RIGHT FLOATING TABLE OF CONTENTS)
+    # ==============================================================================
     if loai_benh_an == "Hậu phẫu":
         toc_items = [
             ("#sec-hanh-chinh", "I. Hành chính"),
@@ -1890,7 +1847,6 @@ if selected_tab == "Nhập liệu hồ sơ":
         </details>
     </div>
     """, unsafe_allow_html=True)
-    
     st.markdown("<div id='sec-hanh-chinh'></div>", unsafe_allow_html=True)
     with st.expander("I. PHẦN HÀNH CHÍNH", expanded=True):
         c_hc1, c_hc2, c_hc3 = st.columns(3)
@@ -1908,7 +1864,6 @@ if selected_tab == "Nhập liệu hồ sơ":
         with c_hc4: st.text_input("Địa chỉ", key="dia_chi", placeholder="Quận Đống Đa, TP. Hà Nội")
         with c_hc5: st.text_input("Bác sĩ hoặc Sinh viên phụ trách", key="sinh_vien", placeholder="Bác sĩ nội trú, Sinh viên Y...")
         with c_hc6: st.text_input("Ngày giờ vào viện", key="ngay_vao_vien")
-
     st.markdown("<div id='sec-ly-do-benh-su'></div>", unsafe_allow_html=True)
     with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
@@ -1917,6 +1872,7 @@ if selected_tab == "Nhập liệu hồ sơ":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
 
+            # Khung sườn 5 dòng chuẩn
             mau_5_dong = (
                 "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
                 "- Phương pháp mổ: \n"
@@ -1925,6 +1881,7 @@ if selected_tab == "Nhập liệu hồ sơ":
                 "- Chẩn đoán sau mổ: "
             )
             
+            # Lấy giá trị hiện tại, nếu trống thì bắt buộc lấy mẫu 5 dòng
             val_trong_mo = st.session_state.get("bs_trong_mo", "")
             if not str(val_trong_mo).strip():
                 val_trong_mo = mau_5_dong
@@ -1936,10 +1893,9 @@ if selected_tab == "Nhập liệu hồ sơ":
                 key="bs_trong_mo", 
                 height=130
             )
-            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay...")
+            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
-
     st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
     with st.expander("IV. TIỀN SỬ", expanded=True):
         c_ts1, c_ts2 = st.columns(2)
@@ -1953,9 +1909,9 @@ if selected_tab == "Nhập liệu hồ sơ":
             st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
             st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
-
     st.markdown("<div id='sec-kham-lam-sang'></div>", unsafe_allow_html=True)
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
+        # Không hiển thị mục "Khám vào viện" nếu là Hậu phẫu
         if loai_benh_an == "Hậu phẫu":
             st.markdown("<div class='sub-section-header'>1. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
             st.text_input("Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?", key="ngay_hau_phau", placeholder="VD: Ngày thứ 3 sau mổ (Giờ thứ 72)...")
@@ -1964,6 +1920,7 @@ if selected_tab == "Nhập liệu hồ sơ":
             st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
 
+        # DANH MỤC TRIỆU CHỨNG ĐƯỢC CHUẨN HÓA (BÌNH THƯỜNG TRƯỚC, BẤT THƯỜNG SAU)
         LIST_TOAN_THAN = [
             ("🟢 Tỉnh táo, tiếp xúc tốt, GCS 15 điểm", "Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm"),
             ("🟢 Da niêm mạc hồng hào", "Da niêm mạc hồng hào"),
@@ -1999,6 +1956,7 @@ if selected_tab == "Nhập liệu hồ sơ":
 
         col_tt_mo_ta, col_tt_sh = st.columns([1.25, 1])
         with col_tt_mo_ta:
+            # Hàng tiêu đề kết hợp nút Popover nổi bên phải
             c_title_tt, c_pop_tt = st.columns([2, 1.2])
             with c_title_tt:
                 st.markdown("**Mô tả khám toàn thân:**")
@@ -2012,7 +1970,7 @@ if selected_tab == "Nhập liệu hồ sơ":
                         with c_btn:
                             st.button("➕", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
 
-            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=155, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc...")
+            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=155, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
 
         with col_tt_sh:
             st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
@@ -2052,7 +2010,7 @@ if selected_tab == "Nhập liệu hồ sơ":
                             with c_btn:
                                 st.button("➕", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
 
-                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ...")
+                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
 
             with c_dl:
                 c_title_dl, c_pop_dl = st.columns([2, 1.2])
@@ -2156,7 +2114,6 @@ if selected_tab == "Nhập liệu hồ sơ":
         st.markdown("<div id='sec-chan-doan-xac-dinh'></div>", unsafe_allow_html=True)
         with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
             ui_cdxd("XII", "XIII")
-
     st.markdown("<div id='sec-dieu-tri'></div>", unsafe_allow_html=True)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
@@ -2167,7 +2124,7 @@ if selected_tab == "Nhập liệu hồ sơ":
                         cls_da_co_str = "".join([f"+ {st.session_state.get(f'cls_kq_{i}', '')} -> {st.session_state.get(f'cls_pg_{i}', '')}\n" for i in range(st.session_state.get("so_hang_cls", 3)) if st.session_state.get(f'cls_kq_{i}', '').strip()])
                         context_dt = f"Loại: {loai_benh_an}\nBệnh nhân: {st.session_state.get('tuoi')} tuổi, {st.session_state.get('gioi_tinh')}\nTiền sử: {st.session_state.get('ts_noi_khoa')}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nCLS quan trọng:\n{cls_da_co_str}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt_dt = f"Bạn là bác sĩ điều trị. Xây dựng phác đồ cho ca bệnh ({context_dt}). Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE], [THEO_DOI]."
+                        prompt_dt = f"Bạn là bác sĩ điều trị. Xây dựng phác đồ cho ca bệnh ({context_dt}). Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE] (ghi rõ thuốc/chăm sóc vết mổ nếu hậu phẫu), [THEO_DOI] theo định dạng text trơn không gạch đầu dòng."
                         txt = model.generate_content(prompt_dt).text
 
                         if "[MUC_TIEU]" in txt and "[DIEU_TRI_CU_THE]" in txt and "[THEO_DOI]" in txt:
@@ -2185,7 +2142,6 @@ if selected_tab == "Nhập liệu hồ sơ":
         with c_mt: st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=220)
         with c_ct: st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=220)
         with c_td: st.text_area("3. Theo dõi:", key="dt_theo_doi", height=220)
-
     st.markdown("<div id='sec-tien-luong-tu-van'></div>", unsafe_allow_html=True)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
         if st.button("🪄 Làm phép", type="primary", key="btn_ai_tienluong"):
@@ -2211,27 +2167,25 @@ if selected_tab == "Nhập liệu hồ sơ":
         with c_pl: st.text_area("XV. Tiên lượng:", key="tien_luong", height=250)
         with c_tv: st.text_area("XVI. Tư vấn:", key="tu_van", height=250)
 
-# ------------------------------------------------------------------------------
-# TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN
-# ------------------------------------------------------------------------------
-elif selected_tab == "Xuất tập tin":
-    # Gom dữ liệu để chuẩn bị kết xuất file
-    data_benh_an = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
-    data_benh_an["loai_benh_an"] = loai_benh_an
-    data_benh_an["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
-    data_benh_an["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
-    data_benh_an["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
-    data_benh_an["sh_nhip_tho"] = str(st.session_state.get("sh_nhip_tho", "")).strip()
-    data_benh_an["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
-    data_benh_an["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
-    data_benh_an["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
-    data_benh_an["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
-    data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
-    for i in range(data_benh_an["so_hang_cls"]):
-        data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
-        data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
-    if 'uploaded_imgs' in locals(): data_benh_an.update(uploaded_imgs)
+# Gom dữ liệu để xuất file
+data_benh_an = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
+data_benh_an["loai_benh_an"] = loai_benh_an
+data_benh_an["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
+data_benh_an["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
+data_benh_an["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
+data_benh_an["sh_nhip_tho"] = str(st.session_state.get("sh_nhip_tho", "")).strip()
+data_benh_an["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
+data_benh_an["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
+data_benh_an["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
+data_benh_an["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
+data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
+for i in range(data_benh_an["so_hang_cls"]):
+    data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+    data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+if 'uploaded_imgs' in locals(): data_benh_an.update(uploaded_imgs)
 
+# --- TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN ---
+with tab2:
     st.markdown("<div class='sidebar-header-amboss'>XEM TRƯỚC THÔNG TIN TỔNG QUAN</div>", unsafe_allow_html=True)
     ho_ten_val = str(st.session_state.get("ho_ten", "")).strip()
     if ho_ten_val:
@@ -2275,10 +2229,8 @@ elif selected_tab == "Xuất tập tin":
         st.markdown("#### Bản xem trước PDF trực tiếp:")
         pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 
-# ------------------------------------------------------------------------------
-# TAB 3: PHẢN BIỆN LÂM SÀNG
-# ------------------------------------------------------------------------------
-elif selected_tab == "Phản biện lâm sàng":
+# --- TAB 3: PHẢN BIỆN BỆNH ÁN ---
+with tab3:
     st.markdown("### Giảng viên lâm sàng phản biện ca bệnh")
     st.caption("Giảng viên lâm sàng giàu kinh nghiệm, rà soát tính logic toàn diện của ca bệnh và đặt câu hỏi.")
 
@@ -2309,7 +2261,7 @@ elif selected_tab == "Phản biện lâm sàng":
                     res_pb = model.generate_content(prompt_phan_bien)
                     res_raw = res_pb.text.strip()
                     if res_raw.startswith("```json"): res_raw = res_raw[7:]
-                    elif raw_text.startswith("```"): res_raw = res_raw[3:]
+                    elif res_raw.startswith("```"): res_raw = res_raw[3:]
                     if res_raw.endswith("```"): res_raw = res_raw[:-3]
                     st.session_state["data_phan_bien_json"] = json.loads(res_raw.strip())
                 except Exception as e: st.error(f"Lỗi AI: {e}")
