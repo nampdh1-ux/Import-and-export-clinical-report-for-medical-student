@@ -279,30 +279,20 @@ for i in range(st.session_state["so_hang_cls"]):
     if f"cls_pg_{i}" not in st.session_state: st.session_state[f"cls_pg_{i}"] = ""
 
 
-# --- CSS TÙY BIẾN HOÀN CHỈNH: RETRO DESKTOP OS (WIN2K CLASSIC) ---
+# --- CSS TÙY BIẾN AN TOÀN THEO THEME GỐC CỦA STREAMLIT ---
 st.markdown("""
 <style>
     /* ==============================================================================
-       1. CẤU HÌNH NỀN TẢNG & TYPOGRAPHY
+       RETRO OS DESKTOP Y2K (WINDOWS 2000 / MAC OS 9 CLASSIC SYSTEM AESTHETIC)
+       Màu xám công nghiệp dịu mắt, hiệu ứng vát viền Bevel 3D kinh điển
        ============================================================================== */
+
     html {
         scroll-behavior: smooth;
     }
 
-    /* Triệt tiêu biến màu đỏ hệ thống của Streamlit trên toàn bộ ứng dụng */
-    .stApp {
-        --primary-color: #0a246a !important;
-    }
-
-    /* Tắt đường viền outline chấm đen mặc định của trình duyệt */
-    *:focus, *:focus-visible {
-        outline: none !important;
-    }
-
-    /* ==============================================================================
-       2. KHỐI CỬA SỔ EXPANDER (WINDOW 3D BEVEL FRAME)
-       ============================================================================== */
-    .stApp div[data-testid="stExpander"] {
+    /* 1. KHỐI CỬA SỔ HỆ THỐNG (WINDOW BOX & DIALOG) */
+    div[data-testid="stExpander"] {
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
         border-right: 2px solid #404040 !important;
@@ -314,8 +304,8 @@ st.markdown("""
         overflow: hidden !important;
     }
 
-    /* Thanh tiêu đề cửa sổ xanh Navy Gradient kinh điển */
-    .stApp div[data-testid="stExpander"] > details > summary {
+    /* Thanh tiêu đề cửa sổ màu xanh Classic Navy đặc trưng */
+    div[data-testid="stExpander"] > details > summary {
         background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%) !important;
         border-left: none !important;
         border-radius: 0px !important;
@@ -329,18 +319,16 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    .stApp div[data-testid="stExpander"] > details > summary:hover {
+    div[data-testid="stExpander"] > details > summary:hover {
         background: linear-gradient(90deg, #1842a8 0%, #b8d5f5 100%) !important;
         color: #ffffff !important;
     }
 
-    .stApp div[data-testid="stExpander"] > details > summary svg {
+    div[data-testid="stExpander"] > details > summary svg {
         fill: #ffffff !important;
     }
 
-    /* ==============================================================================
-       3. THANH TIÊU ĐỀ PHÂN MỤC (SUB-HEADERS & HIGHLIGHTS)
-       ============================================================================== */
+    /* 2. THANH TIÊU ĐỀ PHÂN MỤC (MENUBAR / STATUS STRIP) */
     .sidebar-header-amboss {
         background: #d4d0c8 !important;
         border-top: 2px solid #ffffff !important;
@@ -384,14 +372,14 @@ st.markdown("""
     }
 
     /* ==============================================================================
-       4. TRIỆT TIÊU TOÀN DIỆN VIỀN ĐỎ & TẠO RÃNH CHÌM 3D CHO Ô NHẬP LIỆU
+       3. Ô NHẬP LIỆU CHÌM (CHUYỂN VIỀN ĐỎ BASEWEB THÀNH ĐEN HOÀN TOÀN)
        ============================================================================== */
 
-    /* 4.1 Khung ngoài rãnh chìm 3D mặc định */
-    .stApp div[data-testid="stTextInput"] > div,
-    .stApp div[data-testid="stTextArea"] > div,
-    .stApp div[data-testid="stNumberInput"] > div,
-    .stApp div[data-testid="stSelectbox"] > div > div {
+    /* 1. KHUNG CHÌM 3D WIN2K NGOÀI CÙNG */
+    div[data-testid="stTextInput"] > div,
+    div[data-testid="stTextArea"] > div,
+    div[data-testid="stNumberInput"] > div,
+    div[data-testid="stSelectbox"] > div > div {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
         border-right: 2px solid #ffffff !important;
@@ -400,14 +388,33 @@ st.markdown("""
         border-radius: 0px !important;
         box-shadow: inset 1px 1px 0px #808080 !important;
         overflow: hidden !important;
-        transition: none !important;
     }
 
-    /* 4.2 Khi Focus: Rãnh chìm chuyển sang đen sâu, không có bất kỳ viền đỏ nào */
-    .stApp div[data-testid="stTextInput"] > div:focus-within,
-    .stApp div[data-testid="stTextArea"] > div:focus-within,
-    .stApp div[data-testid="stNumberInput"] > div:focus-within,
-    .stApp div[data-testid="stSelectbox"] > div > div:focus-within {
+    /* 2. CHẶN VÀ ĐỔI TOÀN BỘ MÀU VIỀN ĐỎ NỘI BỘ SANG TRONG SUỐT / ĐEN */
+    div[data-baseweb="base-input"],
+    div[data-baseweb="input"],
+    div[data-baseweb="textarea"] {
+        border-color: transparent !important;
+        border-radius: 0px !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* Đổi màu đỏ khi focus sang đen hoặc triệt tiêu */
+    div[data-baseweb="base-input"]:focus-within,
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="textarea"]:focus-within,
+    div[data-baseweb="base-input"] > div:focus-within,
+    div[data-baseweb="input"] > div:focus-within {
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* 3. KHI FOCUS: KHUNG NGOÀI CHUYỂN SANG ĐEN ĐẬM ĐỒNG BỘ */
+    div[data-testid="stTextInput"] > div:focus-within,
+    div[data-testid="stTextArea"] > div:focus-within,
+    div[data-testid="stNumberInput"] > div:focus-within,
+    div[data-testid="stSelectbox"] > div > div:focus-within {
         border-top: 2px solid #000000 !important;
         border-left: 2px solid #000000 !important;
         border-right: 2px solid #ffffff !important;
@@ -416,61 +423,29 @@ st.markdown("""
         box-shadow: inset 1px 1px 0px #000000 !important;
     }
 
-    /* 4.3 Dập tắt toàn bộ các lớp wrapper BaseWeb nội bộ (Nơi sinh ra viền đỏ) */
-    .stApp div[data-baseweb],
-    .stApp div[data-baseweb="base-input"],
-    .stApp div[data-baseweb="input"],
-    .stApp div[data-baseweb="textarea"],
-    .stApp div[data-baseweb] > div {
-        border: none !important;
-        border-color: transparent !important;
+    /* 4. TẤT CẢ CÁC THẺ CON VÀ INPUT THUẦN */
+    div[data-testid="stTextInput"] *,
+    div[data-testid="stTextArea"] *,
+    div[data-testid="stNumberInput"] * {
         border-radius: 0px !important;
-        box-shadow: none !important;
-        -webkit-box-shadow: none !important;
-        background-color: transparent !important;
     }
 
-    /* 4.4 Dập tắt trạng thái Hover & Focus ở cấp BaseWeb */
-    .stApp div[data-baseweb]:hover,
-    .stApp div[data-baseweb]:focus-within,
-    .stApp div[data-baseweb] > div:hover,
-    .stApp div[data-baseweb] > div:focus-within {
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input {
         border: none !important;
         border-color: transparent !important;
         box-shadow: none !important;
-        -webkit-box-shadow: none !important;
         outline: none !important;
-    }
-
-    /* 4.5 Định dạng văn bản và thẻ input/textarea thuần */
-    .stApp div[data-testid="stTextInput"] input,
-    .stApp div[data-testid="stTextArea"] textarea,
-    .stApp div[data-testid="stNumberInput"] input {
-        border: none !important;
-        border-color: transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        -webkit-box-shadow: none !important;
-        border-radius: 0px !important;
         color: #000000 !important;
         font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
         font-size: 0.92rem !important;
-        padding: 6px 8px !important;
+        padding: 5px 8px !important;
         background-color: transparent !important;
     }
 
-    .stApp div[data-testid="stTextInput"] input:focus,
-    .stApp div[data-testid="stTextArea"] textarea:focus,
-    .stApp div[data-testid="stNumberInput"] input:focus {
-        border: none !important;
-        border-color: transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        -webkit-box-shadow: none !important;
-    }
-
-    /* 4.6 Nút tăng giảm (+ / -) ở ô Tuổi và số */
-    .stApp div[data-testid="stNumberInput"] button {
+    /* 5. NÚT TĂNG GIẢM (+ / -) CỦA NUMBER INPUT */
+    div[data-testid="stNumberInput"] button {
         border-radius: 0px !important;
         border-top: 1px solid #ffffff !important;
         border-left: 1px solid #ffffff !important;
@@ -480,17 +455,19 @@ st.markdown("""
         color: #000000 !important;
     }
 
-    .stApp div[data-testid="stNumberInput"] button:active {
+    div[data-testid="stNumberInput"] button:active {
         border-top: 1px solid #404040 !important;
         border-left: 1px solid #404040 !important;
         border-right: 1px solid #ffffff !important;
         border-bottom: 1px solid #ffffff !important;
     }
 
-    /* ==============================================================================
-       5. NÚT BẤM (RETRO CHUNKY TACTILE BUTTONS)
-       ============================================================================== */
-    .stApp button[kind="primary"] {
+    *:focus, *:focus-visible {
+        outline: none !important;
+    }
+
+    /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
+    button[kind="primary"] {
         background: #ece9d8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
@@ -505,7 +482,8 @@ st.markdown("""
         padding: 4px 14px !important;
     }
 
-    .stApp button[kind="primary"]:active {
+    /* Hiệu ứng lún nút khi nhấn xuống (Pressed) */
+    button[kind="primary"]:active {
         border-top: 2px solid #404040 !important;
         border-left: 2px solid #404040 !important;
         border-right: 2px solid #ffffff !important;
@@ -514,7 +492,7 @@ st.markdown("""
         transform: translate(1px, 1px) !important;
     }
 
-    .stApp button[kind="secondary"] {
+    button[kind="secondary"] {
         background: #ece9d8 !important;
         border-top: 2px solid #ffffff !important;
         border-left: 2px solid #ffffff !important;
@@ -526,9 +504,7 @@ st.markdown("""
         color: #000000 !important;
     }
 
-    /* ==============================================================================
-       6. THANH MỤC LỤC BÊN PHẢI (RIGHT FLOATING TOC TOOLBOX)
-       ============================================================================== */
+    /* 5. THANH MỤC LỤC BÊN PHẢI DẠNG HỘP CÔNG CỤ SYSTEM TOOLBOX */
     .right-toc-container {
         position: fixed !important;
         top: 75px !important;
