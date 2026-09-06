@@ -636,6 +636,85 @@ st.markdown("""
         border-bottom: 2px solid #ffffff !important;
         box-shadow: none !important;
         transform: translate(1px, 1px) !important;
+    /* ==============================================================================
+       7. ĐỒNG BỘ PHẦN ĐẦU TRANG (TABS, RADIO & TIÊU ĐỀ WIN2K)
+       ============================================================================== */
+
+    /* Ẩn icon link mỏ neo mặc định cạnh tiêu đề */
+    .stApp h1 a, 
+    .stApp [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+
+    /* Tiêu đề & mô tả đầu trang */
+    .stApp h1 {
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px !important;
+        color: #000000 !important;
+        margin-bottom: 4px !important;
+    }
+
+    /* --- THANH TABS DẠNG THẺ FOLDER 3D --- */
+    /* Container viền đế ngang */
+    div[data-testid="stTabs"] div[data-baseweb="tab-list"] {
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: 0 2px 0px #404040 !important;
+        background-color: transparent !important;
+        padding-bottom: 0px !important;
+        margin-bottom: 16px !important;
+        gap: 4px !important;
+    }
+
+    /* Ẩn hoàn toàn thanh gạch chân chạy qua lại mặc định */
+    div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
+        display: none !important;
+    }
+
+    /* Nút từng Tab */
+    div[data-testid="stTabs"] button[data-baseweb="tab"] {
+        background-color: #d4d0c8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0px !important;
+        padding: 5px 16px !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-weight: 600 !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* Tab đang được kích hoạt (Active) */
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #ece9d8 !important; /* Che đường viền ngang bên dưới */
+        position: relative !important;
+        top: 2px !important;
+        z-index: 5 !important;
+        font-weight: 700 !important;
+    }
+
+    /* --- NÚT CHỌN RADIO DẠNG LÕM 3D --- */
+    /* Vòng tròn ngoài */
+    div[data-testid="stRadio"] div[data-baseweb="radio"] > div:first-child {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #808080 !important;
+        border-radius: 50% !important;
+    }
+
+    /* Dấu chấm tròn khi được chọn */
+    div[data-testid="stRadio"] div[data-baseweb="radio"] div[data-testid="stRadioButtonDot"] {
+        background-color: #000000 !important;
+    }
     }
 </style>
 """, unsafe_allow_html=True)
