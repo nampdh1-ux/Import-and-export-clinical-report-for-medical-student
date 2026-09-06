@@ -371,7 +371,7 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES) */
+    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES - TRIỆT TIÊU VIỀN ĐỎ STREAMLIT) */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
@@ -383,9 +383,33 @@ st.markdown("""
         background-color: #ffffff !important;
         border-radius: 0px !important;
         box-shadow: inset 1px 1px 0px #808080 !important;
-        transition: none !important;
+        outline: none !important;
     }
 
+    /* Triệt tiêu toàn bộ viền đỏ, bo tròn, shadow của mọi lớp lồng bên trong BaseWeb */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[data-baseweb="textarea"] {
+        border: none !important;
+        border-radius: 0px !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+
+    /* Tắt sạch viền đỏ khi click chuột vào (focus / focus-within) */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="base-input"]:focus-within,
+    div[data-baseweb="textarea"]:focus-within,
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus,
+    div[data-testid="stNumberInput"] input:focus {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        border-radius: 0px !important;
+    }
+
+    /* Chỉ giữ lại khung viền chìm sắc cạnh khi đang gõ chữ */
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
@@ -394,8 +418,8 @@ st.markdown("""
         border-left: 2px solid #000000 !important;
         border-right: 2px solid #ffffff !important;
         border-bottom: 2px solid #ffffff !important;
-        background-color: #fffff8 !important;
-        outline: 1px dotted #0a246a !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #000000 !important;
     }
 
     div[data-testid="stTextInput"] input,
@@ -405,6 +429,9 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
         font-size: 0.9rem !important;
         padding: 5px 8px !important;
+        border: none !important;
+        border-radius: 0px !important;
+        background-color: transparent !important;
     }
 
     /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
