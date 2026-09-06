@@ -1576,10 +1576,75 @@ with tab1:
             st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
 
-        col_tt_mo_ta, col_tt_sh = st.columns([1.2, 1])
+        # --- DANH MỤC CHIPS CHỌN NHANH TRIỆU CHỨNG (ƯU TIÊN BÌNH THƯỜNG TRƯỚC) ---
+        CHIPS_TOAN_THAN = [
+            "Tỉnh, tiếp xúc tốt, GCS 15 điểm",
+            "Da niêm mạc hồng",
+            "Không phù, không xuất huyết dưới da",
+            "Tuyến giáp không to, hạch ngoại vi không sờ thấy",
+            "Thể trạng trung bình",
+            "Li bì, tiếp xúc chậm",
+            "Da niêm mạc nhợt / thiếu máu",
+            "Da vàng, củng mạc mắt vàng",
+            "Vã mồ hôi, đầu chi lạnh",
+            "Sốt nhẹ / gai rét",
+            "Dấu mất nước (môi khô, lưỡi bẩn)",
+            "Phù mềm hai chi dưới"
+        ]
+
+        CHIPS_VET_MO = [
+            "Vết mổ khô, sạch",
+            "Mép mổ liền tốt, phẳng",
+            "Chân chỉ sạch, không sưng đỏ",
+            "Ấn quanh vết mổ không đau, không nề",
+            "Vết mổ nề đỏ, ấn đau tức",
+            "Rỉ ít dịch hồng thấm băng",
+            "Rỉ dịch mủ / dịch đục hôi",
+            "Tụ máu / bầm tím quanh mép mổ",
+            "Hở mép mổ / bục chỉ một phần",
+            "Căng phồng nghi tụ dịch vết mổ"
+        ]
+
+        CHIPS_DAN_LUU = [
+            "Không đặt ống dẫn lưu",
+            "Chân dẫn lưu khô, sạch, cố định tốt",
+            "Ra lượng ít dịch hồng nhạt (< 30ml/24h)",
+            "Hệ thống dẫn lưu áp lực âm hoạt động tốt",
+            "Ra máu đỏ tươi liên tục (> 50ml/h)",
+            "Ra dịch mủ đục / cặn bẩn",
+            "Ra dịch mật / dịch tiêu hóa nghi rò",
+            "Tắc ống dẫn lưu / ngừng ra dịch",
+            "Rỉ dịch quanh chân dẫn lưu",
+            "Tụt / lệch vị trí ống dẫn lưu"
+        ]
+
+        def append_chip_text(field_key, selected_chips):
+            """Hàm cập nhật text_area khi bấm chọn các chip nhanh"""
+            current_lines = [l.strip().lstrip("-*• ") for l in str(st.session_state.get(field_key, "")).split("\n") if l.strip()]
+            for item in selected_chips:
+                if item not in current_lines:
+                    current_lines.append(item)
+            st.session_state[field_key] = "\n".join([f"- {l}" for l in current_lines])
+
+        col_tt_mo_ta, col_tt_sh = st.columns([1.3, 1])
         with col_tt_mo_ta:
             st.markdown("**Mô tả khám toàn thân:**")
-            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=175, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
+            sel_tt = st.multiselect(
+                "⚡ Chọn nhanh dấu hiệu toàn thân:",
+                CHIPS_TOAN_THAN,
+                key="sel_chips_tt",
+                placeholder="Chọn nhanh triệu chứng (Ưu tiên bình thường)..."
+            )
+            if sel_tt:
+                append_chip_text("kham_toan_than", sel_tt)
+
+            st.text_area(
+                "Nội dung khám toàn thân:",
+                key="kham_toan_than",
+                height=150,
+                label_visibility="collapsed",
+                placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù..."
+            )
         
         with col_tt_sh:
             st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
@@ -1605,8 +1670,46 @@ with tab1:
         if loai_benh_an == "Hậu phẫu":
             st.markdown("<div class='sub-section-header'>2. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
             c_vm, c_dl = st.columns(2)
-            with c_vm: st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=85, placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
-            with c_dl: st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=85, placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
+            with c_vm:
+                st.markdown("**Tình trạng vết mổ:**")
+                sel_vm = st.multiselect(
+                    "⚡ Chọn nhanh dấu hiệu vết mổ:",
+                    CHIPS_VET_MO,
+                    key="sel_chips_vm",
+                    placeholder="Chọn nhanh tình trạng vết mổ..."
+                )
+                if sel_vm:
+                    append_chip_text("kham_vet_mo", sel_vm)
+
+                st.text_area(
+                    "Tình trạng vết mổ:",
+                    key="kham_vet_mo",
+                    height=90,
+                    label_visibility="collapsed",
+                    placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề..."
+                )
+
+            with c_dl:
+                st.markdown("**Tình trạng ống dẫn lưu:**")
+                sel_dl = st.multiselect(
+                    "⚡ Chọn nhanh dấu hiệu dẫn lưu:",
+                    CHIPS_DAN_LUU,
+                    key="sel_chips_dl",
+                    placeholder="Chọn nhanh tình trạng dẫn lưu..."
+                )
+                if sel_dl:
+                    append_chip_text("kham_dan_luu", sel_dl)
+
+                st.text_area(
+                    "Tình trạng ống dẫn lưu:",
+                    key="kham_dan_luu",
+                    height=90,
+                    label_visibility="collapsed",
+                    placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt..."
+                )
+            st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
