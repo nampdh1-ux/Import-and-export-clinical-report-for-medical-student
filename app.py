@@ -292,6 +292,81 @@ st.markdown("""
     .sub-section-header { background-color: #f2fafb; box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1; padding: 6px 12px 6px 14px; border-radius: 3px; margin-top: 10px; margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; color: #0c4d63; }
     .highlight-dx { color: #b40000; font-weight: bold; font-size: 1.02rem; }
     .type-selector { padding: 15px; background-color: #fff9e6; border-left: 5px solid #ffc107; border-radius: 5px; margin-bottom: 20px;}
+    /* CUỘN TRANG MƯỢT KHI NHẢY MỤC */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* THANH MỤC LỤC CỐ ĐỊNH BÊN PHẢI (RIGHT DOCKED NAV) */
+    .right-toc-container {
+        position: fixed;
+        top: 110px;
+        right: 18px;
+        z-index: 9999;
+    }
+
+    .right-toc-details {
+        position: relative;
+    }
+
+    .right-toc-trigger {
+        background: #0d47a1 !important;
+        color: #ffffff !important;
+        padding: 8px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(13, 71, 161, 0.25);
+        list-style: none;
+        user-select: none;
+        transition: all 0.2s ease;
+    }
+
+    .right-toc-trigger:hover {
+        background: #1565c0 !important;
+        transform: translateY(-1px);
+    }
+
+    .right-toc-menu {
+        position: absolute;
+        top: 36px;
+        right: 0;
+        width: 250px;
+        background: #ffffff;
+        border: 1px solid #d0dbe5;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        padding: 10px 0;
+        display: flex;
+        flex-direction: column;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .right-toc-header {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #546e7a;
+        padding: 4px 14px 8px 14px;
+        border-bottom: 1px solid #edf2f7;
+    }
+
+    .toc-item {
+        color: #1e293b !important;
+        text-decoration: none !important;
+        font-size: 0.84rem;
+        padding: 7px 14px;
+        display: block;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .toc-item:hover {
+        background-color: #ebf7f9;
+        color: #0d47a1 !important;
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1512,6 +1587,48 @@ def ui_cdxd(num_xd, num_blxd):
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
+    # ==============================================================================
+    # THANH MỤC LỤC NHANH BÊN PHẢI (RIGHT FLOATING TABLE OF CONTENTS)
+    # ==============================================================================
+    if loai_benh_an == "Hậu phẫu":
+        toc_items = [
+            ("#sec-hanh-chinh", "I. Hành chính"),
+            ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử hậu phẫu"),
+            ("#sec-tien-su", "IV. Tiền sử"),
+            ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
+            ("#sec-chan-doan-so-bo", "VI & VII. Chẩn đoán sơ bộ"),
+            ("#sec-can-lam-sang", "IX & X. Cận lâm sàng"),
+            ("#sec-tom-tat-xac-dinh", "XI & XII. Tóm tắt & CĐ xác định"),
+            ("#sec-dieu-tri", "XIV. Điều trị"),
+            ("#sec-tien-luong-tu-van", "XV & XVI. Tiên lượng & Tư vấn"),
+        ]
+    else:
+        toc_items = [
+            ("#sec-hanh-chinh", "I. Hành chính"),
+            ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử"),
+            ("#sec-tien-su", "IV. Tiền sử"),
+            ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
+            ("#sec-tom-tat-noi-khoa", "VI - IX. Tóm tắt & CĐ sơ bộ"),
+            ("#sec-can-lam-sang", "X & XI. Cận lâm sàng"),
+            ("#sec-chan-doan-xac-dinh", "XII & XIII. CĐ xác định"),
+            ("#sec-dieu-tri", "XIV. Điều trị"),
+            ("#sec-tien-luong-tu-van", "XV & XVI. Tiên lượng & Tư vấn"),
+        ]
+
+    toc_links_html = "".join([f"<a href='{href}' class='toc-item'>{title}</a>" for href, title in toc_items])
+
+    st.markdown(f"""
+    <div class="right-toc-container">
+        <details class="right-toc-details">
+            <summary class="right-toc-trigger">📑 Mục lục bệnh án</summary>
+            <div class="right-toc-menu">
+                <div class="right-toc-header">ĐIỀU HƯỚNG NHANH</div>
+                {toc_links_html}
+            </div>
+        </details>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div id='sec-hanh-chinh'></div>", unsafe_allow_html=True)
     with st.expander("I. PHẦN HÀNH CHÍNH", expanded=True):
         c_hc1, c_hc2, c_hc3 = st.columns(3)
         with c_hc1:
@@ -1528,7 +1645,7 @@ with tab1:
         with c_hc4: st.text_input("Địa chỉ", key="dia_chi", placeholder="Quận Đống Đa, TP. Hà Nội")
         with c_hc5: st.text_input("Bác sĩ hoặc Sinh viên phụ trách", key="sinh_vien", placeholder="Bác sĩ nội trú, Sinh viên Y...")
         with c_hc6: st.text_input("Ngày giờ vào viện", key="ngay_vao_vien")
-
+    st.markdown("<div id='sec-ly-do-benh-su'></div>", unsafe_allow_html=True)
     with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
         
@@ -1560,7 +1677,7 @@ with tab1:
             st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
-
+    st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
     with st.expander("IV. TIỀN SỬ", expanded=True):
         c_ts1, c_ts2 = st.columns(2)
         with c_ts1:
@@ -1573,7 +1690,7 @@ with tab1:
             st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
             st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
-
+    st.markdown("<div id='sec-kham-lam-sang'></div>", unsafe_allow_html=True)
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
         # Không hiển thị mục "Khám vào viện" nếu là Hậu phẫu
         if loai_benh_an == "Hậu phẫu":
@@ -1757,22 +1874,28 @@ with tab1:
 
     # --- KHỐI ĐỘNG CHUYỂN MẠCH VỊ TRÍ THEO LOẠI BỆNH ÁN ---
     if loai_benh_an == "Hậu phẫu":
+        st.markdown("<div id='sec-chan-doan-so-bo'></div>", unsafe_allow_html=True)
         with st.expander("VI VÀ VII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", expanded=True):
             ui_cdsb("VI", "VII", "VIII")
+        st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
         with st.expander("IX VÀ X. CẬN LÂM SÀNG", expanded=True):
             ui_cls("IX", "X")
+        st.markdown("<div id='sec-tom-tat-xac-dinh'></div>", unsafe_allow_html=True)
         with st.expander("XI VÀ XII. TÓM TẮT BỆNH ÁN VÀ CHẨN ĐOÁN XÁC ĐỊNH", expanded=True):
             ui_tom_tat("XI")
             ui_cdxd("XII", "XIII")
     else:
+        st.markdown("<div id='sec-tom-tat-noi-khoa'></div>", unsafe_allow_html=True)
         with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
             ui_tom_tat("VI")
             ui_cdsb("VII", "VIII", "IX")
+        st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
         with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
             ui_cls("X", "XI")
+        st.markdown("<div id='sec-chan-doan-xac-dinh'></div>", unsafe_allow_html=True)
         with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
             ui_cdxd("XII", "XIII")
-
+    st.markdown("<div id='sec-dieu-tri'></div>", unsafe_allow_html=True)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
@@ -1800,7 +1923,7 @@ with tab1:
         with c_mt: st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=220)
         with c_ct: st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=220)
         with c_td: st.text_area("3. Theo dõi:", key="dt_theo_doi", height=220)
-
+    st.markdown("<div id='sec-tien-luong-tu-van'></div>", unsafe_allow_html=True)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
         if st.button("🪄 Làm phép", type="primary", key="btn_ai_tienluong"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
