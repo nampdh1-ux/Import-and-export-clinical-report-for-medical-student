@@ -1583,31 +1583,53 @@ with tab1:
             st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
 
+        # DANH MỤC TRIỆU CHỨNG ĐƯỢC CHUẨN HÓA (BÌNH THƯỜNG TRƯỚC, BẤT THƯỜNG SAU)
+        LIST_TOAN_THAN = [
+            ("🟢 Tỉnh táo, tiếp xúc tốt, GCS 15 điểm", "Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm"),
+            ("🟢 Da niêm mạc hồng hào", "Da niêm mạc hồng hào"),
+            ("🟢 Không phù, không xuất huyết dưới da", "Không phù, không xuất huyết dưới da"),
+            ("🟢 Tuyến giáp không to, hạch ngoại vi không sờ thấy", "Tuyến giáp không to, hạch ngoại vi không sờ thấy"),
+            ("🟢 Thể trạng trung bình", "Thể trạng trung bình"),
+            ("🟠 Da niêm mạc nhợt / thiếu máu", "Da niêm mạc nhợt, nghi ngờ thiếu máu"),
+            ("🟠 Sốt nhẹ / gai rét", "Bệnh nhân có sốt nhẹ, gai rét"),
+            ("🟠 Vã mồ hôi, đầu chi lạnh", "Vã mồ hôi, đầu chi lạnh ẩm"),
+            ("🔴 Li bì, tiếp xúc chậm, Glasgow < 15đ", "Bệnh nhân li bì, tiếp xúc chậm"),
+            ("🔴 Phù mềm hai chi dưới", "Phù mềm, ấn lõm hai chi dưới")
+        ]
+
+        LIST_VET_MO = [
+            ("🟢 Vết mổ khô, sạch, chân chỉ không nề đỏ", "Vết mổ khô, sạch, chân chỉ không nề đỏ"),
+            ("🟢 Mép mổ phẳng, liền tốt, không đau tức", "Mép mổ phẳng, liền tốt, ấn không đau tức"),
+            ("🟠 Rỉ ít dịch hồng thấm băng", "Vết mổ rỉ ít dịch hồng thấm băng"),
+            ("🟠 Tụ máu / bầm tím nhẹ quanh mép mổ", "Có vết bầm tím quanh mép mổ, không sưng phồng"),
+            ("🔴 Chân chỉ sưng nề, tấy đỏ, đau tức nhiều", "Chân chỉ sưng nề, tấy đỏ, ấn đau tức nhiều"),
+            ("🔴 Rỉ dịch mủ / dịch đục có mùi hôi", "Vết mổ rỉ dịch mủ vàng đục, có mùi hôi"),
+            ("🔴 Hở mép mổ / bục chỉ vết mổ", "Hở mép mổ, bục chỉ một phần")
+        ]
+
+        LIST_DAN_LUU = [
+            ("🟢 Bệnh nhân không mang ống dẫn lưu", "Bệnh nhân không đặt ống dẫn lưu"),
+            ("🟢 Dẫn lưu ra lượng ít dịch hồng nhạt / thanh dịch (< 30ml/24h)", "Chân dẫn lưu sạch, ra lượng ít dịch hồng nhạt (< 30ml/24h)"),
+            ("🟢 Hệ thống áp lực âm hoạt động tốt, không rỉ chân", "Hệ thống dẫn lưu hoạt động tốt, chân dẫn lưu khô"),
+            ("🟠 Dẫn lưu ra ít dịch vàng chanh / cặn nhẹ", "Dẫn lưu ra ít dịch thanh vàng chanh"),
+            ("🔴 Ra máu đỏ tươi liên tục nghi chảy máu trong", "Dẫn lưu ra máu đỏ tươi liên tục (> 50ml/h), nghi ngờ chảy máu trong"),
+            ("🔴 Ra dịch mủ đục / dịch tiêu hóa / dịch mật nghi rò", "Dẫn lưu ra dịch mủ đục / dịch tiêu hóa nghi rò"),
+            ("🔴 Tắc ống dẫn lưu / ngừng ra dịch bất thường", "Ống dẫn lưu bị tắc, không ra thêm dịch")
+        ]
+
         col_tt_mo_ta, col_tt_sh = st.columns([1.25, 1])
         with col_tt_mo_ta:
             st.markdown("**Mô tả khám toàn thân:**")
-            st.caption("⚡ *Chọn nhanh (Ưu tiên bình thường trước):*")
-            
-            # Hàng nút bình thường
-            r_tt1 = st.columns(3)
-            with r_tt1[0]:
-                st.button("🟢 Tỉnh, GCS 15đ", key="btn_tt_tinh", on_click=add_symptom_to_field, args=("kham_toan_than", "Bệnh nhân tỉnh táo, tiếp xúc tốt, GCS 15 điểm"), use_container_width=True)
-            with r_tt1[1]:
-                st.button("🟢 Da niêm mạc hồng", key="btn_tt_hong", on_click=add_symptom_to_field, args=("kham_toan_than", "Da niêm mạc hồng hào"), use_container_width=True)
-            with r_tt1[2]:
-                st.button("🟢 Không phù, k xuất huyết", key="btn_tt_kphu", on_click=add_symptom_to_field, args=("kham_toan_than", "Không phù, không xuất huyết dưới da"), use_container_width=True)
-            
-            # Hàng nút theo dõi / bất thường
-            r_tt2 = st.columns(3)
-            with r_tt2[0]:
-                st.button("🟠 Da niêm mạc nhợt", key="btn_tt_nhot", on_click=add_symptom_to_field, args=("kham_toan_than", "Da niêm mạc nhợt / thiếu máu"), use_container_width=True)
-            with r_tt2[1]:
-                st.button("🟠 Sốt nhẹ / gai rét", key="btn_tt_sot", on_click=add_symptom_to_field, args=("kham_toan_than", "Bệnh nhân có sốt, rét run"), use_container_width=True)
-            with r_tt2[2]:
-                st.button("🔴 Li bì, tiếp xúc chậm", key="btn_tt_libi", on_click=add_symptom_to_field, args=("kham_toan_than", "Bệnh nhân li bì, tiếp xúc chậm"), use_container_width=True)
+            with st.expander("📋 Danh sách chọn nhanh triệu chứng toàn thân", expanded=False):
+                for label, full_text in LIST_TOAN_THAN:
+                    c_txt, c_btn = st.columns([4, 1])
+                    with c_txt:
+                        st.markdown(f"<span style='font-size: 0.9rem;'>{label}</span>", unsafe_allow_html=True)
+                    with c_btn:
+                        st.button("➕ Thêm", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
 
-            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=135, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
-        
+            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=125, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
+
         with col_tt_sh:
             st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
             c_sh1, c_sh2 = st.columns(2)
@@ -1628,47 +1650,33 @@ with tab1:
                 st.caption(f"📊 **BMI:** `{bmi_val} kg/m²` — **Đánh giá:** *{bmi_eval}*")
             else:
                 st.session_state["sh_bmi"], st.session_state["sh_bmi_eval"] = "", ""
-        
+
         if loai_benh_an == "Hậu phẫu":
             st.markdown("<div class='sub-section-header'>2. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
             c_vm, c_dl = st.columns(2)
             with c_vm:
                 st.markdown("**Tình trạng vết mổ:**")
-                # Các nút chọn nhanh vết mổ
-                vm_btns = st.columns(3)
-                with vm_btns[0]:
-                    st.button("🟢 Khô, sạch", key="btn_vm_kho", on_click=add_symptom_to_field, args=("kham_vet_mo", "Vết mổ khô, sạch, chân chỉ không nề đỏ"), use_container_width=True)
-                with vm_btns[1]:
-                    st.button("🟢 Mép mổ liền tốt", key="btn_vm_lien", on_click=add_symptom_to_field, args=("kham_vet_mo", "Mép mổ phẳng, liền tốt, không đau tức quanh vết mổ"), use_container_width=True)
-                with vm_btns[2]:
-                    st.button("🟠 Rỉ ít dịch hồng", key="btn_vm_rihong", on_click=add_symptom_to_field, args=("kham_vet_mo", "Vết mổ rỉ ít dịch hồng thấm băng"), use_container_width=True)
-                
-                vm_btns2 = st.columns(2)
-                with vm_btns2[0]:
-                    st.button("🔴 Nề đỏ, ấn đau chói", key="btn_vm_nedo", on_click=add_symptom_to_field, args=("kham_vet_mo", "Chân chỉ nề đỏ, ấn quanh vết mổ đau tức nhiều"), use_container_width=True)
-                with vm_btns2[1]:
-                    st.button("🔴 Chảy dịch mủ / hôi", key="btn_vm_mu", on_click=add_symptom_to_field, args=("kham_vet_mo", "Vết mổ rỉ dịch mủ vàng đục, có mùi hôi"), use_container_width=True)
+                with st.expander("📋 Chọn nhanh dấu hiệu vết mổ", expanded=False):
+                    for label, full_text in LIST_VET_MO:
+                        c_txt, c_btn = st.columns([3.8, 1.2])
+                        with c_txt:
+                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                        with c_btn:
+                            st.button("➕ Thêm", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
 
-                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=85, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
+                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
 
             with c_dl:
                 st.markdown("**Tình trạng ống dẫn lưu:**")
-                # Các nút chọn nhanh dẫn lưu
-                dl_btns = st.columns(3)
-                with dl_btns[0]:
-                    st.button("🟢 Không dẫn lưu", key="btn_dl_khong", on_click=add_symptom_to_field, args=("kham_dan_luu", "Bệnh nhân không mang ống dẫn lưu"), use_container_width=True)
-                with dl_btns[1]:
-                    st.button("🟢 Ra dịch hồng nhạt", key="btn_dl_hong", on_click=add_symptom_to_field, args=("kham_dan_luu", "Dẫn lưu ra lượng ít dịch hồng nhạt, chân dẫn lưu sạch"), use_container_width=True)
-                with dl_btns[2]:
-                    st.button("🟠 Ra ít dịch vàng chanh", key="btn_dl_vang", on_click=add_symptom_to_field, args=("kham_dan_luu", "Dẫn lưu ra ít dịch thanh vàng chanh (<30ml/24h)"), use_container_width=True)
-                
-                dl_btns2 = st.columns(2)
-                with dl_btns2[0]:
-                    st.button("🔴 Ra máu đỏ tươi liên tục", key="btn_dl_mau", on_click=add_symptom_to_field, args=("kham_dan_luu", "Dẫn lưu ra máu đỏ tươi liên tục nghi chảy máu sau mổ"), use_container_width=True)
-                with dl_btns2[1]:
-                    st.button("🔴 Ra dịch mủ / dịch mật", key="btn_dl_mu", on_click=add_symptom_to_field, args=("kham_dan_luu", "Dẫn lưu ra dịch đục mủ / dịch tiêu hóa"), use_container_width=True)
+                with st.expander("📋 Chọn nhanh dấu hiệu dẫn lưu", expanded=False):
+                    for label, full_text in LIST_DAN_LUU:
+                        c_txt, c_btn = st.columns([3.8, 1.2])
+                        with c_txt:
+                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                        with c_btn:
+                            st.button("➕ Thêm", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
 
-                st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=85, label_visibility="collapsed", placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
+                st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=90, label_visibility="collapsed", placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
