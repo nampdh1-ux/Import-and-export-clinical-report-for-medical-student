@@ -355,44 +355,49 @@ st.markdown("""
     }
 
     /* ==============================================================================
-       AMBOSS SIGNATURE FOCUS GLOW (VIỀN SÁNG BO TRÒN KHI BẤM VÀO Ô NHẬP)
+       AMBOSS SIGNATURE FOCUS RING (TRIỆT TIÊU VIỀN ĐÔI - CHUẨN XÁC 100%)
        ============================================================================== */
-    
-    /* 1. Thiết lập bo tròn và viền cơ bản cho tất cả các ô nhập liệu */
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-testid="stNumberInput"] input,
+
+    /* 1. TẤT CẢ VIỀN VÀ BO GÓC ĐƯA RA LỚP VỎ NGOÀI (BASEWEB WRAPPER) */
+    div[data-baseweb="input"],
+    div[data-baseweb="textarea"],
     div[data-testid="stSelectbox"] > div > div {
         border-radius: 12px !important;
-        border: 1.5px solid rgba(10, 166, 184, 0.25) !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        padding: 10px 14px !important;
+        border: 1.5px solid rgba(10, 166, 184, 0.3) !important;
+        background-color: transparent !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        overflow: hidden !important; /* Cắt sạch mọi góc thừa lọt ra ngoài */
     }
 
-    /* 2. Hiệu ứng khi rê chuột qua (Hover) */
-    div[data-testid="stTextInput"] input:hover,
-    div[data-testid="stTextArea"] textarea:hover,
-    div[data-testid="stNumberInput"] input:hover,
+    /* 2. RÊ CHUỘT QUA VỎ NGOÀI (HOVER) */
+    div[data-baseweb="input"]:hover,
+    div[data-baseweb="textarea"]:hover,
     div[data-testid="stSelectbox"] > div > div:hover {
-        border-color: rgba(10, 166, 184, 0.6) !important;
+        border-color: rgba(10, 166, 184, 0.65) !important;
     }
 
-    /* 3. HIỆU ỨNG VIỀN SÁNG TOẢ HÀO QUANG KHI BẤM VÀO (AMBOSS FOCUS RING) */
-    div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stTextArea"] textarea:focus,
-    div[data-testid="stNumberInput"] input:focus,
+    /* 3. VIỀN SÁNG AMBOSS KHI FOCUS VÀO BẤT KỲ ĐÂU BÊN TRONG (FOCUS-WITHIN) */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="textarea"]:focus-within,
     div[data-testid="stSelectbox"] > div > div:focus-within {
         border-color: #0aa6b8 !important;
-        /* Hào quang kép: viền sắc nét phía trong + ánh sáng teal lan tỏa 4px phía ngoài */
-        box-shadow: 0 0 0 1px #0aa6b8, 0 0 0 4px rgba(10, 166, 184, 0.25) !important;
-        outline: none !important;
+        box-shadow: 0 0 0 1px #0aa6b8, 0 0 0 4px rgba(10, 166, 184, 0.22) !important;
     }
 
-    /* 4. Thùng chứa bên ngoài của Streamlit (bỏ viền thừa để không bị đè viền đôi) */
-    div[data-baseweb="input"],
-    div[data-baseweb="textarea"] {
-        background-color: transparent !important;
+    /* 4. TRIỆT TIÊU HOÀN TOÀN VIỀN VÀ BÓNG CỦA THẺ RUỘT (INPUT / TEXTAREA) */
+    div[data-baseweb="input"] input,
+    div[data-baseweb="textarea"] textarea {
         border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+        border-radius: 0 !important;
+        padding: 8px 12px !important;
+    }
+
+    /* Tắt đường viền xanh mặc định của trình duyệt */
+    *:focus {
+        outline: none !important;
     }
 
     /* Nút Primary mang màu Pacific Teal đặc trưng của AMBOSS */
