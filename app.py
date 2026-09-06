@@ -1481,7 +1481,7 @@ with st.sidebar:
 # ==============================================================================
 # GIAO DIỆN CHÍNH (3 TABS)
 # ==============================================================================
-st.title("Bệnh Án Lâm Sàng")
+st.title("Bệnh Án Lâm Sàng", anchor=False)
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
 
 loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
