@@ -371,7 +371,9 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES - TRIỆT TIÊU VIỀN ĐỎ STREAMLIT) */
+    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES - TRIỆT TIÊU VIỀN ĐỎ BASEWEB) */
+    
+    /* Khung ngoài phong cách 3D Sunken Win2K */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
@@ -386,30 +388,18 @@ st.markdown("""
         outline: none !important;
     }
 
-    /* Triệt tiêu toàn bộ viền đỏ, bo tròn, shadow của mọi lớp lồng bên trong BaseWeb */
-    div[data-baseweb="input"],
+    /* Triệt tiêu hoàn toàn viền đỏ mặc định của BaseWeb bên trong */
     div[data-baseweb="base-input"],
+    div[data-baseweb="input"],
     div[data-baseweb="textarea"] {
         border: none !important;
-        border-radius: 0px !important;
         box-shadow: none !important;
+        outline: none !important;
+        border-radius: 0px !important;
         background-color: transparent !important;
     }
 
-    /* Tắt sạch viền đỏ khi click chuột vào (focus / focus-within) */
-    div[data-baseweb="input"]:focus-within,
-    div[data-baseweb="base-input"]:focus-within,
-    div[data-baseweb="textarea"]:focus-within,
-    div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stTextArea"] textarea:focus,
-    div[data-testid="stNumberInput"] input:focus {
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        border-radius: 0px !important;
-    }
-
-    /* Chỉ giữ lại khung viền chìm sắc cạnh khi đang gõ chữ */
+    /* Khi bấm vào ô: Giữ nguyên form phẳng Win2K, không xuất hiện viền đỏ hay outline chấm đen */
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
@@ -420,18 +410,27 @@ st.markdown("""
         border-bottom: 2px solid #ffffff !important;
         background-color: #ffffff !important;
         box-shadow: inset 1px 1px 0px #000000 !important;
+        outline: none !important;
     }
 
+    /* Thẻ input/textarea thuần: Xóa sạch viền, outline và góc bo thừa */
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stNumberInput"] input {
-        color: #000000 !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.9rem !important;
-        padding: 5px 8px !important;
         border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
         border-radius: 0px !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 0.92rem !important;
+        padding: 5px 8px !important;
         background-color: transparent !important;
+    }
+
+    /* Tắt mọi outline chấm đen trên toàn bộ ô input */
+    *:focus, *:focus-visible {
+        outline: none !important;
     }
 
     /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
