@@ -278,94 +278,128 @@ for i in range(st.session_state["so_hang_cls"]):
     if f"cls_kq_{i}" not in st.session_state: st.session_state[f"cls_kq_{i}"] = ""
     if f"cls_pg_{i}" not in st.session_state: st.session_state[f"cls_pg_{i}"] = ""
 
-# --- CSS TÙY BIẾN ---
+
+# --- CSS TÙY BIẾN HỖ TRỢ ĐỒNG BỘ DARK/LIGHT MODE ---
 st.markdown("""
 <style>
-    div[data-testid="stExpander"] { border: 1px solid #d4eaf0; border-radius: 6px; margin-bottom: 12px; background-color: #ffffff; }
+    /* 1. MẶC ĐỊNH CHO CHẾ ĐỘ SÁNG (LIGHT MODE) */
+    :root {
+        --card-bg: #ffffff;
+        --card-border: #d4eaf0;
+        --summary-bg: #ebf7f9;
+        --summary-hover: #ddf2f5;
+        --title-color: #06445c;
+        --sub-header-bg: #f2fafb;
+        --sub-header-color: #0c4d63;
+        --menu-bg: #ffffff;
+        --menu-border: #d0dbe5;
+        --menu-item-hover: #ebf7f9;
+        --menu-text: #1e293b;
+    }
+
+    /* 2. TỰ ĐỘNG CHUYỂN MÀU KHI Ở CHẾ ĐỘ TỐI (DARK MODE) */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --card-bg: #1e2229;
+            --card-border: #2e3642;
+            --summary-bg: #162638;
+            --summary-hover: #1c324a;
+            --title-color: #80c4e9;
+            --sub-header-bg: #18222d;
+            --sub-header-color: #a5d4e8;
+            --menu-bg: #1c222b;
+            --menu-border: #2d3846;
+            --menu-item-hover: #263546;
+            --menu-text: #e2e8f0;
+        }
+    }
+
+    /* Đảm bảo nhận diện ngay cả khi Streamlit gán class dark mode vào body */
+    [data-theme="dark"], .stApp[data-theme="dark"] {
+        --card-bg: #1e2229;
+        --card-border: #2e3642;
+        --summary-bg: #162638;
+        --summary-hover: #1c324a;
+        --title-color: #80c4e9;
+        --sub-header-bg: #18222d;
+        --sub-header-color: #a5d4e8;
+        --menu-bg: #1c222b;
+        --menu-border: #2d3846;
+        --menu-item-hover: #263546;
+        --menu-text: #e2e8f0;
+    }
+
+    /* 3. ĐỒNG BỘ MÀU KHỐI EXPANDER */
+    div[data-testid="stExpander"] { 
+        border: 1px solid var(--card-border) !important; 
+        border-radius: 6px; 
+        margin-bottom: 12px; 
+        background-color: var(--card-bg) !important; 
+    }
+    
     div[data-testid="stExpander"] > details > summary {
-        background-color: #ebf7f9 !important; box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1 !important;
-        border-left: none !important; border-radius: 5px 5px 0 0; padding: 10px 14px 10px 18px !important;
-        font-weight: 700 !important; color: #06445c !important; font-size: 1.05rem !important;
+        background-color: var(--summary-bg) !important; 
+        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1 !important;
+        border-left: none !important; 
+        border-radius: 5px 5px 0 0; 
+        padding: 10px 14px 10px 18px !important;
+        font-weight: 700 !important; 
+        color: var(--title-color) !important; 
+        font-size: 1.05rem !important;
     }
-    div[data-testid="stExpander"] > details > summary:hover { background-color: #ddf2f5 !important; color: #032b3b !important; }
-    .sidebar-header-amboss { background-color: #ebf7f9; box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1; padding: 8px 12px 8px 16px; border-radius: 4px; font-size: 1.05rem; font-weight: 700; color: #06445c; margin-bottom: 8px; }
-    .sub-section-header { background-color: #f2fafb; box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1; padding: 6px 12px 6px 14px; border-radius: 3px; margin-top: 10px; margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; color: #0c4d63; }
-    .highlight-dx { color: #b40000; font-weight: bold; font-size: 1.02rem; }
-    .type-selector { padding: 15px; background-color: #fff9e6; border-left: 5px solid #ffc107; border-radius: 5px; margin-bottom: 20px;}
-    /* CUỘN TRANG MƯỢT KHI NHẢY MỤC */
-    html {
-        scroll-behavior: smooth;
+    
+    div[data-testid="stExpander"] > details > summary:hover { 
+        background-color: var(--summary-hover) !important; 
     }
-
-    /* THANH MỤC LỤC CỐ ĐỊNH BÊN PHẢI (RIGHT DOCKED NAV) */
-    .right-toc-container {
-        position: fixed;
-        top: 110px;
-        right: 18px;
-        z-index: 9999;
+    
+    /* Chỉnh chữ icon mũi tên trong summary cho đồng màu */
+    div[data-testid="stExpander"] > details > summary svg {
+        fill: var(--title-color) !important;
     }
 
-    .right-toc-details {
-        position: relative;
+    /* 4. TIÊU ĐỀ PHỤ VÀ SIDEBAR */
+    .sidebar-header-amboss { 
+        background-color: var(--summary-bg) !important; 
+        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1; 
+        padding: 8px 12px 8px 16px; 
+        border-radius: 4px; 
+        font-size: 1.05rem; 
+        font-weight: 700; 
+        color: var(--title-color) !important; 
+        margin-bottom: 8px; 
+    }
+    
+    .sub-section-header { 
+        background-color: var(--sub-header-bg) !important; 
+        box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1; 
+        padding: 6px 12px 6px 14px; 
+        border-radius: 3px; 
+        margin-top: 10px; 
+        margin-bottom: 8px; 
+        font-size: 0.95rem; 
+        font-weight: 600; 
+        color: var(--sub-header-color) !important; 
+    }
+    
+    .highlight-dx { 
+        color: #ff5252 !important; 
+        font-weight: bold; 
+        font-size: 1.02rem; 
     }
 
-    .right-toc-trigger {
-        background: #0d47a1 !important;
-        color: #ffffff !important;
-        padding: 8px 14px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(13, 71, 161, 0.25);
-        list-style: none;
-        user-select: none;
-        transition: all 0.2s ease;
-    }
-
-    .right-toc-trigger:hover {
-        background: #1565c0 !important;
-        transform: translateY(-1px);
-    }
-
+    /* 5. ĐỒNG BỘ THANH MỤC LỤC NỔI BÊN PHẢI */
     .right-toc-menu {
-        position: absolute;
-        top: 36px;
-        right: 0;
-        width: 250px;
-        background: #ffffff;
-        border: 1px solid #d0dbe5;
-        border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        padding: 10px 0;
-        display: flex;
-        flex-direction: column;
-        max-height: 70vh;
-        overflow-y: auto;
-    }
-
-    .right-toc-header {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        color: #546e7a;
-        padding: 4px 14px 8px 14px;
-        border-bottom: 1px solid #edf2f7;
+        background: var(--menu-bg) !important;
+        border: 1px solid var(--menu-border) !important;
     }
 
     .toc-item {
-        color: #1e293b !important;
-        text-decoration: none !important;
-        font-size: 0.84rem;
-        padding: 7px 14px;
-        display: block;
-        transition: background 0.15s ease, color 0.15s ease;
+        color: var(--menu-text) !important;
     }
 
     .toc-item:hover {
-        background-color: #ebf7f9;
-        color: #0d47a1 !important;
-        font-weight: 600;
+        background-color: var(--menu-item-hover) !important;
+        color: var(--title-color) !important;
     }
 </style>
 """, unsafe_allow_html=True)
