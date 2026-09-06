@@ -724,7 +724,54 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+# --- LỆNH ÉP GIAO DIỆN TABS VÀ RADIO CHẠY ĐỘC LẬP ---
+st.markdown("""
+<style>
+    /* ÉP THANH TABS THÀNH THẺ FOLDER 3D */
+    html body [data-testid="stTabs"] button {
+        background-color: #d4d0c8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0px !important;
+        color: #000000 !important;
+        margin-right: 2px !important;
+        padding: 6px 16px !important;
+        font-family: 'Tahoma', sans-serif !important;
+    }
+    
+    /* Tab đang chọn: Ẩn viền đáy để nối liền với nội dung */
+    html body [data-testid="stTabs"] button[aria-selected="true"] {
+        background-color: #ece9d8 !important;
+        border-bottom: 2px solid #ece9d8 !important; 
+        font-weight: bold !important;
+        z-index: 99 !important;
+    }
+    
+    /* Chặt đứt đường gạch chân màu đỏ/đen chạy ngầm của Streamlit */
+    html body [data-testid="stTabs"] [data-baseweb="tab-highlight"], 
+    html body [data-testid="stTabs"] hr {
+        display: none !important;
+    }
 
+    /* ÉP NÚT RADIO THÀNH RÃNH LÕM 3D */
+    html body [data-testid="stRadio"] label > div:first-child {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+        border-radius: 50% !important; /* Vẫn giữ hình tròn kinh điển */
+    }
+    
+    /* Chấm đen khi được tick chọn */
+    html body [data-testid="stRadio"] label div[data-testid="stRadioButtonDot"] {
+        background-color: #000000 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
