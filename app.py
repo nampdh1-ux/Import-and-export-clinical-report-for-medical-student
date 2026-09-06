@@ -223,6 +223,17 @@ def load_draft_to_session(loaded_ls):
     if "so_hang_cls" in loaded_ls: st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
     for k in FIELDS_TO_SAVE:
         if k in loaded_ls: st.session_state[k] = loaded_ls[k]
+        
+    # Đảm bảo ô bs_trong_mo luôn có mẫu nếu bản nháp lưu chuỗi rỗng
+    mau_5_dong = (
+        "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+        "- Phương pháp mổ: \n"
+        "- Phương pháp gây mê: \n"
+        "- Quá trình mổ: Không có biến chứng\n"
+        "- Chẩn đoán sau mổ: "
+    )
+    if not str(st.session_state.get("bs_trong_mo", "")).strip():
+        st.session_state["bs_trong_mo"] = mau_5_dong
     try: st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
     except (ValueError, TypeError): st.session_state["tuoi"] = 45
     try: st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
@@ -1516,7 +1527,20 @@ with tab1:
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
-            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=90, placeholder="Mổ phiên hay cấp cứu, ngày giờ mổ, vô cảm, phẫu thuật, tổn thương, tai biến trong mổ (nếu có)...")
+            
+            # Khung sườn 5 dòng cố định
+            mau_5_dong = (
+                "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+                "- Phương pháp mổ: \n"
+                "- Phương pháp gây mê: \n"
+                "- Quá trình mổ: Không có biến chứng\n"
+                "- Chẩn đoán sau mổ: "
+            )
+            # Tự động điền mẫu nếu ô đang trống hoặc chưa có nội dung
+            if not str(st.session_state.get("bs_trong_mo", "")).strip():
+                st.session_state["bs_trong_mo"] = mau_5_dong
+                
+            st.text_area("2. Tình trạng trong mổ:", key="bs_trong_mo", height=130)
             st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
