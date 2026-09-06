@@ -279,127 +279,128 @@ for i in range(st.session_state["so_hang_cls"]):
     if f"cls_pg_{i}" not in st.session_state: st.session_state[f"cls_pg_{i}"] = ""
 
 
-# --- CSS TÙY BIẾN HỖ TRỢ ĐỒNG BỘ DARK/LIGHT MODE ---
+# --- CSS TÙY BIẾN AN TOÀN THEO THEME GỐC CỦA STREAMLIT ---
 st.markdown("""
 <style>
-    /* 1. MẶC ĐỊNH CHO CHẾ ĐỘ SÁNG (LIGHT MODE) */
-    :root {
-        --card-bg: #ffffff;
-        --card-border: #d4eaf0;
-        --summary-bg: #ebf7f9;
-        --summary-hover: #ddf2f5;
-        --title-color: #06445c;
-        --sub-header-bg: #f2fafb;
-        --sub-header-color: #0c4d63;
-        --menu-bg: #ffffff;
-        --menu-border: #d0dbe5;
-        --menu-item-hover: #ebf7f9;
-        --menu-text: #1e293b;
+    /* Cuộn trang mượt */
+    html {
+        scroll-behavior: smooth;
     }
 
-    /* 2. TỰ ĐỘNG CHUYỂN MÀU KHI Ở CHẾ ĐỘ TỐI (DARK MODE) */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --card-bg: #1e2229;
-            --card-border: #2e3642;
-            --summary-bg: #162638;
-            --summary-hover: #1c324a;
-            --title-color: #80c4e9;
-            --sub-header-bg: #18222d;
-            --sub-header-color: #a5d4e8;
-            --menu-bg: #1c222b;
-            --menu-border: #2d3846;
-            --menu-item-hover: #263546;
-            --menu-text: #e2e8f0;
-        }
+    /* 1. KHỐI EXPANDER TỰ THÍCH ỨNG THEME CHÍNH THỨC */
+    div[data-testid="stExpander"] {
+        border: 1px solid rgba(128, 128, 128, 0.25) !important;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        background-color: transparent !important;
     }
 
-    /* Đảm bảo nhận diện ngay cả khi Streamlit gán class dark mode vào body */
-    [data-theme="dark"], .stApp[data-theme="dark"] {
-        --card-bg: #1e2229;
-        --card-border: #2e3642;
-        --summary-bg: #162638;
-        --summary-hover: #1c324a;
-        --title-color: #80c4e9;
-        --sub-header-bg: #18222d;
-        --sub-header-color: #a5d4e8;
-        --menu-bg: #1c222b;
-        --menu-border: #2d3846;
-        --menu-item-hover: #263546;
-        --menu-text: #e2e8f0;
-    }
-
-    /* 3. ĐỒNG BỘ MÀU KHỐI EXPANDER */
-    div[data-testid="stExpander"] { 
-        border: 1px solid var(--card-border) !important; 
-        border-radius: 6px; 
-        margin-bottom: 12px; 
-        background-color: var(--card-bg) !important; 
-    }
-    
     div[data-testid="stExpander"] > details > summary {
-        background-color: var(--summary-bg) !important; 
+        background-color: rgba(13, 71, 161, 0.08) !important;
         box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1 !important;
-        border-left: none !important; 
-        border-radius: 5px 5px 0 0; 
+        border-left: none !important;
+        border-radius: 5px 5px 0 0;
         padding: 10px 14px 10px 18px !important;
-        font-weight: 700 !important; 
-        color: var(--title-color) !important; 
+        font-weight: 700 !important;
         font-size: 1.05rem !important;
     }
-    
-    div[data-testid="stExpander"] > details > summary:hover { 
-        background-color: var(--summary-hover) !important; 
-    }
-    
-    /* Chỉnh chữ icon mũi tên trong summary cho đồng màu */
-    div[data-testid="stExpander"] > details > summary svg {
-        fill: var(--title-color) !important;
+
+    div[data-testid="stExpander"] > details > summary:hover {
+        background-color: rgba(13, 71, 161, 0.15) !important;
     }
 
-    /* 4. TIÊU ĐỀ PHỤ VÀ SIDEBAR */
-    .sidebar-header-amboss { 
-        background-color: var(--summary-bg) !important; 
-        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1; 
-        padding: 8px 12px 8px 16px; 
-        border-radius: 4px; 
-        font-size: 1.05rem; 
-        font-weight: 700; 
-        color: var(--title-color) !important; 
-        margin-bottom: 8px; 
-    }
-    
-    .sub-section-header { 
-        background-color: var(--sub-header-bg) !important; 
-        box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1; 
-        padding: 6px 12px 6px 14px; 
-        border-radius: 3px; 
-        margin-top: 10px; 
-        margin-bottom: 8px; 
-        font-size: 0.95rem; 
-        font-weight: 600; 
-        color: var(--sub-header-color) !important; 
-    }
-    
-    .highlight-dx { 
-        color: #ff5252 !important; 
-        font-weight: bold; 
-        font-size: 1.02rem; 
+    /* 2. TIÊU ĐỀ PHỤ */
+    .sidebar-header-amboss {
+        background-color: rgba(13, 71, 161, 0.08);
+        box-shadow: inset 4px 0 0 #c2185b, inset 8px 0 0 #0d47a1;
+        padding: 8px 12px 8px 16px;
+        border-radius: 4px;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 8px;
     }
 
-    /* 5. ĐỒNG BỘ THANH MỤC LỤC NỔI BÊN PHẢI */
+    .sub-section-header {
+        background-color: rgba(13, 71, 161, 0.06);
+        box-shadow: inset 3px 0 0 #c2185b, inset 6px 0 0 #0d47a1;
+        padding: 6px 12px 6px 14px;
+        border-radius: 3px;
+        margin-top: 10px;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .highlight-dx {
+        color: #d32f2f !important;
+        font-weight: bold;
+        font-size: 1.02rem;
+    }
+
+    /* 3. THANH MỤC LỤC NỔI CỐ ĐỊNH BÊN PHẢI (LUÔN NỔI LÊN TRÊN CÙNG) */
+    .right-toc-container {
+        position: fixed !important;
+        top: 80px !important;
+        right: 25px !important;
+        z-index: 999999 !important;
+    }
+
+    .right-toc-trigger {
+        background: #0d47a1 !important;
+        color: #ffffff !important;
+        padding: 8px 14px !important;
+        border-radius: 20px !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+        list-style: none !important;
+        user-select: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    .right-toc-trigger:hover {
+        background: #1565c0 !important;
+    }
+
     .right-toc-menu {
-        background: var(--menu-bg) !important;
-        border: 1px solid var(--menu-border) !important;
+        position: absolute !important;
+        top: 38px !important;
+        right: 0 !important;
+        width: 260px !important;
+        background: var(--background-color, #ffffff) !important;
+        color: var(--text-color, #1e293b) !important;
+        border: 1px solid rgba(128, 128, 128, 0.3) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+        padding: 10px 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: 75vh !important;
+        overflow-y: auto !important;
+    }
+
+    .right-toc-header {
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+        opacity: 0.7 !important;
+        padding: 4px 14px 8px 14px !important;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.2) !important;
     }
 
     .toc-item {
-        color: var(--menu-text) !important;
+        color: var(--text-color, #1e293b) !important;
+        text-decoration: none !important;
+        font-size: 0.85rem !important;
+        padding: 8px 14px !important;
+        display: block !important;
+        transition: background 0.15s ease !important;
     }
 
     .toc-item:hover {
-        background-color: var(--menu-item-hover) !important;
-        color: var(--title-color) !important;
+        background-color: rgba(13, 71, 161, 0.12) !important;
+        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
