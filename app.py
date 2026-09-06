@@ -371,9 +371,11 @@ st.markdown("""
         font-family: 'Tahoma', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU CHÌM (SUNKEN INSET BOXES - TRIỆT TIÊU VIỀN ĐỎ BASEWEB) */
-    
-    /* Khung ngoài phong cách 3D Sunken Win2K */
+    /* ==============================================================================
+       3. Ô NHẬP LIỆU CHÌM (TRIỆT TIÊU 100% VIỀN ĐỎ BASEWEB CHO TEXT & NUMBER INPUT)
+       ============================================================================== */
+
+    /* Khung ngoài 3D Sunken phong cách Win2K */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
@@ -386,38 +388,42 @@ st.markdown("""
         border-radius: 0px !important;
         box-shadow: inset 1px 1px 0px #808080 !important;
         outline: none !important;
+        overflow: hidden !important;
     }
 
-    /* Triệt tiêu hoàn toàn viền đỏ mặc định của BaseWeb bên trong */
-    div[data-baseweb="base-input"],
-    div[data-baseweb="input"],
-    div[data-baseweb="textarea"] {
+    /* Triệt tiêu TẤT CẢ các lớp div trung gian của BaseWeb/Emotion */
+    div[data-testid="stTextInput"] div[data-baseweb="base-input"],
+    div[data-testid="stTextInput"] div[data-baseweb="input"],
+    div[data-testid="stNumberInput"] div[data-baseweb="base-input"],
+    div[data-testid="stNumberInput"] div[data-baseweb="input"],
+    div[data-testid="stTextArea"] div[data-baseweb="base-input"],
+    div[data-testid="stTextArea"] div[data-baseweb="textarea"] {
         border: none !important;
+        border-color: transparent !important;
         box-shadow: none !important;
         outline: none !important;
         border-radius: 0px !important;
         background-color: transparent !important;
     }
 
-    /* Khi bấm vào ô: Giữ nguyên form phẳng Win2K, không xuất hiện viền đỏ hay outline chấm đen */
-    div[data-testid="stTextInput"] > div:focus-within,
-    div[data-testid="stTextArea"] > div:focus-within,
-    div[data-testid="stNumberInput"] > div:focus-within,
-    div[data-testid="stSelectbox"] > div > div:focus-within {
-        border-top: 2px solid #000000 !important;
-        border-left: 2px solid #000000 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0px #000000 !important;
+    /* Triệt tiêu viền đỏ khi click chuột (Focus/Focus-within trên mọi cấp) */
+    div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within,
+    div[data-testid="stTextInput"] div[data-baseweb="base-input"]:focus-within,
+    div[data-testid="stNumberInput"] div[data-baseweb="input"]:focus-within,
+    div[data-testid="stNumberInput"] div[data-baseweb="base-input"]:focus-within {
+        border: none !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
         outline: none !important;
+        border-radius: 0px !important;
     }
 
-    /* Thẻ input/textarea thuần: Xóa sạch viền, outline và góc bo thừa */
+    /* Cắt đứt hoàn toàn viền đỏ ở chính thẻ input và thẻ textarea */
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stNumberInput"] input {
         border: none !important;
+        border-color: transparent !important;
         outline: none !important;
         box-shadow: none !important;
         border-radius: 0px !important;
@@ -428,7 +434,29 @@ st.markdown("""
         background-color: transparent !important;
     }
 
-    /* Tắt mọi outline chấm đen trên toàn bộ ô input */
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus,
+    div[data-testid="stNumberInput"] input:focus {
+        border: none !important;
+        border-color: transparent !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Khi ô đang được kích hoạt: Viền ngoài giữ đúng chuẩn Win2K sunken đậm */
+    div[data-testid="stTextInput"] > div:focus-within,
+    div[data-testid="stTextArea"] > div:focus-within,
+    div[data-testid="stNumberInput"] > div:focus-within,
+    div[data-testid="stSelectbox"] > div > div:focus-within {
+        border-top: 2px solid #000000 !important;
+        border-left: 2px solid #000000 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #000000 !important;
+    }
+
+    /* Tắt đường viền xanh/đen mặc định của trình duyệt */
     *:focus, *:focus-visible {
         outline: none !important;
     }
