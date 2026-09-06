@@ -585,7 +585,58 @@ st.markdown("""
         background-color: #0a246a !important;
         color: #ffffff !important;
     }
-    
+
+    /* ==============================================================================
+       6. KHUNG TẢI FILE (FILE UPLOADER SUNKEN BOX WIN2K)
+       ============================================================================== */
+    /* Triệt tiêu khung viền ngoài và các góc bo cong mặc định */
+    div[data-testid="stFileUploader"],
+    div[data-testid="stFileUploader"] * {
+        border-radius: 0px !important;
+    }
+
+    /* Khung thả file (Dropzone): Nền trắng phẳng, rãnh chìm 3D */
+    div[data-testid="stFileUploader"] section,
+    div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #808080 !important;
+        padding: 10px 14px !important;
+    }
+
+    /* Ép tất cả các thẻ nền bên trong vùng uploader sang trong suốt */
+    div[data-testid="stFileUploader"] section > div {
+        background-color: transparent !important;
+    }
+
+    /* Nút bấm Browse Files / Upload: Hộp nổi 3D vuông vức */
+    div[data-testid="stFileUploader"] button {
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        background-color: #ece9d8 !important;
+        color: #000000 !important;
+        border-radius: 0px !important;
+        box-shadow: 1px 1px 0px #000000 !important;
+        padding: 3px 12px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Hiệu ứng lún nút Upload khi bấm */
+    div[data-testid="stFileUploader"] button:active {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: none !important;
+        transform: translate(1px, 1px) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
