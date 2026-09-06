@@ -585,6 +585,105 @@ st.markdown("""
         background-color: #0a246a !important;
         color: #ffffff !important;
     }
+    /* ==============================================================================
+       7. THANH TABS (GIAO DIỆN THẺ FOLDER WIN2K)
+       ============================================================================== */
+    /* Nút tab dạng nổi 3D */
+    .stApp div[data-testid="stTabs"] button[data-baseweb="tab"] {
+        background-color: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: none !important;
+        border-radius: 0px !important;
+        margin-right: 2px !important;
+        padding: 6px 16px !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-weight: 600 !important;
+    }
+
+    /* Tab đang active: Đẩy lên trên và che viền dưới */
+    .stApp div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ece9d8 !important;
+        border-bottom: 2px solid #ece9d8 !important;
+        position: relative !important;
+        top: 2px !important;
+        z-index: 10 !important;
+        font-weight: 700 !important;
+    }
+
+    /* Thanh chân đế (đường viền ngang dưới các tab) */
+    .stApp div[data-testid="stTabs"] div[data-baseweb="tab-list"] {
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: 0 2px 0px #404040 !important;
+        padding-bottom: 0px !important;
+        margin-bottom: 16px !important;
+        gap: 0px !important;
+    }
+
+    /* Ẩn thanh gạch chân màu đỏ mặc định của Streamlit */
+    .stApp div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
+        display: none !important;
+    }
+
+    /* ==============================================================================
+       8. KHUNG TẢI FILE (FILE UPLOADER SUNKEN BOX)
+       ============================================================================== */
+    /* Vùng kéo thả file (chìm 3D) */
+    .stApp div[data-testid="stFileUploader"] section {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        border-radius: 0px !important;
+        box-shadow: inset 1px 1px 0px #808080 !important;
+        padding: 16px !important;
+    }
+
+    /* Nút "Browse files" bên trong uploader */
+    .stApp div[data-testid="stFileUploader"] button {
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        background-color: #ece9d8 !important;
+        color: #000000 !important;
+        border-radius: 0px !important;
+        font-family: 'Tahoma', sans-serif !important;
+        font-weight: 700 !important;
+        box-shadow: 1px 1px 0px #000000 !important;
+    }
+
+    /* Hiệu ứng lún khi bấm nút Browse files */
+    .stApp div[data-testid="stFileUploader"] button:active {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        box-shadow: none !important;
+        transform: translate(1px, 1px) !important;
+    }
+
+    /* ==============================================================================
+       9. NÚT RADIO & PHÔNG CHỮ TIÊU ĐỀ
+       ============================================================================== */
+    /* Ép phông chữ Tahoma cho toàn bộ ứng dụng */
+    .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp span, .stApp label {
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+    }
+
+    /* Vòng tròn Radio button: Lún 3D */
+    .stApp div[data-testid="stRadio"] div[data-baseweb="radio"] > div:first-child {
+        border-top: 2px solid #404040 !important;
+        border-left: 2px solid #404040 !important;
+        border-right: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0px #808080 !important;
+        border-radius: 50% !important; /* Giữ dạng hình tròn */
+    }
 </style>
 """, unsafe_allow_html=True)
 
