@@ -283,133 +283,146 @@ for i in range(st.session_state["so_hang_cls"]):
 st.markdown("""
 <style>
     /* ==============================================================================
-       MINIMALIST CLINICAL INTERFACE (TIỆM CẬN LINEAR / NOTION WORKSPACE)
+       Y2K CYBER-CLINICAL RETRO DESIGN (CYBERSPACE & JELLY AQUA 2000)
        ============================================================================== */
+
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=VT323&display=swap');
 
     html {
         scroll-behavior: smooth;
     }
 
-    /* 1. KHỐI EXPANDER TỐI GIẢN (CARDLESS MINIMAL BORDER) */
+    /* 1. KHỐI EXPANDER KIỂU CỬA SỔ WIN 2000 / AQUA OS */
     div[data-testid="stExpander"] {
-        border: 1px solid rgba(128, 128, 128, 0.2) !important;
-        border-radius: 8px !important;
-        margin-bottom: 12px !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
+        border: 2px solid #5b5f97 !important;
+        border-radius: 10px !important;
+        margin-bottom: 16px !important;
+        background: linear-gradient(180deg, rgba(240, 243, 255, 0.95) 0%, rgba(220, 227, 255, 0.9) 100%) !important;
+        box-shadow: 4px 4px 0px #2a2b4a !important;
+        overflow: hidden !important;
     }
 
     div[data-testid="stExpander"] > details > summary {
-        background-color: transparent !important;
-        border-bottom: 1px solid rgba(128, 128, 128, 0.1) !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 10px 14px !important;
-        font-weight: 600 !important;
-        font-size: 0.98rem !important;
-        letter-spacing: 0.1px !important;
-        box-shadow: none !important;
-        border-left: none !important;
-        transition: background-color 0.15s ease !important;
+        background: linear-gradient(180deg, #ff70a6 0%, #ff477e 40%, #d90368 100%) !important;
+        border-bottom: 2px solid #2a2b4a !important;
+        padding: 8px 16px !important;
+        font-family: 'Chakra Petch', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 1.0rem !important;
+        letter-spacing: 1px !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 0px #000000 !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
     }
 
     div[data-testid="stExpander"] > details > summary:hover {
-        background-color: rgba(128, 128, 128, 0.05) !important;
+        background: linear-gradient(180deg, #ff9ebb 0%, #ff5c8d 100%) !important;
+        color: #fffbfe !important;
     }
 
-    /* 2. TIÊU ĐỀ PHÂN MỤC TINH GỌN (NO HEAVY ACCENTS) */
+    div[data-testid="stExpander"] > details > summary svg {
+        fill: #ffffff !important;
+    }
+
+    /* 2. TIÊU ĐỀ PHÂN MỤC Y2K PIXEL / CHROME ACCENT */
     .sidebar-header-amboss {
-        background: transparent !important;
-        box-shadow: none !important;
-        border-bottom: 1px solid rgba(128, 128, 128, 0.2) !important;
-        padding: 4px 0 8px 0 !important;
+        background: linear-gradient(90deg, #70d6ff 0%, #ff70a6 100%) !important;
+        color: #1a1a2e !important;
+        border: 2px solid #2a2b4a !important;
+        box-shadow: 3px 3px 0px #2a2b4a !important;
+        padding: 6px 14px !important;
+        border-radius: 6px !important;
+        font-family: 'Chakra Petch', sans-serif !important;
         font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.2px !important;
-        margin-bottom: 8px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        margin-bottom: 12px !important;
     }
 
     .sub-section-header {
-        background: transparent !important;
-        box-shadow: none !important;
-        border-left: 2px solid rgba(128, 128, 128, 0.5) !important;
-        padding: 2px 0 2px 10px !important;
-        margin-top: 14px !important;
-        margin-bottom: 8px !important;
+        background: #e0e7ff !important;
+        border-left: 5px solid #ff477e !important;
+        border-top: 1px solid #2a2b4a !important;
+        border-right: 1px solid #2a2b4a !important;
+        border-bottom: 1px solid #2a2b4a !important;
+        box-shadow: 2px 2px 0px #2a2b4a !important;
+        padding: 4px 12px !important;
+        border-radius: 4px !important;
+        margin-top: 12px !important;
+        margin-bottom: 10px !important;
+        font-family: 'Chakra Petch', sans-serif !important;
         font-size: 0.9rem !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        color: #1a1a2e !important;
     }
 
     .highlight-dx {
-        color: #e11d48 !important;
-        font-weight: 600 !important;
-        font-size: 0.98rem !important;
-        border-left: 2px solid #e11d48 !important;
-        padding-left: 8px !important;
+        background-color: #ffeef2 !important;
+        border: 2px dashed #ff0055 !important;
+        color: #ff0055 !important;
+        padding: 6px 12px !important;
+        border-radius: 6px !important;
+        font-weight: 700 !important;
+        font-family: 'Chakra Petch', sans-serif !important;
     }
 
-    /* 3. Ô NHẬP LIỆU PHẲNG & ĐƯỜNG NÉT SẮC CẠNH (MINIMAL FLAT INPUTS) */
+    /* 3. Ô NHẬP LIỆU CẮT KHỐI RETRO DIGITAL */
     div[data-testid="stTextInput"] > div,
     div[data-testid="stTextArea"] > div,
     div[data-testid="stNumberInput"] > div,
     div[data-testid="stSelectbox"] > div > div {
         border-radius: 6px !important;
-        border: 1px solid rgba(128, 128, 128, 0.25) !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-        transition: border-color 0.15s ease !important;
+        border: 2px solid #2a2b4a !important;
+        background: #ffffff !important;
+        box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.1s ease-in-out !important;
     }
 
-    div[data-testid="stTextInput"] > div:hover,
-    div[data-testid="stTextArea"] > div:hover,
-    div[data-testid="stNumberInput"] > div:hover,
-    div[data-testid="stSelectbox"] > div > div:hover {
-        border-color: rgba(128, 128, 128, 0.5) !important;
-    }
-
-    /* Focus trạng thái tối giản: viền đậm rõ nét, không hào quang */
     div[data-testid="stTextInput"] > div:focus-within,
     div[data-testid="stTextArea"] > div:focus-within,
     div[data-testid="stNumberInput"] > div:focus-within,
     div[data-testid="stSelectbox"] > div > div:focus-within {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 1px #3b82f6 !important;
+        border-color: #06d6a0 !important;
+        box-shadow: 0 0 0 3px rgba(6, 214, 160, 0.45), inset 1px 1px 0px rgba(0,0,0,0.1) !important;
+        background: #fafffd !important;
     }
 
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stNumberInput"] input {
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        background-color: transparent !important;
-        border-radius: 0 !important;
-        padding: 6px 10px !important;
-        font-size: 0.92rem !important;
+        color: #101026 !important;
+        font-weight: 500 !important;
     }
 
-    /* 4. NÚT BẤM TỐI GIẢN (CLEAN FLAT BUTTONS) */
+    /* 4. NÚT BẤM JELLY / CANDY BUTTONS CỰC ĐẶC TRƯNG NĂM 2000 */
     button[kind="primary"] {
-        background-color: #1e293b !important;
-        border: 1px solid #1e293b !important;
-        color: #f8fafc !important;
-        font-weight: 500 !important;
-        font-size: 0.88rem !important;
-        border-radius: 6px !important;
-        box-shadow: none !important;
-        transition: opacity 0.15s ease !important;
+        background: linear-gradient(180deg, #48cae4 0%, #0096c7 50%, #023e8a 100%) !important;
+        border: 2px solid #03045e !important;
+        border-radius: 20px !important;
+        color: #ffffff !important;
+        font-family: 'Chakra Petch', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.6) !important;
+        box-shadow: 3px 3px 0px #03045e, inset 0 2px 0 rgba(255, 255, 255, 0.6) !important;
+        transition: transform 0.1s ease, box-shadow 0.1s ease !important;
     }
 
     button[kind="primary"]:hover {
-        opacity: 0.88 !important;
+        transform: translate(1px, 1px) !important;
+        box-shadow: 2px 2px 0px #03045e !important;
     }
 
     button[kind="secondary"] {
-        border-radius: 6px !important;
-        font-size: 0.88rem !important;
-        box-shadow: none !important;
+        background: linear-gradient(180deg, #f3f4f6 0%, #d1d5db 100%) !important;
+        border: 2px solid #374151 !important;
+        border-radius: 20px !important;
+        color: #111827 !important;
+        font-weight: 700 !important;
+        box-shadow: 2px 2px 0px #374151 !important;
     }
 
-    /* 5. THANH MỤC LỤC GỌN GÀNG SÁT MÉP PHẢI (MINIMAL TOC) */
+    /* 5. THANH MỤC LỤC KIỂU MENU WINAMP / CYBER DECK */
     .right-toc-container {
         position: fixed !important;
         top: 75px !important;
@@ -418,60 +431,60 @@ st.markdown("""
     }
 
     .right-toc-trigger {
-        background: var(--background-color, #ffffff) !important;
-        color: var(--text-color, #1e293b) !important;
-        border: 1px solid rgba(128, 128, 128, 0.3) !important;
-        padding: 6px 12px !important;
-        border-radius: 6px !important;
-        font-size: 0.82rem !important;
-        font-weight: 500 !important;
+        background: linear-gradient(180deg, #b5179e 0%, #7209b7 100%) !important;
+        color: #f72585 !important;
+        border: 2px solid #2a2b4a !important;
+        padding: 7px 16px !important;
+        border-radius: 16px !important;
+        font-family: 'Chakra Petch', sans-serif !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
         cursor: pointer !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+        box-shadow: 3px 3px 0px #2a2b4a, inset 0 1px 0 rgba(255,255,255,0.5) !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 0px #000 !important;
         list-style: none !important;
-        user-select: none !important;
-    }
-
-    .right-toc-trigger:hover {
-        border-color: rgba(128, 128, 128, 0.6) !important;
     }
 
     .right-toc-menu {
         position: absolute !important;
-        top: 32px !important;
+        top: 36px !important;
         right: 0 !important;
-        width: 240px !important;
-        background: var(--background-color, #ffffff) !important;
-        border: 1px solid rgba(128, 128, 128, 0.25) !important;
-        border-radius: 6px !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
-        padding: 6px 0 !important;
+        width: 250px !important;
+        background: #f8f9fa !important;
+        border: 2px solid #2a2b4a !important;
+        border-radius: 8px !important;
+        box-shadow: 5px 5px 0px #2a2b4a !important;
+        padding: 8px 0 !important;
         display: flex !important;
         flex-direction: column !important;
-        max-height: 70vh !important;
-        overflow-y: auto !important;
     }
 
     .right-toc-header {
-        font-size: 0.7rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.5px !important;
-        opacity: 0.6 !important;
-        padding: 4px 12px 6px 12px !important;
-        border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important;
+        font-family: 'Chakra Petch', sans-serif !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        background: #2a2b4a !important;
+        color: #4cc9f0 !important;
+        padding: 4px 10px !important;
+        letter-spacing: 1px !important;
     }
 
     .toc-item {
-        color: var(--text-color, #1e293b) !important;
+        color: #1a1a2e !important;
+        font-family: 'Chakra Petch', sans-serif !important;
+        font-size: 0.84rem !important;
+        font-weight: 600 !important;
+        padding: 7px 14px !important;
         text-decoration: none !important;
-        font-size: 0.82rem !important;
-        padding: 6px 12px !important;
         display: block !important;
-        transition: background-color 0.12s ease !important;
+        border-bottom: 1px dashed rgba(42, 43, 74, 0.2) !important;
     }
 
     .toc-item:hover {
-        background-color: rgba(128, 128, 128, 0.08) !important;
-        font-weight: 500 !important;
+        background: #ffe5ec !important;
+        color: #d90429 !important;
+        padding-left: 18px !important;
     }
 </style>
 """, unsafe_allow_html=True)
