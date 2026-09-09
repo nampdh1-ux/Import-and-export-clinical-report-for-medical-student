@@ -14,10 +14,13 @@ from email.mime.text import MIMEText
 
 from fpdf import FPDF
 from PIL import Image
-from pptx import Presentation
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
-from pptx.util import Inches, Pt
+import docx
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import OxmlElement, parse_xml
+from docx.oxml.ns import nsdecls, qn
 
 import google.generativeai as genai
 import streamlit as st
@@ -1005,287 +1008,368 @@ def export_pdf(data):
 
     return bytes(pdf.output())
 
-def export_pptx(data):
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    blank_layout = prs.slide_layouts[6]
+def set_cell_background(cell, fill_hex):
+    """Tô màu nền cho ô trong bảng docx."""
+    shading_elm = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
+    cell._tc.get_or_add_tcPr().append(shading_elm)
+
+def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
+    """Căn lề đệm bên trong ô."""
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcMar = OxmlElement('w:tcMar')
+    for m, val in [('top', top), ('bottom', bottom), ('left', left), ('right', right)]:
+        node = OxmlElement(f'w:{m}')
+        node.set(qn('w:w'), str(val))
+        node.set(qn('w:type'), 'dxa')
+        tcMar.append(node)
+    tcPr.append(tcMar)
+
+def export_docx(data):
+    doc = Document()
+    
+    # Thiết lập lề trang 2cm tiêu chuẩn văn bản y khoa
+    for sec in doc.sections:
+        sec.top_margin = Inches(0.8)
+        sec.bottom_margin = Inches(0.8)
+        sec.left_margin = Inches(0.8)
+        sec.right_margin = Inches(0.8)
+
     loai_ba = data.get("loai_benh_an", "Nội khoa / Tiền phẫu")
 
-    COLOR_PRIMARY = RGBColor(13, 71, 161)
-    COLOR_ACCENT = RGBColor(194, 24, 91)
-    COLOR_TEXT = RGBColor(30, 41, 59)
-    COLOR_RED = RGBColor(180, 0, 0)
+    # Hàm trợ giúp thêm đoạn văn bản có định dạng
+    def add_sec_title(title):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(8)
+        p.paragraph_format.space_after = Pt(3)
+        p.paragraph_format.keep_with_next = True
+        run = p.add_run(title)
+        run.bold = True
+        run.font.size = Pt(11.5)
+        run.font.color.rgb = RGBColor(10, 36, 106)  # Classic Navy Blue
 
-    def add_slide_with_header(title_text):
-        slide = prs.slides.add_slide(blank_layout)
-        header_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(11.733), Inches(0.9))
-        tf = header_box.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = title_text
-        p.font.name = "Calibri"
-        p.font.size = Pt(24)
-        p.font.bold = True
-        p.font.color.rgb = COLOR_PRIMARY
-        
-        line_rose = slide.shapes.add_shape(1, Inches(0.8), Inches(1.3), Inches(0.6), Inches(0.06))
-        line_rose.fill.solid()
-        line_rose.fill.fore_color.rgb = COLOR_ACCENT
-        line_rose.line.fill.background()
-        
-        line_blue = slide.shapes.add_shape(1, Inches(1.45), Inches(1.3), Inches(11.083), Inches(0.06))
-        line_blue.fill.solid()
-        line_blue.fill.fore_color.rgb = COLOR_PRIMARY
-        line_blue.line.fill.background()
-        return slide
+    def add_subsec_title(title):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(4)
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.keep_with_next = True
+        run = p.add_run(title)
+        run.bold = True
+        run.font.size = Pt(10.5)
+        run.font.color.rgb = RGBColor(30, 41, 59)
 
-    def add_content_with_overflow(title_text, items_list, is_red=False):
-        if not items_list: return
-        MAX_LINES_PER_SLIDE = 7
-        total_chunks = [items_list[i:i + MAX_LINES_PER_SLIDE] for i in range(0, len(items_list), MAX_LINES_PER_SLIDE)]
-        for idx, chunk in enumerate(total_chunks):
-            current_title = title_text if idx == 0 else f"{title_text} (tiếp theo)"
-            slide = add_slide_with_header(current_title)
-            box = slide.shapes.add_textbox(Inches(0.8), Inches(1.6), Inches(11.733), Inches(5.2))
-            tf = box.text_frame
-            tf.word_wrap = True
-            
-            for line_idx, item in enumerate(chunk):
-                if isinstance(item, tuple): text, is_sub_header = item
-                else: text, is_sub_header = item, False
-                p = tf.paragraphs[0] if line_idx == 0 else tf.add_paragraph()
-                p.text = text
-                p.font.name = "Calibri"
-                if is_sub_header:
-                    p.font.size = Pt(19)
-                    p.font.bold = True
-                    p.font.underline = True
-                    p.font.color.rgb = COLOR_PRIMARY
-                    p.space_after = Pt(6)
-                else:
-                    p.font.size = Pt(16.5)
-                    p.font.bold = is_red
-                    p.font.color.rgb = COLOR_RED if is_red else COLOR_TEXT
-                    p.space_after = Pt(10)
+    def add_bullet_list(text):
+        if not text or not str(text).strip():
+            p = doc.add_paragraph("Chưa ghi nhận thông tin.")
+            p.runs[0].font.size = Pt(10)
+            p.runs[0].font.italic = True
+            p.paragraph_format.space_after = Pt(3)
+            return
+        lines = [l.strip() for l in str(text).strip().split("\n") if l.strip()]
+        for line in lines:
+            p = doc.add_paragraph(style='List Bullet')
+            p.paragraph_format.space_before = Pt(1)
+            p.paragraph_format.space_after = Pt(2)
+            clean_text = line.lstrip("-*• ")
+            run = p.add_run(clean_text)
+            run.font.size = Pt(10)
 
-    # Bìa
-    title_slide = prs.slides.add_slide(blank_layout)
-    t_box = title_slide.shapes.add_textbox(Inches(1.0), Inches(2.0), Inches(11.333), Inches(3.5))
-    tf_t = t_box.text_frame
-    p1 = tf_t.paragraphs[0]
-    p1.text = "BỆNH ÁN HẬU PHẪU" if loai_ba == "Hậu phẫu" else "BỆNH ÁN LÂM SÀNG"
-    p1.font.size = Pt(38)
-    p1.font.bold = True
-    p1.font.color.rgb = COLOR_PRIMARY
-    p1.alignment = PP_ALIGN.CENTER
-    p1.space_after = Pt(16)
-    
-    p2 = tf_t.add_paragraph()
-    p2.text = f"Bệnh nhân: {str(data['ho_ten']).upper()} | {data['tuoi']} tuổi | Giới tính: {data['gioi_tinh']}"
-    p2.font.size = Pt(20)
-    p2.alignment = PP_ALIGN.CENTER
-    p2.space_after = Pt(8)
+    def add_normal_text(text, bold=False, red=False):
+        if not text or not str(text).strip():
+            p = doc.add_paragraph("Chưa ghi nhận thông tin.")
+            p.runs[0].font.size = Pt(10)
+            p.runs[0].font.italic = True
+            p.paragraph_format.space_after = Pt(3)
+            return
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(4)
+        run = p.add_run(str(text).strip())
+        run.font.size = Pt(10)
+        run.bold = bold
+        if red:
+            run.font.color.rgb = RGBColor(180, 0, 0)
 
-    p3 = tf_t.add_paragraph()
-    p3.text = f"Khoa phòng: {data['khoa_phong']} | Người thực hiện: {data['sinh_vien']}"
-    p3.font.size = Pt(16)
-    p3.alignment = PP_ALIGN.CENTER
+    # --- TIÊU ĐỀ TRANG ---
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_after = Pt(2)
+    run_title = p_title.add_run("BỆNH ÁN HẬU PHẪU" if loai_ba == "Hậu phẫu" else "BỆNH ÁN LÂM SÀNG")
+    run_title.bold = True
+    run_title.font.size = Pt(16)
+    run_title.font.color.rgb = RGBColor(10, 36, 106)
+
+    p_time = doc.add_paragraph()
+    p_time.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_time.paragraph_format.space_after = Pt(10)
+    run_time = p_time.add_run(f"Thời gian lập hồ sơ: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    run_time.font.size = Pt(9)
+    run_time.font.italic = True
 
     # I. HÀNH CHÍNH
-    hc_items = [
-        (f"Họ và tên: {str(data['ho_ten']).upper()}", False),
-        (f"Tuổi: {data['tuoi']}   |   Giới tính: {data['gioi_tinh']}   |   Dân tộc: {data['dan_tok']}", False),
-        (f"Nghề nghiệp: {data['nghe_nghiep']}  |  Khoa / Phòng: {data['khoa_phong']}", False),
-        (f"Địa chỉ: {data['dia_chi']}", False),
-        (f"Ngày giờ vào viện: {data['ngay_vao_vien']}", False)
+    add_sec_title("I. PHẦN HÀNH CHÍNH")
+    hc_lines = [
+        f"Họ và tên: {str(data.get('ho_ten', '')).upper()}    |    Tuổi: {data.get('tuoi', '')}    |    Giới tính: {data.get('gioi_tinh', '')}",
+        f"Dân tộc: {data.get('dan_tok', '')}    |    Nghề nghiệp: {data.get('nghe_nghiep', '')}",
+        f"Khoa / Phòng: {data.get('khoa_phong', '')}",
+        f"Địa chỉ: {data.get('dia_chi', '')}",
+        f"Ngày giờ vào viện: {data.get('ngay_vao_vien', '')}",
+        f"Bác sĩ / Sinh viên thực hiện: {data.get('sinh_vien', '')}"
     ]
-    add_content_with_overflow("I. PHẦN HÀNH CHÍNH", hc_items)
+    for line in hc_lines:
+        p = doc.add_paragraph(style='List Bullet')
+        p.paragraph_format.space_after = Pt(2)
+        run = p.add_run(line)
+        run.font.size = Pt(10)
 
-    # II & III
-    bs_items = [("1. Lý do vào viện:", True), (f"- {data.get('ly_do_vao_vien', '')}", False)]
+    # II. LÝ DO VÀO VIỆN
+    add_sec_title("II. LÝ DO VÀO VIỆN")
+    add_normal_text(data.get('ly_do_vao_vien', ''))
+
+    # III. BỆNH SỬ
+    add_sec_title("III. BỆNH SỬ")
     if loai_ba == "Hậu phẫu":
-        for title, key in [("2. Tình trạng trước mổ:", "bs_truoc_mo"), ("3. Tình trạng trong mổ:", "bs_trong_mo"), ("4. Quá trình sau mổ:", "bs_sau_mo")]:
-            items = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-            if items:
-                bs_items.append((title, True))
-                bs_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in items])
+        add_subsec_title("1. Tình trạng trước mổ:")
+        add_bullet_list(data.get('bs_truoc_mo', ''))
+        add_subsec_title("2. Tình trạng trong mổ:")
+        add_bullet_list(data.get('bs_trong_mo', ''))
+        add_subsec_title("3. Quá trình sau mổ:")
+        add_bullet_list(data.get('bs_sau_mo', ''))
     else:
-        bs_text_lines = [l.strip() for l in str(data.get('benh_su', '')).split("\n") if l.strip()]
-        if bs_text_lines:
-            bs_items.append(("2. Bệnh sử:", True))
-            bs_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in bs_text_lines])
-    add_content_with_overflow("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", bs_items)
+        add_normal_text(data.get('benh_su', ''))
 
-    # IV
-    ts_items = []
-    for label, key in [("1. Tiền sử nội khoa:", "ts_noi_khoa"), ("2. Tiền sử ngoại khoa & dị ứng:", "ts_ngoai_khoa"), ("3. Lối sống & thói quen:", "ts_loi_song"), ("4. Tiền sử gia đình:", "ts_gia_dinh")]:
-        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if lines:
-            ts_items.append((label, True))
-            ts_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
-    if ts_items: add_content_with_overflow("IV. TIỀN SỬ", ts_items)
+    # IV. TIỀN SỬ
+    add_sec_title("IV. TIỀN SỬ")
+    add_subsec_title("1. Tiền sử nội khoa:")
+    add_bullet_list(data.get('ts_noi_khoa', ''))
+    add_subsec_title("2. Tiền sử ngoại khoa & dị ứng:")
+    add_bullet_list(data.get('ts_ngoai_khoa', ''))
+    add_subsec_title("3. Lối sống & thói quen:")
+    add_bullet_list(data.get('ts_loi_song', ''))
+    add_subsec_title("4. Tiền sử gia đình:")
+    add_bullet_list(data.get('ts_gia_dinh', ''))
 
-    # V
-    tk_items = []
-    if loai_ba != "Hậu phẫu" and data.get("kham_vao_vien"): 
-        tk_items.append(("1. Khám lúc vào viện:", True))
-        tk_items.extend([(f"- {l.strip()}", False) for l in str(data['kham_vao_vien']).split("\n") if l.strip()])
-        
-    if data.get("kham_toan_than"):
-        if loai_ba == "Hậu phẫu":
-            tk_items.append(("1. Thăm khám hiện tại - Toàn thân:", True))
-            tk_items.append((f"Hậu phẫu ngày thứ: {data.get('ngay_hau_phau', '...')}", False))
-        else:
-            tk_items.append(("2. Thăm khám hiện tại - Toàn thân:", True))
-        tk_items.extend([(f"- {l.strip()}", False) for l in str(data['kham_toan_than']).split("\n") if l.strip()])
-        
-    if loai_ba == "Hậu phẫu" and (data.get("kham_vet_mo") or data.get("kham_dan_luu")):
-        tk_items.append(("2. Vết mổ & Dẫn lưu:", True))
-        if data.get("kham_vet_mo"): tk_items.append((f"- Vết mổ: {data['kham_vet_mo']}", False))
-        if data.get("kham_dan_luu"): tk_items.append((f"- Ống dẫn lưu: {data['kham_dan_luu']}", False))
-        tk_items.append(("3. Khám các cơ quan:", True))
-    else:
-        tk_items.append(("2. Khám các cơ quan:" if loai_ba == "Hậu phẫu" else "3. Khám các cơ quan:", True))
-        
-    cq_list = [("Tuần hoàn", "kham_tuan_hoan"), ("Hô hấp", "kham_ho_hap"), ("Tiêu hóa", "kham_tieu_hoa"), ("Thần kinh", "kham_than_kinh"), ("Thận - Tiết niệu", "kham_tiet_nieu"), ("Cơ xương khớp", "kham_co_xuong_khop")]
-    for name, key in cq_list:
-        val = str(data.get(key, "")).strip()
-        if val: tk_items.append((f"- {name}: {val}", False))
-    if tk_items: add_content_with_overflow("V. THĂM KHÁM LÂM SÀNG", tk_items)
-
-    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG PPTX
+    # V. THĂM KHÁM LÂM SÀNG
+    add_sec_title("V. THĂM KHÁM LÂM SÀNG")
     if loai_ba == "Hậu phẫu":
-        num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+        add_subsec_title("1. Thăm khám hiện tại:")
+        p_hp = doc.add_paragraph()
+        run_hp = p_hp.add_run(f"Hậu phẫu: {data.get('ngay_hau_phau', '...')}")
+        run_hp.bold = True
+        run_hp.font.size = Pt(10)
+        run_hp.font.color.rgb = RGBColor(180, 0, 0)
+        add_subsec_title("a. Toàn thân:")
     else:
-        num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+        add_subsec_title("1. Thăm khám lúc vào viện:")
+        add_bullet_list(data.get('kham_vao_vien', ''))
+        add_subsec_title("2. Thăm khám hiện tại:")
+        add_subsec_title("a. Toàn thân:")
 
-    def pptx_tt():
-        tt_items = []
-        lines_tt = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
-        if lines_tt:
-            tt_items.append(("Tóm tắt diễn biến ca bệnh:", True))
-            tt_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines_tt])
-            add_content_with_overflow(f"{num_tt}. TÓM TẮT BỆNH ÁN", tt_items)
+    add_bullet_list(data.get('kham_toan_than', ''))
 
-    def pptx_cdsb():
-        cd_items = []
-        if str(data.get("chan_doan_so_bo", "")).strip():
-            cd_items.append(("Chẩn đoán sơ bộ:", True))
-            cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_so_bo']).split("\n") if l.strip()])
-        if str(data.get("chan_doan_phan_biet", "")).strip():
-            cd_items.append(("Chẩn đoán phân biệt:", True))
-            cd_items.extend([(f"- {l.strip()}", False) for l in str(data['chan_doan_phan_biet']).split("\n") if l.strip()])
-        if cd_items: add_content_with_overflow(f"{num_cdsb} VÀ {num_cdpb}. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", cd_items)
+    # Bảng sinh hiệu (Vital signs)
+    mach_val = data.get('sh_mach') or "--"
+    nhiet_val = data.get('sh_nhiet_do') or "--"
+    ha_val = data.get('sh_ha') or "--"
+    nt_val = data.get('sh_nhip_tho') or "--"
+    cn_val = data.get('sh_can_nang') if float(data.get('sh_can_nang', 0)) > 0 else "--"
+    cc_val = data.get('sh_chieu_cao') if float(data.get('sh_chieu_cao', 0)) > 0 else "--"
+    bmi_num = data.get('sh_bmi', '')
+    bmi_txt = data.get('sh_bmi_eval', '')
+    bmi_display = f"BMI: {bmi_num} kg/m² ({bmi_txt})" if bmi_num else "BMI: --"
 
-        lines_bl = [l.strip() for l in str(data.get("bien_luan", "")).split("\n") if l.strip()]
-        if lines_bl:
-            add_content_with_overflow(f"{num_blsb}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", [("Biện luận lâm sàng:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in lines_bl])
+    tbl_sh = doc.add_table(rows=2, cols=4)
+    tbl_sh.alignment = WD_TABLE_ALIGNMENT.CENTER
+    tbl_sh.autofit = False
 
-    def pptx_cls():
-        cls_items = []
-        for label, key in [("1. Phục vụ chẩn đoán xác định:", "cls_dx_xac_dinh"), ("2. Phục vụ điều trị:", "cls_dx_dieu_tri"), ("3. Cận lâm sàng khác:", "cls_dx_khac")]:
-            lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-            if lines:
-                cls_items.append((label, True))
-                cls_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
-        if cls_items: add_content_with_overflow(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG", cls_items)
+    sh_data = [
+        [f"Mạch: {mach_val} ck/p", f"Nhiệt độ: {nhiet_val} °C", f"Huyết áp: {ha_val} mmHg", f"Nhịp thở: {nt_val} l/p"],
+        [f"Chiều cao: {cc_val} cm", f"Cân nặng: {cn_val} kg", bmi_display, ""]
+    ]
 
-        cls_rows = []
-        so_hang = data.get("so_hang_cls", 3)
-        for i in range(so_hang):
-            kq = data.get(f"cls_kq_{i}", "").strip()
-            pg = data.get(f"cls_pg_{i}", "").strip()
-            img = data.get(f"cls_img_{i}", None)
-            if kq or pg or img: cls_rows.append((kq, pg, img))
+    for r_idx, row in enumerate(tbl_sh.rows):
+        for c_idx, cell in enumerate(row.cells):
+            cell.text = sh_data[r_idx][c_idx]
+            p = cell.paragraphs[0]
+            p.runs[0].font.size = Pt(9)
+            set_cell_margins(cell, top=60, bottom=60, left=100, right=100)
+            if r_idx == 0:
+                set_cell_background(cell, "EAECEF")
+                p.runs[0].bold = True
 
-        if cls_rows:
-            rows_text_only = [item for item in cls_rows if not item[2]]
-            rows_with_img = [item for item in cls_rows if item[2]]
-            if rows_text_only:
-                table_chunks = [rows_text_only[i:i + 3] for i in range(0, len(rows_text_only), 3)]
-                for c_idx, chunk in enumerate(table_chunks):
-                    slide = add_slide_with_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ" if c_idx == 0 else f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ (tiếp theo)")
-                    table_shape = slide.shapes.add_table(len(chunk) + 1, 2, Inches(0.8), Inches(1.6), Inches(11.733), Inches(1.0 + len(chunk) * 1.3))
-                    table = table_shape.table
-                    table.columns[0].width = Inches(5.866)
-                    table.columns[1].width = Inches(5.866)
-                    table.cell(0, 0).text = "KẾT QUẢ CẬN LÂM SÀNG"
-                    table.cell(0, 1).text = "PHIÊN GIẢI / BIỆN GIẢI"
-                    for col_i in range(2):
-                        cell_p = table.cell(0, col_i).text_frame.paragraphs[0]
-                        cell_p.font.bold = True
-                        cell_p.font.size = Pt(14)
-                        cell_p.font.color.rgb = COLOR_PRIMARY
-                    for r_i, (kq, pg, _) in enumerate(chunk):
-                        table.cell(r_i + 1, 0).text = kq if kq else "-"
-                        table.cell(r_i + 1, 1).text = pg if pg else "-"
-                        for col_i in range(2):
-                            cell_p = table.cell(r_i + 1, col_i).text_frame.paragraphs[0]
-                            cell_p.font.size = Pt(13)
-            temp_img_files = []
-            try:
-                for kq, pg, img in rows_with_img:
-                    slide = add_slide_with_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ (HÌNH ẢNH)")
+    # Hợp nhất 2 ô cuối của hàng 2 cho phần hiển thị BMI
+    tbl_sh.cell(1, 2).merge(tbl_sh.cell(1, 3))
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(4)
+
+    if loai_ba == "Hậu phẫu":
+        add_subsec_title("b. Vết mổ & Dẫn lưu:")
+        p_vm = doc.add_paragraph(style='List Bullet')
+        p_vm.add_run("Vết mổ: ").bold = True
+        p_vm.add_run(str(data.get('kham_vet_mo', 'Chưa ghi nhận.')))
+        p_vm.runs[0].font.size = Pt(10)
+        p_vm.runs[1].font.size = Pt(10)
+
+        p_dl = doc.add_paragraph(style='List Bullet')
+        p_dl.add_run("Ống dẫn lưu: ").bold = True
+        p_dl.add_run(str(data.get('kham_dan_luu', 'Chưa ghi nhận.')))
+        p_dl.runs[0].font.size = Pt(10)
+        p_dl.runs[1].font.size = Pt(10)
+        add_subsec_title("c. Khám các cơ quan:")
+    else:
+        add_subsec_title("b. Khám các cơ quan:")
+
+    organ_list = [
+        {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
+        {"key": "kham_ho_hap", "name": "Hô hấp"},
+        {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
+        {"key": "kham_than_kinh", "name": "Thần kinh"},
+        {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"},
+        {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"},
+        {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"},
+    ]
+    selected_organ = data.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
+    if selected_organ != "Không ưu tiên (Thứ tự mặc định)":
+        fav = next((it for it in organ_list if it["name"] == selected_organ), None)
+        others = [it for it in organ_list if it["name"] != selected_organ]
+        render_list = ([fav] + others) if fav else organ_list
+    else:
+        render_list = organ_list
+
+    for org in render_list:
+        add_subsec_title(f"{org['name']}:")
+        add_bullet_list(data.get(org["key"], ""))
+
+    # VI. TÓM TẮT BỆNH ÁN
+    add_sec_title("VI. TÓM TẮT BỆNH ÁN")
+    lines_tt = [l.strip() for l in str(data.get("tom_tat", "")).split("\n") if l.strip()]
+    if lines_tt:
+        p_first = doc.add_paragraph(lines_tt[0])
+        p_first.runs[0].font.size = Pt(10)
+        p_first.paragraph_format.space_after = Pt(2)
+        for line in lines_tt[1:]:
+            p = doc.add_paragraph(style='List Bullet')
+            p.paragraph_format.space_after = Pt(2)
+            run = p.add_run(line.lstrip("-*• "))
+            run.font.size = Pt(10)
+    else:
+        add_normal_text("Chưa ghi nhận thông tin.")
+
+    # VII & VIII & IX. CHẨN ĐOÁN SƠ BỘ, PHÂN BIỆT & BIỆN LUẬN
+    add_sec_title("VII. CHẨN ĐOÁN SƠ BỘ")
+    add_normal_text(data.get('chan_doan_so_bo', ''))
+
+    add_sec_title("VIII. CHẨN ĐOÁN PHÂN BIỆT")
+    add_normal_text(data.get('chan_doan_phan_biet', ''))
+
+    bl_sb = str(data.get('bien_luan', '')).strip()
+    if bl_sb:
+        add_sec_title("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
+        add_bullet_list(bl_sb)
+
+    # X. ĐỀ XUẤT CẬN LÂM SÀNG
+    add_sec_title("X. ĐỀ XUẤT CẬN LÂM SÀNG")
+    nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if loai_ba == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+    add_subsec_title(nhan_cls1)
+    add_bullet_list(data.get('cls_dx_xac_dinh', ''))
+    nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if loai_ba == "Hậu phẫu" else "2. Phục vụ điều trị:"
+    add_subsec_title(nhan_cls2)
+    add_bullet_list(data.get('cls_dx_dieu_tri', ''))
+    add_subsec_title("3. Cận lâm sàng khác:")
+    add_bullet_list(data.get('cls_dx_khac', ''))
+
+    # XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG WORD KÈM ẢNH NẾU CÓ)
+    add_sec_title("XI. CẬN LÂM SÀNG ĐÃ CÓ")
+    cls_rows = []
+    so_hang = data.get("so_hang_cls", 3)
+    for i in range(so_hang):
+        kq = data.get(f"cls_kq_{i}", "").strip()
+        pg = data.get(f"cls_pg_{i}", "").strip()
+        img = data.get(f"cls_img_{i}", None)
+        if kq or pg or img:
+            cls_rows.append((kq, pg, img))
+
+    if not cls_rows:
+        add_normal_text("Chưa ghi nhận kết quả cận lâm sàng.")
+    else:
+        table_cls = doc.add_table(rows=1, cols=2)
+        table_cls.alignment = WD_TABLE_ALIGNMENT.CENTER
+        hdr_cells = table_cls.rows[0].cells
+        hdr_cells[0].text = "KẾT QUẢ CẬN LÂM SÀNG"
+        hdr_cells[1].text = "PHIÊN GIẢI / BIỆN GIẢI"
+        for c in hdr_cells:
+            set_cell_background(c, "E1EBF5")
+            p = c.paragraphs[0]
+            p.runs[0].bold = True
+            p.runs[0].font.size = Pt(10)
+            set_cell_margins(c, top=100, bottom=100, left=150, right=150)
+
+        temp_docx_imgs = []
+        try:
+            for kq, pg, img in cls_rows:
+                row_cells = table_cls.add_row().cells
+                set_cell_margins(row_cells[0], top=80, bottom=80, left=120, right=120)
+                set_cell_margins(row_cells[1], top=80, bottom=80, left=120, right=120)
+                
+                # Cột Kết quả
+                p_kq = row_cells[0].paragraphs[0]
+                p_kq.text = kq if kq else "-"
+                p_kq.runs[0].font.size = Pt(9.5)
+                
+                if img:
                     suffix = os.path.splitext(img.name)[1]
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
-                        t_img.write(img.getbuffer())
-                        temp_path = t_img.name
-                        temp_img_files.append(temp_path)
-                    try: slide.shapes.add_picture(temp_path, Inches(0.8), Inches(1.6), width=Inches(5.6))
-                    except: pass
-                    tf_r = slide.shapes.add_textbox(Inches(6.8), Inches(1.6), Inches(5.7), Inches(5.0)).text_frame
-                    tf_r.word_wrap = True
-                    p_kq_title = tf_r.paragraphs[0]
-                    p_kq_title.text, p_kq_title.font.bold, p_kq_title.font.underline, p_kq_title.font.size, p_kq_title.font.color.rgb = "Kết quả ghi nhận:", True, True, Pt(16), COLOR_PRIMARY
-                    p_kq = tf_r.add_paragraph()
-                    p_kq.text, p_kq.font.size, p_kq.space_after = kq if kq else "Hình ảnh xét nghiệm đính kèm", Pt(14.5), Pt(16)
-                    p_pg_title = tf_r.add_paragraph()
-                    p_pg_title.text, p_pg_title.font.bold, p_pg_title.font.underline, p_pg_title.font.size, p_pg_title.font.color.rgb = "Biện giải / Phiên giải:", True, True, Pt(16), COLOR_PRIMARY
-                    p_pg = tf_r.add_paragraph()
-                    p_pg.text, p_pg.font.size = pg if pg else "-", Pt(14.5)
-            finally:
-                for p in temp_img_files:
-                    try: os.remove(p)
-                    except: pass
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_f:
+                        t_f.write(img.getbuffer())
+                        t_path = t_f.name
+                        temp_docx_imgs.append(t_path)
+                    p_img = row_cells[0].add_paragraph()
+                    p_img.add_run().add_picture(t_path, width=Inches(2.5))
+                
+                # Cột Biện giải
+                p_pg = row_cells[1].paragraphs[0]
+                p_pg.text = pg if pg else "-"
+                p_pg.runs[0].font.size = Pt(9.5)
+        finally:
+            for p_path in temp_docx_imgs:
+                if os.path.exists(p_path):
+                    try:
+                        os.remove(p_path)
+                    except Exception:
+                        pass
 
-    def pptx_cdxd():
-        cdxd_lines = [l.strip() for l in str(data.get("chan_doan_xac_dinh", "")).split("\n") if l.strip()]
-        if cdxd_lines: add_content_with_overflow(f"{num_cdxd}. CHẨN ĐOÁN XÁC ĐỊNH", [("Chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in cdxd_lines], is_red=True)
+    # XII. CHẨN ĐOÁN XÁC ĐỊNH
+    add_sec_title("XII. CHẨN ĐOÁN XÁC ĐỊNH")
+    add_normal_text(data.get('chan_doan_xac_dinh', ''), bold=True, red=True)
 
-        blxd_lines = [l.strip() for l in str(data.get("bien_luan_xac_dinh", "")).split("\n") if l.strip()]
-        if blxd_lines: add_content_with_overflow(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH", [("Biện luận chẩn đoán xác định:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in blxd_lines])
+    # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH
+    noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
+    if noi_dung_bl_xd:
+        add_sec_title("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
+        add_bullet_list(noi_dung_bl_xd)
 
-    # THỰC THI PPTX TRẬT TỰ ĐỘNG
-    if loai_ba == "Hậu phẫu":
-        pptx_cdsb()
-        pptx_cls()
-        pptx_tt()
-        pptx_cdxd()
-    else:
-        pptx_tt()
-        pptx_cdsb()
-        pptx_cls()
-        pptx_cdxd()
+    # XIV. ĐIỀU TRỊ
+    add_sec_title("XIV. ĐIỀU TRỊ")
+    add_subsec_title("1. Mục tiêu điều trị:")
+    add_bullet_list(data.get('dt_muc_tieu', ''))
+    add_subsec_title("2. Điều trị cụ thể:")
+    add_bullet_list(data.get('dt_cu_the', ''))
+    add_subsec_title("3. Theo dõi sau điều trị:")
+    add_bullet_list(data.get('dt_theo_doi', ''))
 
-    dt_items = []
-    for label, key in [("1. Mục tiêu điều trị:", "dt_muc_tieu"), ("2. Điều trị cụ thể:", "dt_cu_the"), ("3. Theo dõi sau điều trị:", "dt_theo_doi")]:
-        lines = [l.strip() for l in str(data.get(key, "")).split("\n") if l.strip()]
-        if lines:
-            dt_items.append((label, True))
-            dt_items.extend([(f"- {l}" if not l.startswith("-") else l, False) for l in lines])
-    if dt_items: add_content_with_overflow("XIV. ĐIỀU TRỊ", dt_items)
+    # XV. TIÊN LƯỢNG & XVI. TƯ VẤN
+    tl_str = str(data.get("tien_luong", "")).strip()
+    if tl_str:
+        add_sec_title("XV. TIÊN LƯỢNG")
+        add_bullet_list(tl_str)
 
-    tl_lines = [l.strip() for l in str(data.get("tien_luong", "")).split("\n") if l.strip()]
-    if tl_lines: add_content_with_overflow("XV. TIÊN LƯỢNG", [("Đánh giá tiên lượng bệnh nhân:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in tl_lines])
+    tv_str = str(data.get("tu_van", "")).strip()
+    if tv_str:
+        ten_de_muc_tv = "XVI. TƯ VẤN" if tl_str else "XV. TƯ VẤN"
+        add_sec_title(ten_de_muc_tv)
+        add_bullet_list(tv_str)
 
-    tv_lines = [l.strip() for l in str(data.get("tu_van", "")).split("\n") if l.strip()]
-    if tv_lines: add_content_with_overflow("XVI. TƯ VẤN" if tl_lines else "XV. TƯ VẤN", [("Hướng dẫn và tư vấn cho người bệnh:", True)] + [(f"- {l}" if not l.startswith("-") else l, False) for l in tv_lines])
-
-    pptx_io = io.BytesIO()
-    prs.save(pptx_io)
-    pptx_io.seek(0)
-    return pptx_io.getvalue()
+    docx_io = io.BytesIO()
+    doc.save(docx_io)
+    docx_io.seek(0)
+    return docx_io.getvalue()
 
 # ==============================================================================
 # SIDEBAR: QUẢN LÝ BẢN NHÁP & ĐĂNG XUẤT
@@ -2221,7 +2305,7 @@ with tab2:
         st.warning("Vui lòng điền thông tin bên tab Nhập liệu hồ sơ.")
 
     st.markdown("---")
-    col_dl_pdf, col_dl_pptx = st.columns(2)
+    col_dl_pdf, col_dl_docx = st.columns(2)
     with col_dl_pdf:
         if st.button("📄 Tạo & Xem trước tập tin PDF", type="primary", use_container_width=True):
             if not ho_ten_val: st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
@@ -2235,15 +2319,26 @@ with tab2:
         if st.session_state.get("pdf_bytes_preview"):
             st.download_button("📥 Tải PDF về máy", data=st.session_state["pdf_bytes_preview"], file_name=st.session_state.get("ten_file_pdf", "benh_an.pdf"), mime="application/pdf", use_container_width=True)
 
-    with col_dl_pptx:
-        if st.button("Tạo tập tin PowerPoint (PPTX)", type="secondary", use_container_width=True):
-            if not ho_ten_val: st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
+    with col_dl_docx:
+        if st.button("📝 Tạo tập tin Word (.docx)", type="secondary", use_container_width=True):
+            if not ho_ten_val:
+                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
             else:
-                with st.spinner("Đang kết xuất bản trình chiếu PowerPoint..."):
-                    pptx_bytes = export_pptx(data_benh_an)
-                    ten_file_pptx = f"Trinh_chieu_Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pptx"
-                    st.success("Tạo PowerPoint thành công!")
-                    st.download_button("Nhấn vào đây để tải file PowerPoint (.pptx) về máy", data=pptx_bytes, file_name=ten_file_pptx, mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True)
+                with st.spinner("Đang kết xuất tài liệu Word..."):
+                    docx_bytes = export_docx(data_benh_an)
+                    ten_file_docx = f"Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
+                    st.session_state["docx_bytes_data"] = docx_bytes
+                    st.session_state["ten_file_docx"] = ten_file_docx
+                    st.success("Tạo văn bản Word thành công!")
+
+        if st.session_state.get("docx_bytes_data"):
+            st.download_button(
+                "📥 Nhấn vào đây để tải file Word (.docx) về máy",
+                data=st.session_state["docx_bytes_data"],
+                file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
                     
     if st.session_state.get("pdf_bytes_preview"):
         st.markdown("---")
