@@ -324,6 +324,15 @@ st.markdown("""
         box-shadow: none !important;
     }
 
+    div[data-testid="stExpander"] > details > summary p,
+    div[data-testid="stExpander"] > details > summary span {
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 1rem !important;
+        font-weight: 800 !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 1px #000000 !important;
+    }
+
     div[data-testid="stExpander"] > details > summary:hover {
         background: linear-gradient(90deg, #1842a8 0%, #b8d5f5 100%) !important;
         color: #ffffff !important;
