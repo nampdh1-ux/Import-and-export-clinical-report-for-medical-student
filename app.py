@@ -680,6 +680,116 @@ NORMAL_ORGAN_FINDINGS = {
     "kham_co_xuong_khop": "- Các khớp không sưng, nóng, đỏ, không biến dạng hay lệch trục.\n- Tầm vận động chủ động và thụ động các khớp trong giới hạn bình thường.\n- Không teo cơ, không cứng khớp buổi sáng.\n- Cột sống không gù vẹo, không có điểm đau chói dọc gai sống.",
     "kham_co_quan_khac": "- Răng - Hàm - Mặt, Tai - Mũi - Họng: Chưa phát hiện bất thường.\n- Nội tiết: Tuyến giáp không to, không có dấu hiệu suy hay cường giáp trên lâm sàng."
 }
+DETAILED_ORGAN_TEMPLATES = {
+    "kham_tuan_hoan": (
+        "- NHÌN:\n"
+        "  + Lồng ngực cân đối, không biến dạng, không sẹo mổ cũ, không tuần hoàn bàng hệ.\n"
+        "  + Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n"
+        "  + Không có ổ đập bất thường vùng trước tim, mũi ức hay hõm trên ức.\n"
+        "- SỜ:\n"
+        "  + Mỏm tim đập rõ, không có dấu hiệu nảy thất trái (Apex heave).\n"
+        "  + Rung miêu (Thrills) (-), dấu hiệu Hartzer (-) ở mũi ức.\n"
+        "  + Phản hồi gan - tĩnh mạch cổ (Hepatojugular reflux) (-).\n"
+        "- NGHE:\n"
+        "  + Nhịp tim đều, tần số ... chu kỳ/phút, trùng nhịp mạch quay.\n"
+        "  + Tiếng T1, T2 nghe rõ, tách đôi sinh lý (nếu có), không nghe tiếng T3, T4, tiếng clack mở van hay click tống máu.\n"
+        "  + Không có tiếng thổi tâm thu, tâm trương tại các ổ van (ĐMC, ĐMP, 2 lá, 3 lá).\n"
+        "  + Tiếng cọ màng ngoài tim (-).\n"
+        "- MẠCH MÁU NGOẠI VI:\n"
+        "  + Mạch quay, mạch cảnh, mạch bẹn, khoeo, chày sau và mu chân bắt rõ, đều hai bên.\n"
+        "  + Không có tiếng thổi động mạch cảnh, động mạch thận hay động mạch đùi."
+    ),
+    "kham_ho_hap": (
+        "- NHÌN:\n"
+        "  + Lồng ngực hai bên cân đối, di động nhịp nhàng theo nhịp thở.\n"
+        "  + Không co kéo cơ hô hấp phụ (cơ ức đòn chũm, cơ liên sườn), không rút lõm hõm ức hay hõm trên đòn.\n"
+        "  + Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ hay sẹo mổ cũ.\n"
+        "- SỜ:\n"
+        "  + Khí quản nằm ở đường giữa, không lệch trục.\n"
+        "  + Độ giãn nở lồng ngực (Chest expansion) đều hai bên.\n"
+        "  + Rung thanh (Tactile fremitus) đều khắp hai phế trường, không tăng, không giảm.\n"
+        "- GÕ:\n"
+        "  + Gõ trong đều khắp hai phế trường từ đỉnh phổi xuống đáy phổi.\n"
+        "  + Ranh giới gan - phổi và đáy phổi di động theo nhịp thở bình thường.\n"
+        "- NGHE:\n"
+        "  + Rì rào phế nang (Vesicular breath sounds) êm dịu hai bên phế trường.\n"
+        "  + Tiếng thở thanh - khí quản bình thường, không có tiếng rít thanh quản (Stridor).\n"
+        "  + Không có rale bệnh lý (Rale ẩm to/nhỏ hạt, rale nổ, rale rít, rale ngáy, tiếng cọ màng phổi)."
+    ),
+    "kham_tieu_hoa": (
+        "- NHÌN:\n"
+        "  + Bụng thon đều hai bên, di động nhịp nhàng theo nhịp thở, không chướng bè, không lõm lòng thuyền.\n"
+        "  + Rốn lõm, không lồi, không chảy dịch; không sẹo mổ cũ, không quai ruột nổi hay dấu hiệu rắn bò.\n"
+        "  + Không có tuần hoàn bàng hệ (kiểu cửa - chủ hoặc chủ - chủ).\n"
+        "- NGHE:\n"
+        "  + Nhu động ruột (Bowel sounds) nghe rõ, tần số khoảng 6-10 lần/phút, không nghe âm sắc kim loại/tiếng óc ách.\n"
+        "  + Không có tiếng thổi mạch máu ổ bụng (động mạch chủ bụng, động mạch thận hai bên).\n"
+        "- GÕ:\n"
+        "  + Gõ trong toàn bụng, khoang Traube gõ vang.\n"
+        "  + Chiều cao gan trên đường giữa đòn phải khoảng 9-11 cm, ranh giới rõ; lách không to qua gõ đục.\n"
+        "  + Gõ đục vùng thấp (Shifting dullness) (-).\n"
+        "- SỜ:\n"
+        "  + Bụng mềm, ấn không đau, không có điểm đau khu trú.\n"
+        "  + Phản ứng thành bụng (Guarding) (-), Cảm ứng phúc mạc (Peritoneal signs) (-), Dấu Blumberg (-).\n"
+        "  + Gan không sờ thấy dưới bờ sườn, bờ gan mềm mại, bề mặt nhẵn.\n"
+        "  + Lách không sờ thấy dưới bờ sườn trái (Phân độ lách độ 0).\n"
+        "  + Các điểm đau ngoại khoa: Điểm MacBurney (-), Dấu hiệu Murphy (-), Điểm Mayo-Robson (-).\n"
+        "  + Lỗ bẹn nông, vòng đùi hai bên bình thường, không thấy khối thoát vị."
+    ),
+    "kham_than_kinh": (
+        "- TRI GIÁC & TÂM THẦN:\n"
+        "  + Bệnh nhân tỉnh táo, tiếp xúc tốt, định hướng không gian - thời gian - bản thân chính xác, Glasgow 15 điểm (E4V5M6).\n"
+        "  + Trí nhớ tức thì, gần và xa bình thường; ngôn ngữ lưu loát, không thất ngôn (Aphasia).\n"
+        "- DẤU MÀNG NÃO & DÂY THẦN KINH SỌ (12 ĐÔI):\n"
+        "  + Dấu hiệu gáy mềm, Kernig (-), Brudzinski (-).\n"
+        "  + Dây I - XII: Thị lực và thị trường sơ bộ tốt, đồng tử hai bên đều (2.5mm), phản xạ ánh sáng (+).\n"
+        "  + Vận nhãn bình thường (không lác, không sụp mi); cơ nhai khỏe, cảm giác mặt đối xứng.\n"
+        "  + Mặt cân đối, không liệt mặt trung ương hay ngoại biên; thính lực hai bên đều.\n"
+        "  + Màn hầu nâng đều, phản xạ nuốt tốt, vận động cơ ức đòn chũm và lưỡi bình thường.\n"
+        "- VẬN ĐỘNG & TRƯƠNG LỰC CƠ:\n"
+        "  + Cơ lực hai tay và hai chân đối xứng: 5/5 điểm toàn bộ.\n"
+        "  + Trương lực cơ (độ co duỗi, độ chắc, độ ve vẩy) bình thường, không có co cứng tháp hay ngoại tháp.\n"
+        "  + Dấu hiệu Babinski (-) hai bên, không có giật cơ (Clonus).\n"
+        "- PHẢN XẠ GÂN XƯƠNG (DTR):\n"
+        "  + Nhị đầu, tam đầu, gân gối, gân gót đều (2+) ở cả hai bên.\n"
+        "- CẢM GIÁC & TIỀU NÃO:\n"
+        "  + Cảm giác nông (đau, nhiệt, chạm nhẹ) và cảm giác sâu (vị thế khớp, rung âm thoa) bình thường.\n"
+        "  + Nghiệm pháp ngón tay - chỉ mũi, gót - đầu gối chính xác; dấu Romberg (-)."
+    ),
+    "kham_tiet_nieu": (
+        "- NHÌN:\n"
+        "  + Hố thắt lưng hai bên phẳng, cân đối, không sưng nề, không bầm tím hay sẹo mổ cũ.\n"
+        "  + Vùng hạ vị phẳng, không gồ cao, không thấy khối u hay cầu bàng quang nổi.\n"
+        "- SỜ & GÕ:\n"
+        "  + Chạm thận (-) hai bên, Bập bềnh thận (-) hai bên.\n"
+        "  + Nghiệm pháp rung thận (Giordano) (-) hai bên.\n"
+        "  + Ấn các điểm niệu quản trên (cạnh rốn) và điểm niệu quản giữa (đường nối 2 gai chậu trước trên) không đau.\n"
+        "  + Điểm sườn - lưng, sườn - cột sống không có điểm đau chói.\n"
+        "  + Cầu bàng quang (-), ấn vùng hạ vị không tức, gõ không đục.\n"
+        "- NGHE:\n"
+        "  + Không có tiếng thổi tâm thu động mạch thận hai bên ở thành bụng trước và sau lưng."
+    ),
+    "kham_co_xuong_khop": (
+        "- NHÌN & TƯ THẾ:\n"
+        "  + Dáng đi tự nhiên, trục chi thẳng, không khập khiễng, không biến dạng lệch trục chi.\n"
+        "  + Các khớp ngoại vi (vai, khuỷu, cổ tay, bàn ngón tay, háng, gối, cổ chân) không sưng, không nóng, đỏ, không biến dạng hay teo cơ lân cận.\n"
+        "  + Cột sống trục thẳng, còn đường cong sinh lý, không gù vẹo.\n"
+        "- SỜ & VẬN ĐỘNG:\n"
+        "  + Nhiệt độ da quanh khớp bình thường, ấn không có điểm đau chói quanh khớp hay dọc gai sống.\n"
+        "  + Tầm vận động chủ động và thụ động (Active & Passive ROM) của tất cả các khớp trong giới hạn bình thường.\n"
+        "  + Dấu hiệu bập bềnh xương bánh chè (-), dấu chạm xương bánh chè (-).\n"
+        "  + Nghiệm pháp Lasegue (-) hai bên; không có dấu hiệu cứng khớp buổi sáng."
+    ),
+    "kham_co_quan_khac": (
+        "- TAI - MŨI - HỌNG:\n"
+        "  + Màng nhĩ hai bên sáng bóng, nón sáng rõ; họng sạch, niêm mạc hồng, Amidan không sưng đỏ, không hốc mủ.\n"
+        "- RĂNG - HÀM - MẶT:\n"
+        "  + Khớp cắn đúng, không lệch trục; niêm mạc miệng, nướu răng không viêm loét, không lung lay răng.\n"
+        "- NỘI TIẾT:\n"
+        "  + Tuyến giáp không to (độ 0), mật độ mềm đều, sờ không rung miêu, nghe không có tiếng thổi.\n"
+        "  + Không có biểu hiện lồi mắt, run đầu chi hay các triệu chứng chuyển hóa lâm sàng."
+    )
+}
 
 class BenhAnPDF(FPDF):
     def __init__(self, *args, **kwargs):
@@ -2198,23 +2308,58 @@ with tab1:
             st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
 
         st.markdown("---")
-        ORGAN_DEF = [{"key": "kham_tuan_hoan", "name": "Tuần hoàn"}, {"key": "kham_ho_hap", "name": "Hô hấp"}, {"key": "kham_tieu_hoa", "name": "Tiêu hóa"}, {"key": "kham_than_kinh", "name": "Thần kinh"}, {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"}, {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"}, {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"}]
-        selected_organ_name = st.selectbox("Chọn cơ quan chuyên khoa ưu tiên:", ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF], index=0, key="uu_tien_co_quan")
+
+        ORGAN_DEF = [
+            {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
+            {"key": "kham_ho_hap", "name": "Hô hấp"},
+            {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
+            {"key": "kham_than_kinh", "name": "Thần kinh"},
+            {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"},
+            {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"},
+            {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"}
+        ]
+        
+        selected_organ_name = st.selectbox(
+            "Chọn cơ quan chuyên khoa ưu tiên:", 
+            ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF], 
+            index=0, 
+            key="uu_tien_co_quan"
+        )
 
         if selected_organ_name != "Không ưu tiên (Thứ tự mặc định)":
             fav = next(item for item in ORGAN_DEF if item["name"] == selected_organ_name)
             others = [item for item in ORGAN_DEF if item["name"] != selected_organ_name]
-            st.markdown(f"**{fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
-            st.text_area(f"Khám {fav['name']}:", key=fav["key"], height=130)
+            
+            # Khối cơ quan chuyên khoa trọng điểm
+            c_fav_title, c_fav_btn = st.columns([2.5, 1.2])
+            with c_fav_title:
+                st.markdown(f"⭐ **{fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
+            with c_fav_btn:
+                # Nút cho phép nạp mẫu chuyên sâu hoặc chèn mẫu nếu ô đang trống
+                if st.button(f"⚡ Mẫu khám sâu {fav['name']}", key=f"btn_fill_deep_{fav['key']}", use_container_width=True):
+                    st.session_state[fav["key"]] = DETAILED_ORGAN_TEMPLATES.get(fav["key"], "")
+                    st.toast(f"Đã nạp khung khám chuyên sâu cho cơ quan {fav['name']}!", icon="🩺")
+                    st.rerun()
+
+            st.text_area(
+                f"Khám chi tiết {fav['name']}:", 
+                key=fav["key"], 
+                height=220, 
+                help="Mẫu khám chuyên khoa đầy đủ trình tự Nhìn - Sờ - Gõ - Nghe và các nghiệm pháp đặc hiệu."
+            )
+            
             st.markdown("---")
-            st.markdown("**Các cơ quan khác:**")
+            st.markdown("**Các cơ quan khác (Khám định kỳ/toàn diện):**")
             c_cq1, c_cq2 = st.columns(2)
             half = len(others) // 2 + len(others) % 2
             with c_cq1:
-                for org in others[:half]: st.text_area(f"{org['name']}:", key=org["key"], height=85)
+                for org in others[:half]: 
+                    st.text_area(f"{org['name']}:", key=org["key"], height=85)
             with c_cq2:
-                for org in others[half:]: st.text_area(f"{org['name']}:", key=org["key"], height=85)
+                for org in others[half:]: 
+                    st.text_area(f"{org['name']}:", key=org["key"], height=85)
         else:
+            # Khi không chọn ưu tiên: hiển thị 2 cột mặc định
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
                 st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
