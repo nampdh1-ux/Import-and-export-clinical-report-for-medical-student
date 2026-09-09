@@ -1,6 +1,7 @@
 import mammoth
 import base64
 import hashlib
+import html
 import io
 import json
 import os
@@ -373,6 +374,64 @@ st.markdown("""
         border-radius: 0px !important;
         font-weight: 700 !important;
         font-family: 'Tahoma', sans-serif !important;
+    }
+
+    .overview-panel {
+        background: #ece9d8;
+        border-top: 2px solid #ffffff;
+        border-left: 2px solid #ffffff;
+        border-right: 2px solid #404040;
+        border-bottom: 2px solid #404040;
+        box-shadow: 1px 1px 0 #000000;
+        margin: 0 0 14px 0;
+        padding: 0;
+        color: #000000;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif;
+    }
+
+    .overview-panel-title {
+        background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%);
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 7px 12px;
+        text-shadow: 1px 1px 1px #000000;
+    }
+
+    .overview-panel-body {
+        padding: 10px 12px 8px 12px;
+        background: #f5f4ea;
+    }
+
+    .overview-row {
+        border-bottom: 1px solid #c8c5b8;
+        line-height: 1.45;
+        padding: 6px 4px;
+    }
+
+    .overview-row:last-child {
+        border-bottom: none;
+    }
+
+    .overview-label {
+        color: #0a246a;
+        font-weight: 700;
+    }
+
+    .overview-diagnosis {
+        background: #fffde6;
+        border: 1px solid #b8860b;
+        color: #8b0000;
+        font-weight: 700;
+        margin-top: 8px;
+        padding: 7px 9px;
+    }
+
+    .overview-empty {
+        color: #404040;
+        font-style: italic;
+        padding: 10px 4px;
     }
 
     /* ==============================================================================
@@ -2593,18 +2652,36 @@ if 'uploaded_imgs' in locals(): data_benh_an.update(uploaded_imgs)
 
 # --- TAB 2: XEM TRƯỚC VÀ XUẤT TẬP TIN ---
 with tab2:
-    st.markdown("<div class='sidebar-header-amboss'>XEM TRƯỚC THÔNG TIN TỔNG QUAN</div>", unsafe_allow_html=True)
     ho_ten_val = str(st.session_state.get("ho_ten", "")).strip()
     if ho_ten_val:
-        st.info(f"Bệnh nhân: {ho_ten_val.upper()} | {st.session_state.get('tuoi')} tuổi | Giới tính: {st.session_state.get('gioi_tinh')} | Loại Bệnh Án: {loai_benh_an}")
-        st.write(f"Khoa phòng: {st.session_state.get('khoa_phong', 'Chưa điền')} | Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}")
-        if st.session_state.get("chan_doan_so_bo"): st.write(f"Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}")
-        if st.session_state.get("chan_doan_xac_dinh"): st.markdown(f"<div class='highlight-dx'>Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}</div>", unsafe_allow_html=True)
         so_hang = st.session_state.get("so_hang_cls", 3)
         dem_cls = sum(1 for i in range(so_hang) if str(st.session_state.get(f"cls_kq_{i}", "")).strip() or (locals().get('uploaded_imgs') and uploaded_imgs.get(f"cls_img_{i}")))
-        st.write(f"Số lượng cận lâm sàng đã nhập vào bảng: {dem_cls}/{so_hang} hàng")
+        overview_rows = [
+            f"<div class='overview-row'><span class='overview-label'>Bệnh nhân:</span> {html.escape(ho_ten_val.upper())} | {html.escape(str(st.session_state.get('tuoi')))} tuổi | Giới tính: {html.escape(str(st.session_state.get('gioi_tinh')))} | Loại bệnh án: {html.escape(loai_benh_an)}</div>",
+            f"<div class='overview-row'><span class='overview-label'>Khoa phòng:</span> {html.escape(str(st.session_state.get('khoa_phong') or 'Chưa điền'))} | <span class='overview-label'>Lý do vào viện:</span> {html.escape(str(st.session_state.get('ly_do_vao_vien') or 'Chưa điền'))}</div>",
+            f"<div class='overview-row'><span class='overview-label'>Cận lâm sàng đã nhập:</span> {dem_cls}/{so_hang} hàng</div>",
+        ]
+        chan_doan_so_bo = str(st.session_state.get("chan_doan_so_bo", "")).strip()
+        if chan_doan_so_bo:
+            overview_rows.append(f"<div class='overview-row'><span class='overview-label'>Chẩn đoán sơ bộ:</span> {html.escape(chan_doan_so_bo)}</div>")
+        chan_doan_xac_dinh = str(st.session_state.get("chan_doan_xac_dinh", "")).strip()
+        if chan_doan_xac_dinh:
+            overview_rows.append(f"<div class='overview-diagnosis'>Chẩn đoán xác định: {html.escape(chan_doan_xac_dinh)}</div>")
+        st.markdown(
+            "<div class='overview-panel'>"
+            "<div class='overview-panel-title'>XEM TRƯỚC THÔNG TIN TỔNG QUAN</div>"
+            f"<div class='overview-panel-body'>{''.join(overview_rows)}</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
     else:
-        st.warning("Vui lòng điền thông tin bên tab Nhập liệu hồ sơ.")
+        st.markdown(
+            "<div class='overview-panel'>"
+            "<div class='overview-panel-title'>XEM TRƯỚC THÔNG TIN TỔNG QUAN</div>"
+            "<div class='overview-panel-body'><div class='overview-empty'>Vui lòng điền thông tin bên tab Nhập liệu hồ sơ.</div></div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
     col_dl_pdf, col_dl_docx = st.columns(2)
