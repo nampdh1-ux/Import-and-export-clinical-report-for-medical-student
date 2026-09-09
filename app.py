@@ -2545,35 +2545,27 @@ with tab1:
                             """
                             prompt_organ = f"""
                             Bạn là bác sĩ lâm sàng giàu kinh nghiệm. Dựa duy nhất vào lý do vào viện, bệnh sử và tiền sử dưới đây, hãy gợi ý cho người dùng những nội dung quan trọng cần hỏi và thăm khám đối với cơ quan {fav['name']}.
-                            Mục tiêu là giúp người dùng tự thực hiện khám và tự điền kết quả vào bệnh án, không được tự suy đoán kết quả khám của người bệnh.
+                            Hãy tạo một khung khám để điền trực tiếp vào ô bệnh án. Mỗi dòng là một nội dung cần kiểm tra, kết thúc bằng dấu hai chấm để người dùng tự ghi kết quả sau khi khám, ví dụ: "Mỏm tim: ".
                             Chỉ nêu các điểm cần quan sát, sờ, gõ, nghe và nghiệm pháp cần cân nhắc nếu thực sự liên quan đến cơ quan này và bệnh cảnh.
-                            Không đưa ra kết luận chẩn đoán, không tự điền kết quả bình thường/bất thường, không tạo nội dung hoàn chỉnh để chép thay cho người khám.
+                            Không được tự suy đoán hoặc điền kết quả bình thường/bất thường, không đưa ra kết luận chẩn đoán.
 
                             Dữ kiện ca bệnh:
                             {organ_context}
 
-                            Chỉ trả về danh sách các nội dung cần hỏi và thăm khám để người dùng tham khảo, không thêm lời mở đầu, nhận xét ngoài lề hay nhãn bao quanh.
+                            Chỉ trả về khung các nội dung cần hỏi và thăm khám, không thêm lời mở đầu, nhận xét ngoài lề hay nhãn bao quanh.
                             {AI_PLAIN_LINE_FORMAT}
                             """
                             model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                             suggestion = clean_ai_lines(model.generate_content(prompt_organ).text)
                             if suggestion:
-                                st.session_state[f"ai_exam_suggestion_{fav['key']}"] = suggestion
-                                st.toast(f"Đã tạo gợi ý nội dung khám {fav['name']} để bạn tự điền.", icon="🩺")
+                                current_exam = str(st.session_state.get(fav["key"], "")).strip()
+                                st.session_state[fav["key"]] = f"{current_exam}\n{suggestion}".strip() if current_exam else suggestion
+                                st.toast(f"Đã điền khung khám {fav['name']}. Bạn hãy bổ sung kết quả thực tế.", icon="🩺")
+                                st.rerun()
                             else:
                                 st.error("AI không trả về nội dung khám.")
                         except Exception as e:
                             st.error(f"Lỗi AI: {e}")
-
-            suggestion_key = f"ai_exam_suggestion_{fav['key']}"
-            if st.session_state.get(suggestion_key):
-                st.text_area(
-                    f"Gợi ý nội dung cần khám {fav['name']} (chỉ đọc, hãy tự điền vào ô bên dưới):",
-                    value=st.session_state[suggestion_key],
-                    height=180,
-                    disabled=True,
-                    key=f"display_{suggestion_key}",
-                )
 
             st.text_area(
                 f"Khám chi tiết {fav['name']}:", 
