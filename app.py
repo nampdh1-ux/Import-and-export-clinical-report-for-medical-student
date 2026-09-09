@@ -1971,9 +1971,7 @@ with tab1:
         </details>
     </div>
     """, unsafe_allow_html=True)
-    with tab1:
-    # (Giữ nguyên phần Menu Floating TOC bên phải)
-    ...
+    
     
     # -------------------------------------------------------------------------
     # I. HÀNH CHÍNH (Mở nếu có dữ liệu hoặc mặc định luôn mở)
