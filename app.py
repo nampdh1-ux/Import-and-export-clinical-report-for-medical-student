@@ -2728,14 +2728,50 @@ with tab3:
     st.caption("Giảng viên lâm sàng giàu kinh nghiệm, rà soát tính logic toàn diện của ca bệnh và đặt câu hỏi.")
 
     benh_su_str_pb = get_benh_su_text_for_ai()
+    cls_da_co_str_pb = "\n".join(
+        f"Hàng {row_index + 1}: Kết quả: {st.session_state.get(f'cls_kq_{row_index}', '')} | Biện giải: {st.session_state.get(f'cls_pg_{row_index}', '')}"
+        for row_index in range(st.session_state.get("so_hang_cls", 1))
+        if str(st.session_state.get(f"cls_kq_{row_index}", "")).strip()
+        or str(st.session_state.get(f"cls_pg_{row_index}", "")).strip()
+    ) or "Chưa ghi nhận kết quả cận lâm sàng"
     ca_benh_summary = f"""
-    - Loại bệnh án: {loai_benh_an}
-    - Bệnh sử: {benh_su_str_pb}
-    - Khám toàn thân: {st.session_state.get('kham_toan_than')} (Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau', 'Không có')})
-    - Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}
-    - Cận lâm sàng: {st.session_state.get('cls_dx_xac_dinh')}
-    - Tóm tắt: {st.session_state.get('tom_tat')}
-    - Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}
+    Loại bệnh án: {loai_benh_an}
+    Hành chính: Họ tên {st.session_state.get('ho_ten')}, tuổi {st.session_state.get('tuoi')}, giới tính {st.session_state.get('gioi_tinh')}, dân tộc {st.session_state.get('dan_tok')}, nghề nghiệp {st.session_state.get('nghe_nghiep')}, khoa/phòng {st.session_state.get('khoa_phong')}
+    Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}
+    Bệnh sử: {benh_su_str_pb}
+    Tiền sử nội khoa: {st.session_state.get('ts_noi_khoa')}
+    Tiền sử ngoại khoa và dị ứng: {st.session_state.get('ts_ngoai_khoa')}
+    Lối sống và thói quen: {st.session_state.get('ts_loi_song')}
+    Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}
+    Khám toàn thân: {st.session_state.get('kham_toan_than')}
+    Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, nhiệt độ {st.session_state.get('sh_nhiet_do')}, huyết áp {st.session_state.get('sh_ha')}, nhịp thở {st.session_state.get('sh_nhip_tho')}, cân nặng {st.session_state.get('sh_can_nang')}, chiều cao {st.session_state.get('sh_chieu_cao')}, BMI {st.session_state.get('sh_bmi')} {st.session_state.get('sh_bmi_eval')}
+    Khám lúc vào viện: {st.session_state.get('kham_vao_vien')}
+    Khám tuần hoàn: {st.session_state.get('kham_tuan_hoan')}
+    Khám hô hấp: {st.session_state.get('kham_ho_hap')}
+    Khám tiêu hóa: {st.session_state.get('kham_tieu_hoa')}
+    Khám thần kinh: {st.session_state.get('kham_than_kinh')}
+    Khám thận - tiết niệu: {st.session_state.get('kham_tiet_nieu')}
+    Khám cơ xương khớp: {st.session_state.get('kham_co_xuong_khop')}
+    Khám các cơ quan khác: {st.session_state.get('kham_co_quan_khac')}
+    Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau', 'Không có')}
+    Tình trạng vết mổ: {st.session_state.get('kham_vet_mo')}
+    Tình trạng ống dẫn lưu: {st.session_state.get('kham_dan_luu')}
+    Tóm tắt bệnh án: {st.session_state.get('tom_tat')}
+    Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}
+    Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}
+    Biện luận chẩn đoán sơ bộ: {st.session_state.get('bien_luan')}
+    Đề xuất cận lâm sàng phục vụ chẩn đoán: {st.session_state.get('cls_dx_xac_dinh')}
+    Đề xuất cận lâm sàng phục vụ điều trị: {st.session_state.get('cls_dx_dieu_tri')}
+    Đề xuất cận lâm sàng khác: {st.session_state.get('cls_dx_khac')}
+    Kết quả cận lâm sàng đã có:
+    {cls_da_co_str_pb}
+    Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}
+    Biện luận chẩn đoán xác định: {st.session_state.get('bien_luan_xac_dinh')}
+    Mục tiêu điều trị: {st.session_state.get('dt_muc_tieu')}
+    Điều trị cụ thể: {st.session_state.get('dt_cu_the')}
+    Theo dõi sau điều trị: {st.session_state.get('dt_theo_doi')}
+    Tiên lượng: {st.session_state.get('tien_luong')}
+    Tư vấn: {st.session_state.get('tu_van')}
     """
 
     col_btn_pb, col_mode = st.columns([1, 1.5])
