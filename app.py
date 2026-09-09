@@ -692,6 +692,10 @@ def format_bullet_points(text):
             else: formatted_lines.append(cleaned)
     return "\n".join(formatted_lines)
 
+AI_PLAIN_LINE_FORMAT = """
+QUY TẮC ĐỊNH DẠNG BẮT BUỘC: Mỗi ý trả lời phải là một câu hoàn chỉnh và nằm trên một dòng riêng. Không thêm gạch đầu dòng, số thứ tự, ký hiệu đầu dòng hoặc ký hiệu trang trí trước câu trả lời. Chỉ giữ lại các nhãn cấu trúc được yêu cầu.
+"""
+
 def format_history(text):
     if not text or not str(text).strip(): return "Chưa ghi nhận bất thường"
     return format_bullet_points(text)
@@ -1911,10 +1915,11 @@ def ui_cdsb(num_sb, num_pb, num_bl):
                     {context_cdpb}
 
                     YÊU CẦU ĐẦU RA (Xuất ra đúng 2 khối nhãn sau, không viết thêm lời dẫn chào hỏi):
+                    {AI_PLAIN_LINE_FORMAT}
                     [CHAN_DOAN_PHAN_BIET]
-                    1. Tên bệnh A
-                    2. Tên bệnh B
-                    3. Tên bệnh C
+                    Tên bệnh A
+                    Tên bệnh B
+                    Tên bệnh C
 
                     [BIEN_LUAN_SO_BO]
                     (Nội dung đoạn văn biện luận logic, súc tích).
@@ -1981,6 +1986,7 @@ def ui_cls(num_dx, num_kq):
                         {context_cls}
 
                         YÊU CẦU ĐẦU RA (Xuất đúng 3 nhãn sau, mỗi xét nghiệm xuống 1 dòng, không dùng gạch đầu dòng, không giải thích dài dòng):
+                        {AI_PLAIN_LINE_FORMAT}
                         [CLS_XAC_DINH]
                         (Các CLS để phát hiện/loại trừ biến chứng sau mổ đang theo dõi: VD Siêu âm ổ bụng kiểm tra dịch tồn dư, X-quang ngực thẳng, X-quang bụng không chuẩn bị...)
                         [CLS_DIEU_TRI]
@@ -2001,6 +2007,7 @@ def ui_cls(num_dx, num_kq):
                         prompt_cls = f"""
                         Bạn là bác sĩ lâm sàng. Dựa vào ca bệnh ({context_cls}), hãy chỉ định CẬN LÂM SÀNG cần thiết, hợp lý, tránh lạm dụng xét nghiệm:
                         Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng danh sách xuống dòng, không dùng gạch đầu dòng, không giải thích thừa.
+                        {AI_PLAIN_LINE_FORMAT}
                         """
 
                     res_cls_text = model.generate_content(prompt_cls).text
@@ -2520,7 +2527,7 @@ with tab1:
                         cls_da_co_str = "".join([f"+ {st.session_state.get(f'cls_kq_{i}', '')} -> {st.session_state.get(f'cls_pg_{i}', '')}\n" for i in range(st.session_state.get("so_hang_cls", 3)) if st.session_state.get(f'cls_kq_{i}', '').strip()])
                         context_dt = f"Loại: {loai_benh_an}\nBệnh nhân: {st.session_state.get('tuoi')} tuổi, {st.session_state.get('gioi_tinh')}\nTiền sử: {st.session_state.get('ts_noi_khoa')}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nCLS quan trọng:\n{cls_da_co_str}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt_dt = f"Bạn là bác sĩ điều trị. Xây dựng phác đồ cho ca bệnh ({context_dt}). Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE] (ghi rõ thuốc/chăm sóc vết mổ nếu hậu phẫu), [THEO_DOI] theo định dạng text trơn không gạch đầu dòng."
+                        prompt_dt = f"Bạn là bác sĩ điều trị. Xây dựng phác đồ cho ca bệnh ({context_dt}). Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE] (ghi rõ thuốc/chăm sóc vết mổ nếu hậu phẫu), [THEO_DOI]. {AI_PLAIN_LINE_FORMAT}"
                         txt = model.generate_content(prompt_dt).text
 
                         if "[MUC_TIEU]" in txt and "[DIEU_TRI_CU_THE]" in txt and "[THEO_DOI]" in txt:
@@ -2552,7 +2559,7 @@ with tab1:
                     try:
                         context = f"Loại: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nĐiều trị: {st.session_state.get('dt_cu_the')}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt = f"Bạn là bác sĩ lâm sàng. Đưa ra TIÊN LƯỢNG và TƯ VẤN cho ca bệnh ({context}). Yêu cầu trả về đúng 2 tag: [TIEN_LUONG] và [TU_VAN]."
+                        prompt = f"Bạn là bác sĩ lâm sàng. Đưa ra TIÊN LƯỢNG và TƯ VẤN cho ca bệnh ({context}). Yêu cầu trả về đúng 2 tag: [TIEN_LUONG] và [TU_VAN]. {AI_PLAIN_LINE_FORMAT}"
                         res_text = model.generate_content(prompt).text
 
                         if "[TIEN_LUONG]" in res_text and "[TU_VAN]" in res_text:
