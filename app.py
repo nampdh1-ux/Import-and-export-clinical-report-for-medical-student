@@ -1541,7 +1541,7 @@ with st.sidebar:
                 st.session_state[k] = ""
 
         # 4. Đặt lại số hàng cận lâm sàng
-        st.session_state["so_hang_cls"] = 
+        st.session_state["so_hang_cls"] = 1
         for i in range(15):
             st.session_state[f"cls_kq_{i}"] = ""
             st.session_state[f"cls_pg_{i}"] = ""
