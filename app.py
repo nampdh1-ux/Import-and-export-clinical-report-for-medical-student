@@ -659,7 +659,28 @@ def add_symptom_to_field(field_key, symptom_text):
     formatted_sym = f"- {symptom_text}"
     if formatted_sym not in lines:
         lines.append(formatted_sym)
-        st.session_state[field_key] = "\n".join(lines)
+        updated_value = "\n".join(lines)
+        st.session_state[field_key] = updated_value
+        widget_key = f"_postop_{field_key}"
+        if widget_key in st.session_state:
+            st.session_state[widget_key] = updated_value
+
+POSTOP_FIELDS = [
+    "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo",
+    "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu",
+]
+
+def initialize_postop_widgets(current_mode):
+    mode_changed = st.session_state.get("_postop_last_mode") != current_mode
+    for field_key in POSTOP_FIELDS:
+        widget_key = f"_postop_{field_key}"
+        if mode_changed or widget_key not in st.session_state:
+            st.session_state[widget_key] = st.session_state.get(field_key, "")
+    st.session_state["_postop_last_mode"] = current_mode
+
+def sync_postop_field(field_key):
+    widget_key = f"_postop_{field_key}"
+    st.session_state[field_key] = st.session_state.get(widget_key, "")
 def format_bullet_points(text):
     if not text or not str(text).strip(): return "Chưa ghi nhận thông tin."
     lines = str(text).strip().split("\n")
@@ -1631,6 +1652,7 @@ st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
 
 loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
+initialize_postop_widgets(loai_benh_an)
 
 # Khai báo Dictionary lưu trữ ảnh toàn cục
 uploaded_imgs = {}
@@ -2176,15 +2198,36 @@ with tab1:
         
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
-            st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
+            st.text_area(
+                "1. Tình trạng trước mổ:",
+                key="_postop_bs_truoc_mo",
+                height=90,
+                placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...",
+                on_change=sync_postop_field,
+                args=("bs_truoc_mo",),
+            )
 
-            val_trong_mo = st.session_state.get("bs_trong_mo", "")
+            val_trong_mo = st.session_state.get("_postop_bs_trong_mo", "")
             if not str(val_trong_mo).strip():
                 val_trong_mo = mau_5_dong
+                st.session_state["_postop_bs_trong_mo"] = mau_5_dong
                 st.session_state["bs_trong_mo"] = mau_5_dong
 
-            st.text_area("2. Tình trạng trong mổ:", value=val_trong_mo, key="bs_trong_mo", height=130)
-            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
+            st.text_area(
+                "2. Tình trạng trong mổ:",
+                key="_postop_bs_trong_mo",
+                height=130,
+                on_change=sync_postop_field,
+                args=("bs_trong_mo",),
+            )
+            st.text_area(
+                "3. Quá trình sau mổ:",
+                key="_postop_bs_sau_mo",
+                height=90,
+                placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...",
+                on_change=sync_postop_field,
+                args=("bs_sau_mo",),
+            )
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
 
@@ -2219,7 +2262,13 @@ with tab1:
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=has_kham):
         if loai_benh_an == "Hậu phẫu":
             st.markdown("<div class='sub-section-header'>1. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
-            st.text_input("Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?", key="ngay_hau_phau", placeholder="VD: Ngày thứ 3 sau mổ (Giờ thứ 72)...")
+            st.text_input(
+                "Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?",
+                key="_postop_ngay_hau_phau",
+                placeholder="VD: Ngày thứ 3 sau mổ (Giờ thứ 72)...",
+                on_change=sync_postop_field,
+                args=("ngay_hau_phau",),
+            )
         else:
             st.markdown("<div class='sub-section-header'>1. Thăm khám lúc vào viện</div>", unsafe_allow_html=True)
             st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
@@ -2306,7 +2355,14 @@ with tab1:
                             c_txt, c_btn = st.columns([3.5, 1.2])
                             with c_txt: st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
                             with c_btn: st.button("➕", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
-                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed")
+                st.text_area(
+                    "Tình trạng vết mổ:",
+                    key="_postop_kham_vet_mo",
+                    height=90,
+                    label_visibility="collapsed",
+                    on_change=sync_postop_field,
+                    args=("kham_vet_mo",),
+                )
 
             with c_dl:
                 c_title_dl, c_pop_dl = st.columns([2, 1.2])
@@ -2318,7 +2374,14 @@ with tab1:
                             c_txt, c_btn = st.columns([3.5, 1.2])
                             with c_txt: st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
                             with c_btn: st.button("➕", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
-                st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=90, label_visibility="collapsed")
+                st.text_area(
+                    "Tình trạng ống dẫn lưu:",
+                    key="_postop_kham_dan_luu",
+                    height=90,
+                    label_visibility="collapsed",
+                    on_change=sync_postop_field,
+                    args=("kham_dan_luu",),
+                )
 
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         else:
