@@ -258,7 +258,7 @@ if "da_khoi_phuc_tu_dong" not in st.session_state:
     st.session_state["da_khoi_phuc_tu_dong"] = True
 
 # Khởi tạo giá trị mặc định
-if "so_hang_cls" not in st.session_state: st.session_state["so_hang_cls"] = 3
+if "so_hang_cls" not in st.session_state: st.session_state["so_hang_cls"] = 1
 for field in FIELDS_TO_SAVE:
     if field not in st.session_state:
         if field == "loai_benh_an": st.session_state[field] = "Nội khoa / Tiền phẫu"
@@ -1541,7 +1541,7 @@ with st.sidebar:
                 st.session_state[k] = ""
 
         # 4. Đặt lại số hàng cận lâm sàng
-        st.session_state["so_hang_cls"] = 3
+        st.session_state["so_hang_cls"] = 
         for i in range(15):
             st.session_state[f"cls_kq_{i}"] = ""
             st.session_state[f"cls_pg_{i}"] = ""
@@ -1968,7 +1968,7 @@ def ui_cls(num_dx, num_kq):
     with c_cls3:
         st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
         
-    st.markdown(f"<div class='sub-section-header'>{num_kq}. Cận lâm sàng đã có (Hiện có {st.session_state['so_hang_cls']} hàng)</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sub-section-header'>{num_kq}. Cận lâm sàng đã có ({st.session_state['so_hang_cls']} xét nghiệm)</div>", unsafe_allow_html=True)
     with st.container():
         col_ocr_file, col_ocr_act = st.columns([2.5, 1])
         with col_ocr_file: lab_photos = st.file_uploader("📷 Tải lên ảnh phiếu xét nghiệm (cho phép nhiều ảnh):", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="uploader_ocr_lab_multi")
@@ -2021,13 +2021,13 @@ def ui_cls(num_dx, num_kq):
         st.markdown(f"**Hàng {i + 1}:**")
         col_left, col_right = st.columns([1, 1])
         with col_left:
-            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
+            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=85)
             img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
             if img:
                 uploaded_imgs[f"cls_img_{i}"] = img
-                st.image(img, width=180, caption=f"Ảnh hàng {i + 1}")
+                st.image(img, width=160, caption=f"Ảnh hàng {i + 1}")
         with col_right:
-            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
+            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=85)
         st.divider()
 
     col_btn_them, col_btn_bot, _ = st.columns([2, 2, 6])
@@ -2384,7 +2384,7 @@ with tab1:
     # X VÀ XI. CẬN LÂM SÀNG
     # -------------------------------------------------------------------------
     cls_keys = ["cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac"]
-    for i in range(st.session_state.get("so_hang_cls", 3)):
+    for i in range(st.session_state.get("so_hang_cls", )):
         cls_keys.extend([f"cls_kq_{i}", f"cls_pg_{i}"])
     has_cls = check_section_has_data(cls_keys)
 
@@ -2472,7 +2472,7 @@ data_benh_an["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
 data_benh_an["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
 data_benh_an["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
 data_benh_an["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
-data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 3)
+data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", )
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
     data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
