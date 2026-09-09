@@ -1,6 +1,6 @@
 streamlit
 fpdf2
-python-pptx
+python-docx
 google-generativeai
 streamlit-local-storage
 streamlit-pdf-viewer
