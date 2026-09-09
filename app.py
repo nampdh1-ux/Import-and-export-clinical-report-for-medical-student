@@ -1,3 +1,4 @@
+import mammoth
 import base64
 import hashlib
 import io
@@ -2306,45 +2307,120 @@ with tab2:
 
     st.markdown("---")
     col_dl_pdf, col_dl_docx = st.columns(2)
+    
     with col_dl_pdf:
         if st.button("📄 Tạo & Xem trước tập tin PDF", type="primary", use_container_width=True):
-            if not ho_ten_val: st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
-            elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"): st.error("Chưa tìm thấy tập tin font 'Roboto-Regular.ttf' và 'Roboto-Bold.ttf' trong cùng thư mục với app.py!")
+            if not ho_ten_val: 
+                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
+            elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"): 
+                st.error("Chưa tìm thấy tập tin font 'Roboto-Regular.ttf' và 'Roboto-Bold.ttf' trong cùng thư mục với app.py!")
             else:
                 with st.spinner("Đang kết xuất văn bản PDF..."):
                     pdf_bytes = export_pdf(data_benh_an)
                     st.session_state["pdf_bytes_preview"] = pdf_bytes
                     st.session_state["ten_file_pdf"] = f"Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                    st.session_state["active_preview"] = "pdf"
 
         if st.session_state.get("pdf_bytes_preview"):
             st.download_button("📥 Tải PDF về máy", data=st.session_state["pdf_bytes_preview"], file_name=st.session_state.get("ten_file_pdf", "benh_an.pdf"), mime="application/pdf", use_container_width=True)
 
     with col_dl_docx:
-        if st.button("📝 Tạo tập tin Word (.docx)", type="secondary", use_container_width=True):
+        if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="secondary", use_container_width=True):
             if not ho_ten_val:
                 st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
             else:
-                with st.spinner("Đang kết xuất tài liệu Word..."):
+                with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
                     docx_bytes = export_docx(data_benh_an)
                     ten_file_docx = f"Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
                     st.session_state["docx_bytes_data"] = docx_bytes
                     st.session_state["ten_file_docx"] = ten_file_docx
-                    st.success("Tạo văn bản Word thành công!")
+                    
+                    # Chuyển đổi DOCX sang HTML để hiển thị xem trước
+                    try:
+                        res_html = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+                        st.session_state["docx_html_preview"] = res_html.value
+                    except Exception as err:
+                        st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
+                        
+                    st.session_state["active_preview"] = "docx"
+                    st.success("Tạo tài liệu Word thành công!")
 
         if st.session_state.get("docx_bytes_data"):
             st.download_button(
-                "📥 Nhấn vào đây để tải file Word (.docx) về máy",
+                "📥 Tải Word (.docx) về máy",
                 data=st.session_state["docx_bytes_data"],
                 file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True
             )
-                    
-    if st.session_state.get("pdf_bytes_preview"):
-        st.markdown("---")
-        st.markdown("#### Bản xem trước PDF trực tiếp:")
-        pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 
+    # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
+    if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
+        st.markdown("---")
+        st.markdown("#### 📝 Bản xem trước tài liệu Word trực tiếp:")
+        
+        # Bọc mã HTML trong container mô phỏng trang tài liệu A4
+        styled_word_preview = f"""
+        <div style="
+            background-color: #525659;
+            padding: 25px 15px;
+            display: flex;
+            justify-content: center;
+            border-radius: 4px;
+        ">
+            <div style="
+                background: #ffffff;
+                color: #24292e;
+                width: 100%;
+                max-width: 800px;
+                min-height: 900px;
+                padding: 40px 50px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            ">
+                <style>
+                    table {{
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        margin: 12px 0 !important;
+                    }}
+                    th, td {{
+                        border: 1px solid #c8d1dc !important;
+                        padding: 6px 10px !important;
+                        vertical-align: top !important;
+                    }}
+                    th {{
+                        background-color: #e1ebf5 !important;
+                        font-weight: bold !important;
+                    }}
+                    ul, ol {{
+                        margin-top: 4px !important;
+                        margin-bottom: 6px !important;
+                        padding-left: 24px !important;
+                    }}
+                    p {{
+                        margin-top: 3px !important;
+                        margin-bottom: 5px !important;
+                    }}
+                    img {{
+                        max-width: 100% !important;
+                        height: auto !important;
+                        margin: 8px 0 !important;
+                        border: 1px solid #ddd !important;
+                    }}
+                </style>
+                {st.session_state['docx_html_preview']}
+            </div>
+        </div>
+        """
+        st.markdown(styled_word_preview, unsafe_allow_html=True)
+
+    elif st.session_state.get("active_preview") == "pdf" and st.session_state.get("pdf_bytes_preview"):
+        st.markdown("---")
+        st.markdown("#### 📄 Bản xem trước PDF trực tiếp:")
+        pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 # --- TAB 3: PHẢN BIỆN BỆNH ÁN ---
 with tab3:
     st.markdown("### Giảng viên lâm sàng phản biện ca bệnh")
