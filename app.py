@@ -2522,7 +2522,7 @@ with tab1:
                     st.rerun()
             with c_fav_ai:
                 btn_ai_organ = st.button(
-                    f"🪄 AI gợi ý khám {fav['name']}",
+                    f"Gợi ý khám {fav['name']}",
                     key=f"btn_ai_organ_{fav['key']}",
                     type="primary",
                     use_container_width=True,
@@ -2532,44 +2532,48 @@ with tab1:
                 if "GEMINI_API_KEY" not in st.secrets:
                     st.error("⚠️ Chưa cài đặt API Key!")
                 else:
-                    with st.spinner(f"AI đang phân tích và xây dựng nội dung khám {fav['name']}..."):
+                    with st.spinner(f"AI đang phân tích nội dung cần khám {fav['name']}..."):
                         try:
                             organ_context = f"""
-                            Loại bệnh án: {loai_benh_an}
                             Cơ quan được ưu tiên khám: {fav['name']}
-                            Tuổi: {st.session_state.get('tuoi')}; Giới tính: {st.session_state.get('gioi_tinh')}
                             Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}
                             Bệnh sử: {get_benh_su_text_for_ai()}
                             Tiền sử nội khoa: {st.session_state.get('ts_noi_khoa')}
                             Tiền sử ngoại khoa và dị ứng: {st.session_state.get('ts_ngoai_khoa')}
-                            Sinh hiệu: Mạch {st.session_state.get('sh_mach')}; Nhiệt độ {st.session_state.get('sh_nhiet_do')}; Huyết áp {st.session_state.get('sh_ha')}; Nhịp thở {st.session_state.get('sh_nhip_tho')}
-                            Khám toàn thân: {st.session_state.get('kham_toan_than')}
-                            Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}
-                            Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}
-                            Chẩn đoán xác định: {st.session_state.get('chan_doan_xac_dinh')}
-                            Nội dung hiện có của cơ quan này: {st.session_state.get(fav['key'])}
+                            Lối sống và thói quen: {st.session_state.get('ts_loi_song')}
+                            Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}
                             """
                             prompt_organ = f"""
-                            Bạn là bác sĩ lâm sàng giàu kinh nghiệm. Hãy xây dựng nội dung khám đầy đủ, có hệ thống và phù hợp với bệnh cảnh cho cơ quan {fav['name']}.
-                            Phân tích dữ kiện ca bệnh để nhấn mạnh các dấu hiệu cần tìm nhằm phát hiện hoặc loại trừ các vấn đề liên quan đến chẩn đoán. Bao gồm các bước khám phù hợp như nhìn, sờ, gõ, nghe và nghiệm pháp chuyên biệt nếu có ý nghĩa; không đưa các bước không liên quan.
-                            Nếu là bệnh án hậu phẫu, đặc biệt lưu ý dấu hiệu biến chứng sau mổ có liên quan đến cơ quan này.
+                            Bạn là bác sĩ lâm sàng giàu kinh nghiệm. Dựa duy nhất vào lý do vào viện, bệnh sử và tiền sử dưới đây, hãy gợi ý cho người dùng những nội dung quan trọng cần hỏi và thăm khám đối với cơ quan {fav['name']}.
+                            Mục tiêu là giúp người dùng tự thực hiện khám và tự điền kết quả vào bệnh án, không được tự suy đoán kết quả khám của người bệnh.
+                            Chỉ nêu các điểm cần quan sát, sờ, gõ, nghe và nghiệm pháp cần cân nhắc nếu thực sự liên quan đến cơ quan này và bệnh cảnh.
+                            Không đưa ra kết luận chẩn đoán, không tự điền kết quả bình thường/bất thường, không tạo nội dung hoàn chỉnh để chép thay cho người khám.
 
                             Dữ kiện ca bệnh:
                             {organ_context}
 
-                            Chỉ trả về nội dung khám để điền trực tiếp vào ô bệnh án, không thêm lời mở đầu, nhận xét ngoài lề hay nhãn bao quanh.
+                            Chỉ trả về danh sách các nội dung cần hỏi và thăm khám để người dùng tham khảo, không thêm lời mở đầu, nhận xét ngoài lề hay nhãn bao quanh.
                             {AI_PLAIN_LINE_FORMAT}
                             """
                             model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                             suggestion = clean_ai_lines(model.generate_content(prompt_organ).text)
                             if suggestion:
-                                st.session_state[fav["key"]] = suggestion
-                                st.toast(f"Đã cập nhật gợi ý khám cho cơ quan {fav['name']}!", icon="🩺")
-                                st.rerun()
+                                st.session_state[f"ai_exam_suggestion_{fav['key']}"] = suggestion
+                                st.toast(f"Đã tạo gợi ý nội dung khám {fav['name']} để bạn tự điền.", icon="🩺")
                             else:
                                 st.error("AI không trả về nội dung khám.")
                         except Exception as e:
                             st.error(f"Lỗi AI: {e}")
+
+            suggestion_key = f"ai_exam_suggestion_{fav['key']}"
+            if st.session_state.get(suggestion_key):
+                st.text_area(
+                    f"Gợi ý nội dung cần khám {fav['name']} (chỉ đọc, hãy tự điền vào ô bên dưới):",
+                    value=st.session_state[suggestion_key],
+                    height=180,
+                    disabled=True,
+                    key=f"display_{suggestion_key}",
+                )
 
             st.text_area(
                 f"Khám chi tiết {fav['name']}:", 
