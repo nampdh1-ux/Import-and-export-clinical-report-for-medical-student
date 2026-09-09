@@ -931,11 +931,8 @@ def export_pdf(data):
         pdf.line(x, y, x + text_w, y)
         pdf.add_body_text(content)
 
-    # ĐỊNH NGHĨA SỐ LA MÃ ĐỘNG THEO LOẠI BỆNH ÁN
-    if pdf.loai_ba == "Hậu phẫu":
-        num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_tt, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
-    else:
-        num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+    # ĐỊNH NGHĨA SỐ LA MÃ THỐNG NHẤT
+    num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
 
     def pdf_tt():
         pdf.add_section_header(f"{num_tt}. TÓM TẮT BỆNH ÁN")
@@ -953,9 +950,11 @@ def export_pdf(data):
 
     def pdf_cls():
         pdf.add_section_header(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG")
-        pdf.add_subsection_header("1. Phục vụ chẩn đoán xác định:")
+        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if pdf.loai_ba == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+        pdf.add_subsection_header(nhan_cls1)
         pdf.add_body_text(format_bullet_points(data.get('cls_dx_xac_dinh', '')))
-        pdf.add_subsection_header("2. Phục vụ điều trị:")
+        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if pdf.loai_ba == "Hậu phẫu" else "2. Phục vụ điều trị:"
+        pdf.add_subsection_header(nhan_cls2)
         pdf.add_body_text(format_bullet_points(data.get('cls_dx_dieu_tri', '')))
         pdf.add_subsection_header("3. Cận lâm sàng khác:")
         pdf.add_body_text(format_bullet_points(data.get('cls_dx_khac', '')))
@@ -979,17 +978,11 @@ def export_pdf(data):
             pdf.add_section_header(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
             pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
 
-    # TRIỂN KHAI TRẬT TỰ ĐỘNG
-    if pdf.loai_ba == "Hậu phẫu":
-        pdf_cdsb()
-        pdf_cls()
-        pdf_tt()
-        pdf_cdxd()
-    else:
-        pdf_tt()
-        pdf_cdsb()
-        pdf_cls()
-        pdf_cdxd()
+    # THỨ TỰ THỐNG NHẤT CHO CẢ TIỀN PHẪU VÀ HẬU PHẪU
+    pdf_tt()
+    pdf_cdsb()
+    pdf_cls()
+    pdf_cdxd()
 
     pdf.add_section_header("XIV. ĐIỀU TRỊ")
     pdf.add_subsection_header("1. Mục tiêu điều trị:")
@@ -1860,30 +1853,17 @@ with tab1:
     # ==============================================================================
     # THANH MỤC LỤC NHANH BÊN PHẢI (RIGHT FLOATING TABLE OF CONTENTS)
     # ==============================================================================
-    if loai_benh_an == "Hậu phẫu":
-        toc_items = [
-            ("#sec-hanh-chinh", "I. Hành chính"),
-            ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử hậu phẫu"),
-            ("#sec-tien-su", "IV. Tiền sử"),
-            ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
-            ("#sec-chan-doan-so-bo", "VI & VII. Chẩn đoán sơ bộ"),
-            ("#sec-can-lam-sang", "IX & X. Cận lâm sàng"),
-            ("#sec-tom-tat-xac-dinh", "XI & XII. Tóm tắt & CĐ xác định"),
-            ("#sec-dieu-tri", "XIV. Điều trị"),
-            ("#sec-tien-luong-tu-van", "XV & XVI. Tiên lượng & Tư vấn"),
-        ]
-    else:
-        toc_items = [
-            ("#sec-hanh-chinh", "I. Hành chính"),
-            ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử"),
-            ("#sec-tien-su", "IV. Tiền sử"),
-            ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
-            ("#sec-tom-tat-noi-khoa", "VI - IX. Tóm tắt & CĐ sơ bộ"),
-            ("#sec-can-lam-sang", "X & XI. Cận lâm sàng"),
-            ("#sec-chan-doan-xac-dinh", "XII & XIII. CĐ xác định"),
-            ("#sec-dieu-tri", "XIV. Điều trị"),
-            ("#sec-tien-luong-tu-van", "XV & XVI. Tiên lượng & Tư vấn"),
-        ]
+    toc_items = [
+        ("#sec-hanh-chinh", "I. Hành chính"),
+        ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử" + (" hậu phẫu" if loai_benh_an == "Hậu phẫu" else "")),
+        ("#sec-tien-su", "IV. Tiền sử"),
+        ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
+        ("#sec-tom-tat-so-bo", "VI - IX. Tóm tắt & CĐ sơ bộ"),
+        ("#sec-can-lam-sang", "X & XI. Cận lâm sàng"),
+        ("#sec-chan-doan-xac-dinh", "XII & XIII. CĐ xác định & Biện luận"),
+        ("#sec-dieu-tri", "XIV. Điều trị"),
+        ("#sec-tien-luong-tu-van", "XV & XVI. Tiên lượng & Tư vấn"),
+    ]
 
     toc_links_html = "".join([f"<a href='{href}' class='toc-item'>{title}</a>" for href, title in toc_items])
 
@@ -2142,29 +2122,19 @@ with tab1:
                 st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
-    # --- KHỐI ĐỘNG CHUYỂN MẠCH VỊ TRÍ THEO LOẠI BỆNH ÁN ---
-    if loai_benh_an == "Hậu phẫu":
-        st.markdown("<div id='sec-chan-doan-so-bo'></div>", unsafe_allow_html=True)
-        with st.expander("VI VÀ VII. CHẨN ĐOÁN SƠ BỘ VÀ PHÂN BIỆT", expanded=True):
-            ui_cdsb("VI", "VII", "VIII")
-        st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
-        with st.expander("IX VÀ X. CẬN LÂM SÀNG", expanded=True):
-            ui_cls("IX", "X")
-        st.markdown("<div id='sec-tom-tat-xac-dinh'></div>", unsafe_allow_html=True)
-        with st.expander("XI VÀ XII. TÓM TẮT BỆNH ÁN VÀ CHẨN ĐOÁN XÁC ĐỊNH", expanded=True):
-            ui_tom_tat("XI")
-            ui_cdxd("XII", "XIII")
-    else:
-        st.markdown("<div id='sec-tom-tat-noi-khoa'></div>", unsafe_allow_html=True)
-        with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
-            ui_tom_tat("VI")
-            ui_cdsb("VII", "VIII", "IX")
-        st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
-        with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
-            ui_cls("X", "XI")
-        st.markdown("<div id='sec-chan-doan-xac-dinh'></div>", unsafe_allow_html=True)
-        with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
-            ui_cdxd("XII", "XIII")
+    # CẤU TRÚC ĐỒNG BỘ: TÓM TẮT -> CHẨN ĐOÁN SƠ BỘ -> CLS -> CHẨN ĐOÁN XÁC ĐỊNH
+    st.markdown("<div id='sec-tom-tat-so-bo'></div>", unsafe_allow_html=True)
+    with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
+        ui_tom_tat("VI")
+        ui_cdsb("VII", "VIII", "IX")
+        
+    st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
+    with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
+        ui_cls("X", "XI")
+        
+    st.markdown("<div id='sec-chan-doan-xac-dinh'></div>", unsafe_allow_html=True)
+    with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
+        ui_cdxd("XII", "XIII")
     st.markdown("<div id='sec-dieu-tri'></div>", unsafe_allow_html=True)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
