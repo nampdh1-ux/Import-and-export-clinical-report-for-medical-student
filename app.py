@@ -1931,7 +1931,15 @@ def ui_cdxd(num_xd, num_blxd):
     placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
     st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
-
+def check_section_has_data(keys):
+    """Kiểm tra xem ít nhất một trường trong danh sách có chứa dữ liệu hay không."""
+    for k in keys:
+        val = st.session_state.get(k, "")
+        if isinstance(val, (int, float)) and val > 0:
+            return True
+        if isinstance(val, str) and val.strip() and val.strip() not in ["0.0", "0", "None", "-"]:
+            return True
+    return False
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
@@ -1963,6 +1971,14 @@ with tab1:
         </details>
     </div>
     """, unsafe_allow_html=True)
+    with tab1:
+    # (Giữ nguyên phần Menu Floating TOC bên phải)
+    ...
+    
+    # -------------------------------------------------------------------------
+    # I. HÀNH CHÍNH (Mở nếu có dữ liệu hoặc mặc định luôn mở)
+    # -------------------------------------------------------------------------
+    has_hc = check_section_has_data(["ho_ten", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi"])
     st.markdown("<div id='sec-hanh-chinh'></div>", unsafe_allow_html=True)
     with st.expander("I. PHẦN HÀNH CHÍNH", expanded=True):
         c_hc1, c_hc2, c_hc3 = st.columns(3)
@@ -1980,15 +1996,29 @@ with tab1:
         with c_hc4: st.text_input("Địa chỉ", key="dia_chi", placeholder="Quận Đống Đa, TP. Hà Nội")
         with c_hc5: st.text_input("Bác sĩ hoặc Sinh viên phụ trách", key="sinh_vien", placeholder="Bác sĩ nội trú, Sinh viên Y...")
         with c_hc6: st.text_input("Ngày giờ vào viện", key="ngay_vao_vien")
+
+    # -------------------------------------------------------------------------
+    # II & III. LÝ DO VÀ BỆNH SỬ (Tự mở khi có dữ liệu)
+    # -------------------------------------------------------------------------
+    keys_bs = ["ly_do_vao_vien", "benh_su", "bs_truoc_mo", "bs_sau_mo"]
+    if loai_benh_an == "Hậu phẫu":
+        val_tm = str(st.session_state.get("bs_trong_mo", "")).strip()
+        # Không tính nếu ô Trong mổ chỉ chứa khung mẫu 5 dòng trống
+        if val_tm and val_tm != mau_5_dong.strip():
+            has_bs = True
+        else:
+            has_bs = check_section_has_data(keys_bs)
+    else:
+        has_bs = check_section_has_data(keys_bs)
+
     st.markdown("<div id='sec-ly-do-benh-su'></div>", unsafe_allow_html=True)
-    with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=True):
+    with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=has_bs):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
         
         if loai_benh_an == "Hậu phẫu":
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area("1. Tình trạng trước mổ:", key="bs_truoc_mo", height=90, placeholder="Chỉ nêu các triệu chứng chính và Chẩn đoán trước mổ...")
 
-            # Khung sườn 5 dòng chuẩn
             mau_5_dong = (
                 "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
                 "- Phương pháp mổ: \n"
@@ -1996,24 +2026,22 @@ with tab1:
                 "- Quá trình mổ: Không có biến chứng\n"
                 "- Chẩn đoán sau mổ: "
             )
-            
-            # Lấy giá trị hiện tại, nếu trống thì bắt buộc lấy mẫu 5 dòng
             val_trong_mo = st.session_state.get("bs_trong_mo", "")
             if not str(val_trong_mo).strip():
                 val_trong_mo = mau_5_dong
                 st.session_state["bs_trong_mo"] = mau_5_dong
 
-            st.text_area(
-                "2. Tình trạng trong mổ:", 
-                value=val_trong_mo, 
-                key="bs_trong_mo", 
-                height=130
-            )
-            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện, tình trạng dẫn lưu, ăn uống...")
+            st.text_area("2. Tình trạng trong mổ:", value=val_trong_mo, key="bs_trong_mo", height=130)
+            st.text_area("3. Quá trình sau mổ:", key="bs_sau_mo", height=90, placeholder="Từ lúc rời phòng hồi tỉnh đến nay: Tri giác, đau, trung tiện, tiểu tiện...")
         else:
             st.text_area("Bệnh sử:", key="benh_su", placeholder="Mô tả hoàn cảnh khởi phát, triệu chứng cơ năng điển hình...", height=130)
+
+    # -------------------------------------------------------------------------
+    # IV. TIỀN SỬ (Tự mở khi có dữ liệu)
+    # -------------------------------------------------------------------------
+    has_ts = check_section_has_data(["ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh"])
     st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
-    with st.expander("IV. TIỀN SỬ", expanded=True):
+    with st.expander("IV. TIỀN SỬ", expanded=has_ts):
         c_ts1, c_ts2 = st.columns(2)
         with c_ts1:
             st.markdown("<div class='sub-section-header'>1. Tiền sử nội khoa</div>", unsafe_allow_html=True)
@@ -2025,9 +2053,18 @@ with tab1:
             st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
             st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
+
+    # -------------------------------------------------------------------------
+    # V. THĂM KHÁM LÂM SÀNG (Tự mở khi có dữ liệu hoặc khi bấm nút điền mẫu)
+    # -------------------------------------------------------------------------
+    has_kham = check_section_has_data([
+        "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho",
+        "sh_can_nang", "sh_chieu_cao", "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu",
+        "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", "kham_than_kinh", "kham_tiet_nieu",
+        "kham_co_xuong_khop", "kham_co_quan_khac"
+    ])
     st.markdown("<div id='sec-kham-lam-sang'></div>", unsafe_allow_html=True)
-    with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=True):
-        # Không hiển thị mục "Khám vào viện" nếu là Hậu phẫu
+    with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=has_kham):
         if loai_benh_an == "Hậu phẫu":
             st.markdown("<div class='sub-section-header'>1. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
             st.text_input("Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?", key="ngay_hau_phau", placeholder="VD: Ngày thứ 3 sau mổ (Giờ thứ 72)...")
@@ -2036,7 +2073,6 @@ with tab1:
             st.text_area("Nội dung khám lúc vào viện:", key="kham_vao_vien", height=80, label_visibility="collapsed")
             st.markdown("<div class='sub-section-header'>2. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
 
-        # DANH MỤC TRIỆU CHỨNG ĐƯỢC CHUẨN HÓA (BÌNH THƯỜNG TRƯỚC, BẤT THƯỜNG SAU)
         LIST_TOAN_THAN = [
             ("🟢 Tỉnh táo, tiếp xúc tốt, GCS 15 điểm", "Bệnh nhân tỉnh táo, tiếp xúc tốt, Glasgow 15 điểm"),
             ("🟢 Da niêm mạc hồng hào", "Da niêm mạc hồng hào"),
@@ -2072,21 +2108,17 @@ with tab1:
 
         col_tt_mo_ta, col_tt_sh = st.columns([1.25, 1])
         with col_tt_mo_ta:
-            # Hàng tiêu đề kết hợp nút Popover nổi bên phải
             c_title_tt, c_pop_tt = st.columns([2, 1.2])
-            with c_title_tt:
-                st.markdown("**Mô tả khám toàn thân:**")
+            with c_title_tt: st.markdown("**Mô tả khám toàn thân:**")
             with c_pop_tt:
                 with st.popover("⚡ Chọn nhanh", use_container_width=True):
                     st.caption("Danh mục triệu chứng (Ưu tiên bình thường):")
                     for label, full_text in LIST_TOAN_THAN:
                         c_txt, c_btn = st.columns([3.5, 1.2])
-                        with c_txt:
-                            st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
-                        with c_btn:
-                            st.button("➕", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
+                        with c_txt: st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                        with c_btn: st.button("➕", key=f"add_tt_{label}", on_click=add_symptom_to_field, args=("kham_toan_than", full_text), use_container_width=True)
 
-            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=155, label_visibility="collapsed", placeholder="- Tri giác, tiếp xúc (tỉnh/mê, GCS...)\n- Da niêm mạc (hồng, nhợt, vàng da, xuất huyết dưới da...)\n- Lông tóc móng, tuyến giáp, hạch ngoại vi, phù...")
+            st.text_area("Nội dung khám toàn thân:", key="kham_toan_than", height=155, label_visibility="collapsed")
 
         with col_tt_sh:
             st.markdown("**Dấu hiệu sinh tồn (Vital Signs):**")
@@ -2114,35 +2146,28 @@ with tab1:
             c_vm, c_dl = st.columns(2)
             with c_vm:
                 c_title_vm, c_pop_vm = st.columns([2, 1.2])
-                with c_title_vm:
-                    st.markdown("**Tình trạng vết mổ:**")
+                with c_title_vm: st.markdown("**Tình trạng vết mổ:**")
                 with c_pop_vm:
                     with st.popover("⚡ Chọn nhanh", use_container_width=True):
                         st.caption("Dấu hiệu vết mổ:")
                         for label, full_text in LIST_VET_MO:
                             c_txt, c_btn = st.columns([3.5, 1.2])
-                            with c_txt:
-                                st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
-                            with c_btn:
-                                st.button("➕", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
-
-                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed", placeholder="Ví dụ: Vết mổ khô, không sưng đỏ, chân chỉ không nề...")
+                            with c_txt: st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                            with c_btn: st.button("➕", key=f"add_vm_{label}", on_click=add_symptom_to_field, args=("kham_vet_mo", full_text), use_container_width=True)
+                st.text_area("Tình trạng vết mổ:", key="kham_vet_mo", height=90, label_visibility="collapsed")
 
             with c_dl:
                 c_title_dl, c_pop_dl = st.columns([2, 1.2])
-                with c_title_dl:
-                    st.markdown("**Tình trạng ống dẫn lưu:**")
+                with c_title_dl: st.markdown("**Tình trạng ống dẫn lưu:**")
                 with c_pop_dl:
                     with st.popover("⚡ Chọn nhanh", use_container_width=True):
                         st.caption("Dấu hiệu dẫn lưu:")
                         for label, full_text in LIST_DAN_LUU:
                             c_txt, c_btn = st.columns([3.5, 1.2])
-                            with c_txt:
-                                st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
-                            with c_btn:
-                                st.button("➕", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
+                            with c_txt: st.markdown(f"<span style='font-size: 0.88rem;'>{label}</span>", unsafe_allow_html=True)
+                            with c_btn: st.button("➕", key=f"add_dl_{label}", on_click=add_symptom_to_field, args=("kham_dan_luu", full_text), use_container_width=True)
+                st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=90, label_visibility="collapsed")
 
-                st.text_area("Tình trạng ống dẫn lưu:", key="kham_dan_luu", height=90, label_visibility="collapsed", placeholder="Ví dụ: Dẫn lưu ổ bụng ra 20ml dịch hồng nhạt...")
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
@@ -2162,23 +2187,18 @@ with tab1:
             st.session_state["_msg_xoa_cq"] = True
 
         col_btn_fill, col_clear_cq = st.columns([2, 1])
-        with col_btn_fill:
-            st.button("⚡ Điền khám bình thường cho các cơ quan để trống", on_click=xu_ly_dien_kham_binh_thuong, use_container_width=True)
-        with col_clear_cq:
-            st.button("🔄 Đặt lại các cơ quan", on_click=xu_ly_xoa_cac_co_quan, use_container_width=True)
+        with col_btn_fill: st.button("⚡ Điền khám bình thường cho các cơ quan để trống", on_click=xu_ly_dien_kham_binh_thuong, use_container_width=True)
+        with col_clear_cq: st.button("🔄 Đặt lại các cơ quan", on_click=xu_ly_xoa_cac_co_quan, use_container_width=True)
 
         if "_msg_dien_cq" in st.session_state:
             d = st.session_state.pop("_msg_dien_cq")
-            if d > 0:
-                st.toast(f"Đã điền mẫu cho {d} cơ quan còn lại!", icon="✨")
-            else:
-                st.info("Tất cả các cơ quan đều đã có dữ liệu.")
+            if d > 0: st.toast(f"Đã điền mẫu cho {d} cơ quan còn lại!", icon="✨")
+            else: st.info("Tất cả các cơ quan đều đã có dữ liệu.")
 
         if st.session_state.pop("_msg_xoa_cq", False):
             st.toast("Đã làm trống các ô khám cơ quan!", icon="🧹")
-            
-        st.markdown("---")
 
+        st.markdown("---")
         ORGAN_DEF = [{"key": "kham_tuan_hoan", "name": "Tuần hoàn"}, {"key": "kham_ho_hap", "name": "Hô hấp"}, {"key": "kham_tieu_hoa", "name": "Tiêu hóa"}, {"key": "kham_than_kinh", "name": "Thần kinh"}, {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"}, {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"}, {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"}]
         selected_organ_name = st.selectbox("Chọn cơ quan chuyên khoa ưu tiên:", ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF], index=0, key="uu_tien_co_quan")
 
@@ -2192,9 +2212,9 @@ with tab1:
             c_cq1, c_cq2 = st.columns(2)
             half = len(others) // 2 + len(others) % 2
             with c_cq1:
-                for idx, org in enumerate(others[:half]): st.text_area(f"{org['name']}:", key=org["key"], height=85)
+                for org in others[:half]: st.text_area(f"{org['name']}:", key=org["key"], height=85)
             with c_cq2:
-                for idx, org in enumerate(others[half:]): st.text_area(f"{org['name']}:", key=org["key"], height=85)
+                for org in others[half:]: st.text_area(f"{org['name']}:", key=org["key"], height=85)
         else:
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
@@ -2207,21 +2227,41 @@ with tab1:
                 st.text_area("Cơ xương khớp:", key="kham_co_xuong_khop", height=85)
                 st.text_area("Các cơ quan khác:", key="kham_co_quan_khac", height=85)
 
-    # CẤU TRÚC ĐỒNG BỘ: TÓM TẮT -> CHẨN ĐOÁN SƠ BỘ -> CLS -> CHẨN ĐOÁN XÁC ĐỊNH
+    # -------------------------------------------------------------------------
+    # VI ĐẾN IX. TÓM TẮT & BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ
+    # -------------------------------------------------------------------------
+    has_tt_sobo = check_section_has_data(["tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan"])
     st.markdown("<div id='sec-tom-tat-so-bo'></div>", unsafe_allow_html=True)
-    with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=True):
+    with st.expander("VI ĐẾN IX. TÓM TẮT VÀ BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ", expanded=has_tt_sobo):
         ui_tom_tat("VI")
         ui_cdsb("VII", "VIII", "IX")
-        
+
+    # -------------------------------------------------------------------------
+    # X VÀ XI. CẬN LÂM SÀNG
+    # -------------------------------------------------------------------------
+    cls_keys = ["cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac"]
+    for i in range(st.session_state.get("so_hang_cls", 3)):
+        cls_keys.extend([f"cls_kq_{i}", f"cls_pg_{i}"])
+    has_cls = check_section_has_data(cls_keys)
+
     st.markdown("<div id='sec-can-lam-sang'></div>", unsafe_allow_html=True)
-    with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=True):
+    with st.expander("X VÀ XI. CẬN LÂM SÀNG", expanded=has_cls):
         ui_cls("X", "XI")
-        
+
+    # -------------------------------------------------------------------------
+    # XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN
+    # -------------------------------------------------------------------------
+    has_cdxd = check_section_has_data(["chan_doan_xac_dinh", "bien_luan_xac_dinh"])
     st.markdown("<div id='sec-chan-doan-xac-dinh'></div>", unsafe_allow_html=True)
-    with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=True):
+    with st.expander("XII VÀ XIII. CHẨN ĐOÁN XÁC ĐỊNH VÀ BIỆN LUẬN", expanded=has_cdxd):
         ui_cdxd("XII", "XIII")
+
+    # -------------------------------------------------------------------------
+    # XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ
+    # -------------------------------------------------------------------------
+    has_dt = check_section_has_data(["dt_muc_tieu", "dt_cu_the", "dt_theo_doi"])
     st.markdown("<div id='sec-dieu-tri'></div>", unsafe_allow_html=True)
-    with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=True):
+    with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=has_dt):
         if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
             else:
@@ -2248,8 +2288,13 @@ with tab1:
         with c_mt: st.text_area("1. Mục tiêu điều trị:", key="dt_muc_tieu", height=220)
         with c_ct: st.text_area("2. Điều trị cụ thể:", key="dt_cu_the", height=220)
         with c_td: st.text_area("3. Theo dõi:", key="dt_theo_doi", height=220)
+
+    # -------------------------------------------------------------------------
+    # XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN
+    # -------------------------------------------------------------------------
+    has_tltv = check_section_has_data(["tien_luong", "tu_van"])
     st.markdown("<div id='sec-tien-luong-tu-van'></div>", unsafe_allow_html=True)
-    with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=True):
+    with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=has_tltv):
         if st.button("🪄 Làm phép", type="primary", key="btn_ai_tienluong"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
             else:
@@ -2272,7 +2317,6 @@ with tab1:
         c_pl, c_tv = st.columns(2)
         with c_pl: st.text_area("XV. Tiên lượng:", key="tien_luong", height=250)
         with c_tv: st.text_area("XVI. Tư vấn:", key="tu_van", height=250)
-
 # Gom dữ liệu để xuất file
 data_benh_an = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
 data_benh_an["loai_benh_an"] = loai_benh_an
