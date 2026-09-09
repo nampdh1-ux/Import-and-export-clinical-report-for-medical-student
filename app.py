@@ -671,6 +671,41 @@ def format_bullet_points(text):
             else: formatted_lines.append(cleaned)
     return "\n".join(formatted_lines)
 
+def format_history(text):
+    if not text or not str(text).strip(): return "Chưa ghi nhận bất thường"
+    return format_bullet_points(text)
+
+def to_roman(number):
+    roman_values = ((10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"))
+    result = ""
+    for value, symbol in roman_values:
+        result += symbol * (number // value)
+        number %= value
+    return result
+
+def get_section_numbers(data):
+    section_numbers = {}
+    next_number = 6
+
+    def add_section(key, include=True):
+        nonlocal next_number
+        if include:
+            section_numbers[key] = to_roman(next_number)
+            next_number += 1
+
+    add_section("tom_tat")
+    add_section("chan_doan_so_bo")
+    add_section("chan_doan_phan_biet", bool(str(data.get("chan_doan_phan_biet", "")).strip()))
+    add_section("bien_luan", bool(str(data.get("bien_luan", "")).strip()))
+    add_section("de_xuat_cls")
+    add_section("cls_da_co")
+    add_section("chan_doan_xac_dinh")
+    add_section("bien_luan_xac_dinh", bool(str(data.get("bien_luan_xac_dinh", "")).strip()))
+    add_section("dieu_tri")
+    add_section("tien_luong", bool(str(data.get("tien_luong", "")).strip()))
+    add_section("tu_van", bool(str(data.get("tu_van", "")).strip()))
+    return section_numbers
+
 NORMAL_ORGAN_FINDINGS = {
     "kham_tuan_hoan": "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n- Dấu hiệu Hartzer (-), không có rung miêu.\n- Nhịp tim đều, tần số trùng nhịp mạch.\n- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n- Không có tiếng thổi bệnh lý ở các ổ van tim.\n- Mạch ngoại vi bắt rõ, đều hai bên.",
     "kham_ho_hap": "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n- Rung thanh đều hai bên phế trường.\n- Gõ trong hai bên phổi.\n- Rì rào phế nang êm dịu hai phế trường.\n- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy.",
@@ -954,13 +989,13 @@ def export_pdf(data):
     # IV. TIỀN SỬ
     pdf.add_section_header("IV. TIỀN SỬ")
     pdf.add_subsection_header("1. Tiền sử nội khoa:")
-    pdf.add_body_text(format_bullet_points(data.get('ts_noi_khoa', '')))
+    pdf.add_body_text(format_history(data.get('ts_noi_khoa', '')))
     pdf.add_subsection_header("2. Tiền sử ngoại khoa và dị ứng:")
-    pdf.add_body_text(format_bullet_points(data.get('ts_ngoai_khoa', '')))
+    pdf.add_body_text(format_history(data.get('ts_ngoai_khoa', '')))
     pdf.add_subsection_header("3. Lối sống và thói quen:")
-    pdf.add_body_text(format_bullet_points(data.get('ts_loi_song', '')))
+    pdf.add_body_text(format_history(data.get('ts_loi_song', '')))
     pdf.add_subsection_header("4. Tiền sử gia đình:")
-    pdf.add_body_text(format_bullet_points(data.get('ts_gia_dinh', '')))
+    pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
 
     # V. THĂM KHÁM LÂM SÀNG
     pdf.add_section_header("V. THĂM KHÁM LÂM SÀNG")
@@ -1045,8 +1080,12 @@ def export_pdf(data):
         pdf.line(x, y, x + text_w, y)
         pdf.add_body_text(content)
 
-    # ĐỊNH NGHĨA SỐ LA MÃ THỐNG NHẤT
-    num_tt, num_cdsb, num_cdpb, num_blsb, num_dxcls, num_cls, num_cdxd, num_blxd = "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"
+    section_numbers = get_section_numbers(data)
+    num_tt = section_numbers["tom_tat"]
+    num_cdsb = section_numbers["chan_doan_so_bo"]
+    num_dxcls = section_numbers["de_xuat_cls"]
+    num_cls = section_numbers["cls_da_co"]
+    num_cdxd = section_numbers["chan_doan_xac_dinh"]
 
     def pdf_tt():
         pdf.add_section_header(f"{num_tt}. TÓM TẮT BỆNH ÁN")
@@ -1055,11 +1094,12 @@ def export_pdf(data):
     def pdf_cdsb():
         pdf.add_section_header(f"{num_cdsb}. CHẨN ĐOÁN SƠ BỘ")
         pdf.add_body_text(data.get('chan_doan_so_bo', ''))
-        pdf.add_section_header(f"{num_cdpb}. CHẨN ĐOÁN PHÂN BIỆT")
-        pdf.add_body_text(data.get('chan_doan_phan_biet', ''))
+        if "chan_doan_phan_biet" in section_numbers:
+            pdf.add_section_header(f"{section_numbers['chan_doan_phan_biet']}. CHẨN ĐOÁN PHÂN BIỆT")
+            pdf.add_body_text(data.get('chan_doan_phan_biet', ''))
         bl = str(data.get('bien_luan', '')).strip()
         if bl:
-            pdf.add_section_header(f"{num_blsb}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
+            pdf.add_section_header(f"{section_numbers['bien_luan']}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
             pdf.add_body_text(bl)
 
     def pdf_cls():
@@ -1089,7 +1129,7 @@ def export_pdf(data):
         pdf.add_highlight_text(format_bullet_points(data.get('chan_doan_xac_dinh', '')))
         noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
         if noi_dung_bl_xd:
-            pdf.add_section_header(f"{num_blxd}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
+            pdf.add_section_header(f"{section_numbers['bien_luan_xac_dinh']}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
             pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
 
     # THỨ TỰ THỐNG NHẤT CHO CẢ TIỀN PHẪU VÀ HẬU PHẪU
@@ -1098,7 +1138,7 @@ def export_pdf(data):
     pdf_cls()
     pdf_cdxd()
 
-    pdf.add_section_header("XIV. ĐIỀU TRỊ")
+    pdf.add_section_header(f"{section_numbers['dieu_tri']}. ĐIỀU TRỊ")
     pdf.add_subsection_header("1. Mục tiêu điều trị:")
     pdf.add_body_text(format_bullet_points(data.get('dt_muc_tieu', '')))
     pdf.add_subsection_header("2. Điều trị cụ thể:")
@@ -1108,12 +1148,12 @@ def export_pdf(data):
 
     noi_dung_tien_luong = str(data.get("tien_luong", "")).strip()
     if noi_dung_tien_luong:
-        pdf.add_section_header("XV. TIÊN LƯỢNG")
+        pdf.add_section_header(f"{section_numbers['tien_luong']}. TIÊN LƯỢNG")
         pdf.add_body_text(format_bullet_points(noi_dung_tien_luong))
 
     noi_dung_tu_van = str(data.get("tu_van", "")).strip()
     if noi_dung_tu_van:
-        ten_de_muc_tu_van = "XVI. TƯ VẤN" if noi_dung_tien_luong else "XV. TƯ VẤN"
+        ten_de_muc_tu_van = f"{section_numbers['tu_van']}. TƯ VẤN"
         pdf.add_section_header(ten_de_muc_tu_van)
         pdf.add_body_text(format_bullet_points(noi_dung_tu_van))
 
@@ -1250,13 +1290,13 @@ def export_docx(data):
     # IV. TIỀN SỬ
     add_sec_title("IV. TIỀN SỬ")
     add_subsec_title("1. Tiền sử nội khoa:")
-    add_bullet_list(data.get('ts_noi_khoa', ''))
+    add_bullet_list(format_history(data.get('ts_noi_khoa', '')))
     add_subsec_title("2. Tiền sử ngoại khoa & dị ứng:")
-    add_bullet_list(data.get('ts_ngoai_khoa', ''))
+    add_bullet_list(format_history(data.get('ts_ngoai_khoa', '')))
     add_subsec_title("3. Lối sống & thói quen:")
-    add_bullet_list(data.get('ts_loi_song', ''))
+    add_bullet_list(format_history(data.get('ts_loi_song', '')))
     add_subsec_title("4. Tiền sử gia đình:")
-    add_bullet_list(data.get('ts_gia_dinh', ''))
+    add_bullet_list(format_history(data.get('ts_gia_dinh', '')))
 
     # V. THĂM KHÁM LÂM SÀNG
     add_sec_title("V. THĂM KHÁM LÂM SÀNG")
@@ -1364,20 +1404,23 @@ def export_docx(data):
     else:
         add_normal_text("Chưa ghi nhận thông tin.")
 
+    section_numbers = get_section_numbers(data)
+
     # VII & VIII & IX. CHẨN ĐOÁN SƠ BỘ, PHÂN BIỆT & BIỆN LUẬN
-    add_sec_title("VII. CHẨN ĐOÁN SƠ BỘ")
+    add_sec_title(f"{section_numbers['chan_doan_so_bo']}. CHẨN ĐOÁN SƠ BỘ")
     add_normal_text(data.get('chan_doan_so_bo', ''))
 
-    add_sec_title("VIII. CHẨN ĐOÁN PHÂN BIỆT")
-    add_normal_text(data.get('chan_doan_phan_biet', ''))
+    if "chan_doan_phan_biet" in section_numbers:
+        add_sec_title(f"{section_numbers['chan_doan_phan_biet']}. CHẨN ĐOÁN PHÂN BIỆT")
+        add_normal_text(data.get('chan_doan_phan_biet', ''))
 
     bl_sb = str(data.get('bien_luan', '')).strip()
     if bl_sb:
-        add_sec_title("IX. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
+        add_sec_title(f"{section_numbers['bien_luan']}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
         add_bullet_list(bl_sb)
 
     # X. ĐỀ XUẤT CẬN LÂM SÀNG
-    add_sec_title("X. ĐỀ XUẤT CẬN LÂM SÀNG")
+    add_sec_title(f"{section_numbers['de_xuat_cls']}. ĐỀ XUẤT CẬN LÂM SÀNG")
     nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if loai_ba == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
     add_subsec_title(nhan_cls1)
     add_bullet_list(data.get('cls_dx_xac_dinh', ''))
@@ -1388,7 +1431,7 @@ def export_docx(data):
     add_bullet_list(data.get('cls_dx_khac', ''))
 
     # XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG WORD KÈM ẢNH NẾU CÓ)
-    add_sec_title("XI. CẬN LÂM SÀNG ĐÃ CÓ")
+    add_sec_title(f"{section_numbers['cls_da_co']}. CẬN LÂM SÀNG ĐÃ CÓ")
     cls_rows = []
     so_hang = data.get("so_hang_cls", 3)
     for i in range(so_hang):
@@ -1447,17 +1490,17 @@ def export_docx(data):
                         pass
 
     # XII. CHẨN ĐOÁN XÁC ĐỊNH
-    add_sec_title("XII. CHẨN ĐOÁN XÁC ĐỊNH")
+    add_sec_title(f"{section_numbers['chan_doan_xac_dinh']}. CHẨN ĐOÁN XÁC ĐỊNH")
     add_normal_text(data.get('chan_doan_xac_dinh', ''), bold=True, red=True)
 
     # XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH
     noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
     if noi_dung_bl_xd:
-        add_sec_title("XIII. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
+        add_sec_title(f"{section_numbers['bien_luan_xac_dinh']}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
         add_bullet_list(noi_dung_bl_xd)
 
     # XIV. ĐIỀU TRỊ
-    add_sec_title("XIV. ĐIỀU TRỊ")
+    add_sec_title(f"{section_numbers['dieu_tri']}. ĐIỀU TRỊ")
     add_subsec_title("1. Mục tiêu điều trị:")
     add_bullet_list(data.get('dt_muc_tieu', ''))
     add_subsec_title("2. Điều trị cụ thể:")
@@ -1468,12 +1511,12 @@ def export_docx(data):
     # XV. TIÊN LƯỢNG & XVI. TƯ VẤN
     tl_str = str(data.get("tien_luong", "")).strip()
     if tl_str:
-        add_sec_title("XV. TIÊN LƯỢNG")
+        add_sec_title(f"{section_numbers['tien_luong']}. TIÊN LƯỢNG")
         add_bullet_list(tl_str)
 
     tv_str = str(data.get("tu_van", "")).strip()
     if tv_str:
-        ten_de_muc_tv = "XVI. TƯ VẤN" if tl_str else "XV. TƯ VẤN"
+        ten_de_muc_tv = f"{section_numbers['tu_van']}. TƯ VẤN"
         add_sec_title(ten_de_muc_tv)
         add_bullet_list(tv_str)
 
