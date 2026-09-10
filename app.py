@@ -1925,7 +1925,6 @@ def ui_tom_tat(num):
                     st.session_state["tom_tat"] = cau_dan_moi + "\n" + current_tt
             else:
                 st.session_state["tom_tat"] = cau_dan_moi
-            st.rerun()
 
     st.text_area(
         f"{num}. Tóm tắt bệnh án:", 
@@ -1998,10 +1997,8 @@ def ui_cdsb(num_sb, num_pb, num_bl):
                         st.session_state["chan_doan_phan_biet"] = parts[0].replace("[CHAN_DOAN_PHAN_BIET]", "").strip()
                         st.session_state["bien_luan"] = parts[1].strip()
                         st.toast("✨ Đã tạo gợi ý Chẩn đoán phân biệt & Biện luận!", icon="🪄")
-                        st.rerun()
                     else:
                         st.session_state["chan_doan_phan_biet"] = res_text.strip()
-                        st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi AI: {e}")
 
@@ -2091,7 +2088,6 @@ def ui_cls(num_dx, num_kq):
                         st.session_state["cls_dx_dieu_tri"] = part_dt
                         st.session_state["cls_dx_khac"] = part_khac
                         st.success("✨ Đã gợi ý danh mục CLS theo dõi sau mổ thành công!")
-                        st.rerun()
                     else:
                         st.error("AI trả về sai định dạng cấu trúc nhãn.")
                 except Exception as e:
@@ -2153,7 +2149,6 @@ def ui_cls(num_dx, num_kq):
                 progress_bar.empty()
                 if thanh_cong > 0:
                     st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
-                    st.rerun()
         st.divider()
 
     for i in range(st.session_state["so_hang_cls"]):
@@ -2561,7 +2556,6 @@ with tab1:
                                 current_exam = str(st.session_state.get(fav["key"], "")).strip()
                                 st.session_state[fav["key"]] = f"{current_exam}\n{suggestion}".strip() if current_exam else suggestion
                                 st.toast(f"Đã điền khung khám {fav['name']}. Bạn hãy bổ sung kết quả thực tế.", icon="🩺")
-                                st.rerun()
                             else:
                                 st.error("AI không trả về nội dung khám.")
                         except Exception as e:
@@ -2650,7 +2644,6 @@ with tab1:
                             st.session_state["dt_cu_the"] = p2[0].strip()
                             st.session_state["dt_theo_doi"] = p2[1].strip()
                             st.success("✨ Đã lên phác đồ điều trị thành công!")
-                            st.rerun()
                         else: st.error("AI phản hồi sai cấu trúc.")
                     except Exception as e: st.error(f"Lỗi AI: {e}")
 
@@ -2680,7 +2673,6 @@ with tab1:
                             st.session_state["tien_luong"] = parts[0].replace("[TIEN_LUONG]", "").strip()
                             st.session_state["tu_van"] = parts[1].strip()
                             st.success("✨ Đã tạo gợi ý thành công!")
-                            st.rerun() 
                         else: st.error("AI trả về sai định dạng.")
                     except Exception as e: st.error(f"Lỗi AI: {e}")
 
