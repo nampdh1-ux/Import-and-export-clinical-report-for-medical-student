@@ -212,6 +212,8 @@ FIELDS_TO_SAVE = [
     "ly_do_vao_vien", "benh_su", 
     "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", 
     "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa",
+    "ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung",
+    "ts_phat_trien", "ts_dich_te", "ts_di_ung",
     "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
     "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
     "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
@@ -713,6 +715,9 @@ def get_benh_su_text_for_ai():
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
     return st.session_state.get("benh_su")
 
+def is_pediatric_mode(mode):
+    return mode == "Nhi khoa"
+
 def is_san_phu_khoa_mode(mode):
     return mode in ["Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"]
 
@@ -720,11 +725,36 @@ def is_postop_mode(mode):
     return mode in ["Hậu phẫu", "Sản phụ khoa / Hậu phẫu"]
 
 def clinical_title(mode):
+    if is_pediatric_mode(mode):
+        return "BỆNH ÁN NHI KHOA"
     if mode == "Hậu phẫu" or mode == "Sản phụ khoa / Hậu phẫu":
         return "BỆNH ÁN HẬU PHẪU" if mode == "Hậu phẫu" else "BỆNH ÁN SẢN PHỤ KHOA (HẬU PHẪU)"
     if mode == "Sản phụ khoa / Tiền phẫu":
         return "BỆNH ÁN SẢN PHỤ KHOA (TIỀN PHẪU)"
     return "BỆNH ÁN LÂM SÀNG"
+
+def pediatric_history_context():
+    history_labels = [
+        ("Tiền sử bệnh lý", "ts_benh_ly"),
+        ("Tiền sử dinh dưỡng", "ts_dinh_duong"),
+        ("Tiền sử sản khoa", "ts_san_khoa_nhi"),
+        ("Tiền sử tiêm chủng", "ts_tiem_chung"),
+        ("Tiền sử phát triển tâm thần vận động", "ts_phat_trien"),
+        ("Tiền sử dịch tễ", "ts_dich_te"),
+        ("Tiền sử dị ứng", "ts_di_ung"),
+        ("Tiền sử gia đình", "ts_gia_dinh"),
+    ]
+    return "\n".join(f"{label}: {st.session_state.get(key, '')}" for label, key in history_labels)
+
+def clinical_history_context(mode):
+    if is_pediatric_mode(mode):
+        return pediatric_history_context()
+    return (
+        f"Tiền sử nội khoa: {st.session_state.get('ts_noi_khoa')}\n"
+        f"Tiền sử ngoại khoa và dị ứng: {st.session_state.get('ts_ngoai_khoa')}\n"
+        f"Lối sống và thói quen: {st.session_state.get('ts_loi_song')}\n"
+        f"Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}"
+    )
 def add_symptom_to_field(field_key, symptom_text):
     """Hàm chèn an toàn triệu chứng vào ô text_area mà không gây lỗi session_state"""
     val = str(st.session_state.get(field_key, "")).strip()
@@ -946,6 +976,32 @@ DETAILED_ORGAN_TEMPLATES = {
     )
 }
 
+PEDIATRIC_NORMAL_ORGAN_FINDINGS = {
+    "kham_tuan_hoan": "- Lồng ngực cân đối, không biến dạng, không co kéo, không có ổ đập bất thường.\n- Mỏm tim ở vị trí phù hợp theo tuổi, không có rung miêu.\n- Nhịp tim đều, tần số phù hợp tuổi; T1, T2 rõ, không nghe tiếng thổi bệnh lý.\n- Mạch ngoại vi rõ, đều hai bên, đầu chi ấm, thời gian làm đầy mao mạch dưới 2 giây.",
+    "kham_ho_hap": "- Trẻ tỉnh, tự thở, lồng ngực cân đối, di động đều, không rút lõm lồng ngực hay phập phồng cánh mũi.\n- Không tím tái, không thở rên hoặc thở khò khè.\n- Rì rào phế nang rõ hai bên, không nghe ran bệnh lý.",
+    "kham_tieu_hoa": "- Bụng mềm, không chướng, rốn sạch, không quai ruột nổi.\n- Gan có thể sờ dưới bờ sườn phải tùy tuổi; lách không to bất thường.\n- Không phản ứng thành bụng, nhu động ruột trong giới hạn bình thường.",
+    "kham_than_kinh": "- Trẻ tỉnh, đáp ứng phù hợp lứa tuổi; đánh giá Glasgow hoặc AVPU khi cần.\n- Không dấu màng não, không yếu liệt khu trú, trương lực và phản xạ phù hợp tuổi.\n- Với trẻ nhỏ: thóp trước phẳng, vòng đầu và tương tác phù hợp lứa tuổi nếu có chỉ định.",
+    "kham_tiet_nieu": "- Vùng hông lưng không sưng nề, không đau khi khám.\n- Không sờ thấy thận to bất thường, không cầu bàng quang.\n- Lượng nước tiểu và tình trạng tiểu tiện phù hợp tuổi.",
+    "kham_co_xuong_khop": "- Tư thế và vận động phù hợp lứa tuổi, không biến dạng chi hay sưng nóng đỏ khớp.\n- Trương lực, cơ lực và tầm vận động phù hợp tuổi; không đau dọc cột sống.",
+    "kham_co_quan_khac": "- Tai - mũi - họng: niêm mạc hồng, không xuất tiết bất thường.\n- Răng miệng và da niêm mạc chưa phát hiện bất thường.\n- Không ghi nhận hạch ngoại vi hoặc dấu hiệu nội tiết bất thường.",
+}
+
+PEDIATRIC_DETAILED_ORGAN_TEMPLATES = {
+    "kham_tuan_hoan": "- NHÌN: Lồng ngực, sắc da, đầu chi, dấu suy tim và tím tái.\n- SỜ: Mỏm tim theo tuổi, rung miêu, mạch ngoại vi, thời gian làm đầy mao mạch.\n- NGHE: Tần số và nhịp tim theo tuổi, T1/T2, tiếng thổi và tiếng tim bất thường.",
+    "kham_ho_hap": "- NHÌN: Tần số thở theo tuổi, kiểu thở, co kéo cơ hô hấp phụ, phập phồng cánh mũi, tím tái.\n- SỜ/GÕ: Độ giãn nở lồng ngực, rung thanh và vùng gõ bất thường khi phù hợp lứa tuổi.\n- NGHE: Rì rào phế nang, ran ẩm, ran rít, ran ngáy, tiếng thở rít.",
+    "kham_tieu_hoa": "- NHÌN: Bụng chướng, rốn, tuần hoàn bàng hệ, quai ruột nổi, tình trạng dinh dưỡng.\n- SỜ/GÕ: Độ mềm bụng, phản ứng thành bụng, gan lách theo tuổi, khối bất thường.\n- NGHE: Nhu động ruột và tiếng thổi mạch máu khi có chỉ định.",
+    "kham_than_kinh": "- TRI GIÁC: Đáp ứng với người chăm sóc, AVPU/Glasgow theo tuổi.\n- TRẺ NHỎ: Thóp, vòng đầu, giao tiếp mắt, trương lực và phản xạ nguyên thủy theo tuổi.\n- TRẺ LỚN: Dấu màng não, dây thần kinh sọ, cơ lực, phản xạ, cảm giác và phối hợp động tác.",
+    "kham_tiet_nieu": "- NHÌN: Phù, màu da, vùng hông lưng và hạ vị.\n- SỜ/GÕ: Đau vùng thận, thận to, cầu bàng quang, điểm đau niệu quản khi phù hợp tuổi.\n- GHI NHẬN: Lượng nước tiểu, số lần tiểu và bất thường đường tiểu.",
+    "kham_co_xuong_khop": "- ĐÁNH GIÁ: Tư thế, dáng đi và vận động theo lứa tuổi.\n- KHÁM: Sưng, nóng, đỏ, đau khớp; tầm vận động; cơ lực, trương lực và dấu hiệu viêm cơ.\n- TRẺ NHỎ: Khả năng lẫy, ngồi, đứng, đi và vận động đối xứng.",
+    "kham_co_quan_khac": "- TAI - MŨI - HỌNG: Tai, mũi, họng, amidan và hạch cổ.\n- RĂNG MIỆNG: Niêm mạc, răng, lợi và tổn thương miệng.\n- DA - NIÊM MẠC: Ban, xuất huyết, vàng da, xanh tái, dấu mất nước và hạch ngoại vi.",
+}
+
+def organ_findings_for_mode(mode):
+    return PEDIATRIC_NORMAL_ORGAN_FINDINGS if is_pediatric_mode(mode) else NORMAL_ORGAN_FINDINGS
+
+def detailed_organ_templates_for_mode(mode):
+    return PEDIATRIC_DETAILED_ORGAN_TEMPLATES if is_pediatric_mode(mode) else DETAILED_ORGAN_TEMPLATES
+
 class BenhAnPDF(FPDF):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1117,7 +1173,22 @@ def export_pdf(data):
     else:
         pdf.add_body_text(data.get('benh_su', ''))
 
-    if not is_san_phu_khoa_mode(pdf.loai_ba):
+    if is_pediatric_mode(pdf.loai_ba):
+        pdf.add_section_header("IV. TIỀN SỬ")
+        pediatric_history = [
+            ("1. Tiền sử bệnh lý:", "ts_benh_ly"),
+            ("2. Tiền sử dinh dưỡng:", "ts_dinh_duong"),
+            ("3. Tiền sử sản khoa:", "ts_san_khoa_nhi"),
+            ("4. Tiền sử tiêm chủng:", "ts_tiem_chung"),
+            ("5. Tiền sử phát triển tâm thần vận động:", "ts_phat_trien"),
+            ("6. Tiền sử dịch tễ:", "ts_dich_te"),
+            ("7. Tiền sử dị ứng:", "ts_di_ung"),
+            ("8. Tiền sử gia đình:", "ts_gia_dinh"),
+        ]
+        for title, key in pediatric_history:
+            pdf.add_subsection_header(title)
+            pdf.add_body_text(format_history(data.get(key, '')))
+    elif not is_san_phu_khoa_mode(pdf.loai_ba):
         pdf.add_section_header("IV. TIỀN SỬ")
         pdf.add_subsection_header("1. Tiền sử nội khoa:")
         pdf.add_body_text(format_history(data.get('ts_noi_khoa', '')))
@@ -1429,7 +1500,22 @@ def export_docx(data):
     else:
         add_normal_text(data.get('benh_su', ''))
 
-    if not is_san_phu_khoa_mode(loai_ba):
+    if is_pediatric_mode(loai_ba):
+        add_sec_title("IV. TIỀN SỬ")
+        pediatric_history = [
+            ("1. Tiền sử bệnh lý:", "ts_benh_ly"),
+            ("2. Tiền sử dinh dưỡng:", "ts_dinh_duong"),
+            ("3. Tiền sử sản khoa:", "ts_san_khoa_nhi"),
+            ("4. Tiền sử tiêm chủng:", "ts_tiem_chung"),
+            ("5. Tiền sử phát triển tâm thần vận động:", "ts_phat_trien"),
+            ("6. Tiền sử dịch tễ:", "ts_dich_te"),
+            ("7. Tiền sử dị ứng:", "ts_di_ung"),
+            ("8. Tiền sử gia đình:", "ts_gia_dinh"),
+        ]
+        for title, key in pediatric_history:
+            add_subsec_title(title)
+            add_bullet_list(format_history(data.get(key, '')))
+    elif not is_san_phu_khoa_mode(loai_ba):
         add_sec_title("IV. TIỀN SỬ")
         add_subsec_title("1. Tiền sử nội khoa:")
         add_bullet_list(format_history(data.get('ts_noi_khoa', '')))
@@ -1770,9 +1856,9 @@ with st.sidebar:
 # GIAO DIỆN CHÍNH (3 TABS)
 # ==============================================================================
 st.title("Bệnh Án Lâm Sàng")
-st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu, Sản phụ khoa).")
+st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu, Sản phụ khoa, Nhi khoa).")
 
-loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"], horizontal=True, key="loai_benh_an")
+loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Nhi khoa", "Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"], horizontal=True, key="loai_benh_an")
 initialize_postop_widgets(loai_benh_an)
 
 # Khai báo Dictionary lưu trữ ảnh toàn cục
@@ -1787,7 +1873,8 @@ def generate_intro_tom_tat_noi_khoa():
     tuoi_str = f"{tuoi} tuổi" if tuoi else ""
     
     ts_list = []
-    for k in ["ts_noi_khoa", "ts_ngoai_khoa"]:
+    history_keys = ["ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung", "ts_phat_trien", "ts_dich_te", "ts_di_ung", "ts_gia_dinh"] if is_pediatric_mode(loai_benh_an) else ["ts_noi_khoa", "ts_ngoai_khoa"]
+    for k in history_keys:
         val = str(st.session_state.get(k, "")).strip()
         if val:
             lines = [l.strip().lstrip("-*• ") for l in val.split("\n") if l.strip()]
@@ -2009,7 +2096,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
                         f"Bệnh nhân: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
                         f"Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}\n"
                         f"Bệnh sử: {benh_su_str}\n"
-                        f"Tiền sử: {st.session_state.get('ts_noi_khoa')} | Ngoại khoa: {st.session_state.get('ts_ngoai_khoa')}\n"
+                        f"{clinical_history_context(loai_benh_an)}\n"
                         f"Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}\n"
                         f"Khám toàn thân: {st.session_state.get('kham_toan_than')}\n"
                     )
@@ -2023,7 +2110,8 @@ def ui_cdsb(num_sb, num_pb, num_bl):
 
                     model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                     prompt_cdpb = f"""
-                    Bạn là một bác sĩ lâm sàng thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra:
+                    Bạn là {'bác sĩ nhi khoa' if is_pediatric_mode(loai_benh_an) else 'bác sĩ lâm sàng'} thực thụ và giàu kinh nghiệm. Hãy nhìn vào toàn thể ca bệnh dưới đây, phân tích logic giữa bệnh cảnh, triệu chứng cơ năng, thực thể và chẩn đoán sơ bộ để đưa ra:
+                    {'Khi phân tích bệnh nhi, phải đối chiếu tuổi, mốc phát triển, dinh dưỡng, tiêm chủng và bệnh thường gặp theo lứa tuổi; không dùng ngưỡng người lớn.' if is_pediatric_mode(loai_benh_an) else ''}
                     1. Danh sách CHẨN ĐOÁN PHÂN BIỆT (Differential Diagnosis): sắp xếp thứ tự từ khả năng cao nhất đến thấp hơn, từ bệnh lý cấp cứu nguy hiểm đến ít cấp cứu hơn.
                     2. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ: Lập luận chặt chẽ vì sao nghĩ đến chẩn đoán sơ bộ và vì sao cần phân biệt với các bệnh lý nêu trên.
 
@@ -2107,6 +2195,23 @@ def ui_cls(num_dx, num_kq):
                         (Các CLS theo dõi hồi phục và định hướng điều trị/chăm sóc: VD Tổng phân tích tế bào máu, Điện giải đồ, CRP, Ure, Creatinine, đường huyết...)
                         [CLS_KHAC]
                         (Cấy vi sinh dịch dẫn lưu/mủ vết mổ làm kháng sinh đồ nếu có chỉ định, khí máu động mạch, đông máu toàn bộ...)
+                        """
+                    elif is_pediatric_mode(loai_benh_an):
+                        context_cls = (
+                            f"LOẠI BỆNH ÁN: NHI KHOA\n"
+                            f"Bệnh nhi: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                            f"Bệnh sử: {benh_su_str}\n"
+                            f"{clinical_history_context(loai_benh_an)}\n"
+                            f"Khám toàn thân & Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}, Nhịp thở {st.session_state.get('sh_nhip_tho')}, Cân nặng {st.session_state.get('sh_can_nang')}, Chiều cao {st.session_state.get('sh_chieu_cao')}\n"
+                            f"Khám: {st.session_state.get('kham_toan_than')}\n"
+                            f"Chẩn đoán sơ bộ: {st.session_state.get('chan_doan_so_bo')}\n"
+                            f"Chẩn đoán phân biệt: {st.session_state.get('chan_doan_phan_biet')}"
+                        )
+                        prompt_cls = f"""
+                        Bạn là bác sĩ nhi khoa. Dựa vào ca bệnh ({context_cls}), hãy chỉ định cận lâm sàng phù hợp với tuổi và cân nặng của bệnh nhi, cân nhắc nguy cơ bức xạ và tránh lạm dụng xét nghiệm.
+                        Ưu tiên xét nghiệm cần thiết để chẩn đoán, đánh giá mức độ nặng, dinh dưỡng, mất nước và nhiễm trùng theo bệnh cảnh; nêu rõ khi nào cần siêu âm hoặc xét nghiệm chuyên sâu.
+                        Trả về đúng 3 nhãn: [CLS_XAC_DINH], [CLS_DIEU_TRI], [CLS_KHAC] dưới dạng danh sách xuống dòng, không dùng gạch đầu dòng, không giải thích thừa.
+                        {AI_PLAIN_LINE_FORMAT}
                         """
                     else:
                         # Prompt chuẩn cho Nội khoa / Tiền phẫu
@@ -2300,7 +2405,7 @@ with tab1:
         "- Chẩn đoán sau mổ: "
     )
 
-    keys_bs = ["ly_do_vao_vien", "benh_su", "bs_truoc_mo", "bs_sau_mo", "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa", "ts_gia_dinh"]
+    keys_bs = ["ly_do_vao_vien", "benh_su", "bs_truoc_mo", "bs_sau_mo", "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa", "ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung", "ts_phat_trien", "ts_dich_te", "ts_di_ung", "ts_gia_dinh"]
     if is_postop_mode(loai_benh_an) or is_san_phu_khoa_mode(loai_benh_an):
         val_tm = str(st.session_state.get("bs_trong_mo", "")).strip()
         # Mở nếu có thông tin khác với mẫu 5 dòng trống hoặc các trường bệnh sử khác có chữ
@@ -2370,20 +2475,40 @@ with tab1:
     # IV. TIỀN SỬ (Tự mở khi có dữ liệu)
     # -------------------------------------------------------------------------
     if not is_san_phu_khoa_mode(loai_benh_an):
-        has_ts = check_section_has_data(["ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh"])
+        pediatric_history = ["ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung", "ts_phat_trien", "ts_dich_te", "ts_di_ung", "ts_gia_dinh"]
+        standard_history = ["ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh"]
+        history_keys = pediatric_history if is_pediatric_mode(loai_benh_an) else standard_history
+        has_ts = check_section_has_data(history_keys)
         st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
         with st.expander("IV. TIỀN SỬ", expanded=has_ts):
-            c_ts1, c_ts2 = st.columns(2)
-            with c_ts1:
-                st.markdown("<div class='sub-section-header'>1. Tiền sử nội khoa</div>", unsafe_allow_html=True)
-                st.text_area("Nội dung tiền sử nội khoa:", key="ts_noi_khoa", height=90, label_visibility="collapsed")
-                st.markdown("<div class='sub-section-header'>2. Tiền sử ngoại khoa và dị ứng</div>", unsafe_allow_html=True)
-                st.text_area("Nội dung tiền sử ngoại khoa và dị ứng:", key="ts_ngoai_khoa", height=90, label_visibility="collapsed")
-            with c_ts2:
-                st.markdown("<div class='sub-section-header'>3. Lối sống và thói quen</div>", unsafe_allow_html=True)
-                st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
-                st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
-                st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
+            if is_pediatric_mode(loai_benh_an):
+                pediatric_labels = [
+                    ("1. Tiền sử bệnh lý", "ts_benh_ly"),
+                    ("2. Tiền sử dinh dưỡng", "ts_dinh_duong"),
+                    ("3. Tiền sử sản khoa", "ts_san_khoa_nhi"),
+                    ("4. Tiền sử tiêm chủng", "ts_tiem_chung"),
+                    ("5. Tiền sử phát triển tâm thần vận động", "ts_phat_trien"),
+                    ("6. Tiền sử dịch tễ", "ts_dich_te"),
+                    ("7. Tiền sử dị ứng", "ts_di_ung"),
+                    ("8. Tiền sử gia đình", "ts_gia_dinh"),
+                ]
+                c_ts1, c_ts2 = st.columns(2)
+                for index, (label, key) in enumerate(pediatric_labels):
+                    with c_ts1 if index % 2 == 0 else c_ts2:
+                        st.markdown(f"<div class='sub-section-header'>{label}</div>", unsafe_allow_html=True)
+                        st.text_area(f"Nội dung {label.lower()}:", key=key, height=90, label_visibility="collapsed")
+            else:
+                c_ts1, c_ts2 = st.columns(2)
+                with c_ts1:
+                    st.markdown("<div class='sub-section-header'>1. Tiền sử nội khoa</div>", unsafe_allow_html=True)
+                    st.text_area("Nội dung tiền sử nội khoa:", key="ts_noi_khoa", height=90, label_visibility="collapsed")
+                    st.markdown("<div class='sub-section-header'>2. Tiền sử ngoại khoa và dị ứng</div>", unsafe_allow_html=True)
+                    st.text_area("Nội dung tiền sử ngoại khoa và dị ứng:", key="ts_ngoai_khoa", height=90, label_visibility="collapsed")
+                with c_ts2:
+                    st.markdown("<div class='sub-section-header'>3. Lối sống và thói quen</div>", unsafe_allow_html=True)
+                    st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
+                    st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
+                    st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
 
     # -------------------------------------------------------------------------
     # V. THĂM KHÁM LÂM SÀNG (Tự mở khi có dữ liệu hoặc khi bấm nút điền mẫu)
@@ -2523,9 +2648,12 @@ with tab1:
         else:
             st.markdown("<div class='sub-section-header'>3. Thăm khám hiện tại - Các cơ quan</div>", unsafe_allow_html=True)
 
+        active_normal_findings = organ_findings_for_mode(loai_benh_an)
+        active_detailed_templates = detailed_organ_templates_for_mode(loai_benh_an)
+
         def xu_ly_dien_kham_binh_thuong():
             dem = 0
-            for k_cq, norm_val in NORMAL_ORGAN_FINDINGS.items():
+            for k_cq, norm_val in active_normal_findings.items():
                 noi_dung = str(st.session_state.get(k_cq, "") or "").strip()
                 if not noi_dung:
                     st.session_state[k_cq] = norm_val
@@ -2533,7 +2661,7 @@ with tab1:
             st.session_state["_msg_dien_cq"] = dem
 
         def xu_ly_xoa_cac_co_quan():
-            for k_cq in NORMAL_ORGAN_FINDINGS.keys():
+            for k_cq in active_normal_findings.keys():
                 st.session_state[k_cq] = ""
             st.session_state["_msg_xoa_cq"] = True
 
@@ -2583,7 +2711,7 @@ with tab1:
             with c_fav_btn:
                 # Nút cho phép nạp mẫu chuyên sâu hoặc chèn mẫu nếu ô đang trống
                 if st.button(f"⚡ Mẫu khám sâu {fav['name']}", key=f"btn_fill_deep_{fav['key']}", use_container_width=True):
-                    st.session_state[fav["key"]] = DETAILED_ORGAN_TEMPLATES.get(fav["key"], "")
+                    st.session_state[fav["key"]] = active_detailed_templates.get(fav["key"], "")
                     st.toast(f"Đã nạp khung khám chuyên sâu cho cơ quan {fav['name']}!", icon="🩺")
                     st.rerun()
             with c_fav_ai:
@@ -2602,15 +2730,14 @@ with tab1:
                         try:
                             organ_context = f"""
                             Cơ quan được ưu tiên khám: {fav['name']}
+                            Đối tượng: {'nhi khoa, cần diễn giải theo tuổi' if is_pediatric_mode(loai_benh_an) else 'người bệnh thông thường'}
                             Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}
                             Bệnh sử: {get_benh_su_text_for_ai()}
-                            Tiền sử nội khoa: {st.session_state.get('ts_noi_khoa')}
-                            Tiền sử ngoại khoa và dị ứng: {st.session_state.get('ts_ngoai_khoa')}
-                            Lối sống và thói quen: {st.session_state.get('ts_loi_song')}
-                            Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}
+                            {clinical_history_context(loai_benh_an)}
                             """
                             prompt_organ = f"""
-                            Bạn là bác sĩ lâm sàng giàu kinh nghiệm. Dựa duy nhất vào lý do vào viện, bệnh sử và tiền sử dưới đây, hãy gợi ý cho người dùng những nội dung quan trọng cần hỏi và thăm khám đối với cơ quan {fav['name']}.
+                            Bạn là {'bác sĩ nhi khoa' if is_pediatric_mode(loai_benh_an) else 'bác sĩ lâm sàng'} giàu kinh nghiệm. Dựa duy nhất vào lý do vào viện, bệnh sử và tiền sử dưới đây, hãy gợi ý cho người dùng những nội dung quan trọng cần hỏi và thăm khám đối với cơ quan {fav['name']}.
+                            Với bệnh nhi, luôn điều chỉnh nội dung theo tuổi, mốc phát triển và đặc điểm khám trẻ em; không áp dụng máy móc tiêu chuẩn người lớn.
                             Hãy tạo một khung khám để điền trực tiếp vào ô bệnh án. Mỗi dòng là một nội dung cần kiểm tra, kết thúc bằng dấu hai chấm để người dùng tự ghi kết quả sau khi khám, ví dụ: "Mỏm tim: ".
                             Chỉ nêu các điểm cần quan sát, sờ, gõ, nghe và nghiệm pháp cần cân nhắc nếu thực sự liên quan đến cơ quan này và bệnh cảnh.
                             Không được tự suy đoán hoặc điền kết quả bình thường/bất thường, không đưa ra kết luận chẩn đoán.
@@ -2705,9 +2832,9 @@ with tab1:
                 with st.spinner("AI đang phân tích phác đồ điều trị..."):
                     try:
                         cls_da_co_str = "".join([f"+ {st.session_state.get(f'cls_kq_{i}', '')} -> {st.session_state.get(f'cls_pg_{i}', '')}\n" for i in range(st.session_state.get("so_hang_cls", 3)) if st.session_state.get(f'cls_kq_{i}', '').strip()])
-                        context_dt = f"Loại: {loai_benh_an}\nBệnh nhân: {st.session_state.get('tuoi')} tuổi, {st.session_state.get('gioi_tinh')}\nTiền sử: {st.session_state.get('ts_noi_khoa')}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nCLS quan trọng:\n{cls_da_co_str}"
+                        context_dt = f"Loại: {loai_benh_an}\nBệnh nhân: {st.session_state.get('tuoi')} tuổi, {st.session_state.get('gioi_tinh')}\n{clinical_history_context(loai_benh_an)}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nCLS quan trọng:\n{cls_da_co_str}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt_dt = f"Bạn là bác sĩ điều trị. Xây dựng phác đồ cho ca bệnh ({context_dt}). Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE] (ghi rõ thuốc/chăm sóc vết mổ nếu hậu phẫu), [THEO_DOI]. {AI_PLAIN_LINE_FORMAT}"
+                        prompt_dt = f"Bạn là {'bác sĩ nhi khoa' if is_pediatric_mode(loai_benh_an) else 'bác sĩ điều trị'}. Xây dựng phác đồ cho ca bệnh ({context_dt}). {'Tính liều theo cân nặng/tuổi, ghi rõ chống chỉ định và tư vấn người chăm sóc; không dùng liều người lớn.' if is_pediatric_mode(loai_benh_an) else ''} Yêu cầu trả về đúng 3 tag: [MUC_TIEU], [DIEU_TRI_CU_THE] (ghi rõ thuốc/chăm sóc vết mổ nếu hậu phẫu), [THEO_DOI]. {AI_PLAIN_LINE_FORMAT}"
                         txt = model.generate_content(prompt_dt).text
 
                         if "[MUC_TIEU]" in txt and "[DIEU_TRI_CU_THE]" in txt and "[THEO_DOI]" in txt:
@@ -2736,9 +2863,9 @@ with tab1:
             else:
                 with st.spinner("AI đang phân tích logic lâm sàng..."):
                     try:
-                        context = f"Loại: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nĐiều trị: {st.session_state.get('dt_cu_the')}"
+                        context = f"Loại: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n{clinical_history_context(loai_benh_an)}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nĐiều trị: {st.session_state.get('dt_cu_the')}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
-                        prompt = f"Bạn là bác sĩ lâm sàng. Đưa ra TIÊN LƯỢNG và TƯ VẤN cho ca bệnh ({context}). Yêu cầu trả về đúng 2 tag: [TIEN_LUONG] và [TU_VAN]. {AI_PLAIN_LINE_FORMAT}"
+                        prompt = f"Bạn là {'bác sĩ nhi khoa' if is_pediatric_mode(loai_benh_an) else 'bác sĩ lâm sàng'}. Đưa ra TIÊN LƯỢNG và TƯ VẤN cho ca bệnh ({context}). {'Tư vấn phải hướng tới cha mẹ/người chăm sóc và có dấu hiệu cảnh báo cần đưa trẻ đi khám ngay.' if is_pediatric_mode(loai_benh_an) else ''} Yêu cầu trả về đúng 2 tag: [TIEN_LUONG] và [TU_VAN]. {AI_PLAIN_LINE_FORMAT}"
                         res_text = model.generate_content(prompt).text
 
                         if "[TIEN_LUONG]" in res_text and "[TU_VAN]" in res_text:
@@ -2816,6 +2943,7 @@ with tab2:
                     pdf_bytes = export_pdf(data_benh_an)
                     st.session_state["pdf_bytes_preview"] = pdf_bytes
                     ten_mau_file = {
+                        "Nhi khoa": "Nhi_khoa_",
                         "Hậu phẫu": "Hau_phau_",
                         "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
                         "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
@@ -2834,6 +2962,7 @@ with tab2:
                 with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
                     docx_bytes = export_docx(data_benh_an)
                     ten_mau_file = {
+                        "Nhi khoa": "Nhi_khoa_",
                         "Hậu phẫu": "Hau_phau_",
                         "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
                         "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
@@ -2945,10 +3074,7 @@ with tab3:
     Hành chính: Họ tên {st.session_state.get('ho_ten')}, tuổi {st.session_state.get('tuoi')}, giới tính {st.session_state.get('gioi_tinh')}, dân tộc {st.session_state.get('dan_tok')}, nghề nghiệp {st.session_state.get('nghe_nghiep')}, khoa/phòng {st.session_state.get('khoa_phong')}
     Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}
     Bệnh sử: {benh_su_str_pb}
-    Tiền sử nội khoa: {st.session_state.get('ts_noi_khoa')}
-    Tiền sử ngoại khoa và dị ứng: {st.session_state.get('ts_ngoai_khoa')}
-    Lối sống và thói quen: {st.session_state.get('ts_loi_song')}
-    Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}
+    {clinical_history_context(loai_benh_an)}
     Khám toàn thân: {st.session_state.get('kham_toan_than')}
     Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, nhiệt độ {st.session_state.get('sh_nhiet_do')}, huyết áp {st.session_state.get('sh_ha')}, nhịp thở {st.session_state.get('sh_nhip_tho')}, cân nặng {st.session_state.get('sh_can_nang')}, chiều cao {st.session_state.get('sh_chieu_cao')}, BMI {st.session_state.get('sh_bmi')} {st.session_state.get('sh_bmi_eval')}
     Khám lúc vào viện: {st.session_state.get('kham_vao_vien')}
@@ -2991,7 +3117,8 @@ with tab3:
         else:
             with st.spinner("Thầy/Cô đang đọc kỹ bệnh án..."):
                 try:
-                    prompt_phan_bien = f"""Bạn là Giảng viên lâm sàng. Hãy nhận xét ca bệnh ({ca_benh_summary}) theo phong cách {phong_cach}. 
+                    prompt_phan_bien = f"""Bạn là {'Giảng viên Nhi khoa' if is_pediatric_mode(loai_benh_an) else 'Giảng viên lâm sàng'}. Hãy nhận xét ca bệnh ({ca_benh_summary}) theo phong cách {phong_cach}.
+                    {'Tập trung kiểm tra đánh giá theo tuổi, dinh dưỡng, tiêm chủng, phát triển tâm thần vận động, liều thuốc theo cân nặng và tư vấn người chăm sóc.' if is_pediatric_mode(loai_benh_an) else ''}
                     Trả về đúng định dạng JSON: {{"nhan_xet_tong_the": "...", "danh_sach_cau_hoi": [{{"chu_de": "...", "cau_hoi": "...", "goi_y_tra_loi": "..."}}]}}"""
                     res_pb = model.generate_content(prompt_phan_bien)
                     res_raw = res_pb.text.strip()
@@ -3015,7 +3142,10 @@ with tab3:
 # ==============================================================================
 # CƠ CHẾ TỰ ĐỘNG LƯU NHÁP VÀO LOCALSTORAGE TRÌNH DUYỆT
 # ==============================================================================
-co_du_lieu = any(bool(str(st.session_state.get(k, "")).strip()) for k in ["ho_ten", "benh_su", "bs_truoc_mo", "ly_do_vao_vien", "kham_toan_than", "chan_doan_so_bo"])
+co_du_lieu = any(bool(str(st.session_state.get(k, "")).strip()) for k in [
+    "ho_ten", "benh_su", "bs_truoc_mo", "ly_do_vao_vien", "kham_toan_than", "chan_doan_so_bo",
+    "ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung", "ts_phat_trien", "ts_dich_te", "ts_di_ung", "ts_gia_dinh"
+])
 if co_du_lieu:
     current_snapshot = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
     for i in range(st.session_state.get("so_hang_cls", 3)):
