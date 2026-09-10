@@ -292,8 +292,7 @@ for i in range(st.session_state["so_hang_cls"]):
 st.markdown("""
 <style>
     /* ==============================================================================
-       RETRO OS DESKTOP Y2K (WINDOWS 2000 / MAC OS 9 CLASSIC SYSTEM AESTHETIC)
-       Màu xám công nghiệp dịu mắt, hiệu ứng vát viền Bevel 3D kinh điển
+    Theme hai tông: nền xanh nhạt và màu nhấn xanh teal
        ============================================================================== */
 
     html {
@@ -862,6 +861,105 @@ st.markdown("""
         font-size: revert !important;
         font-weight: revert !important;
         text-shadow: revert !important;
+    }
+
+    /* THEME HAI TÔNG, KHÔNG GRADIENT, KHÔNG BEVEL */
+    :root {
+        --app-surface: #eef6f7;
+        --app-accent: #155e75;
+    }
+
+    [data-testid="stAppViewContainer"],
+    [data-testid="stSidebarContent"] {
+        background: var(--app-surface) !important;
+    }
+
+    div[data-testid="stExpander"],
+    div[data-testid="stExpander"] > details > summary,
+    .overview-panel,
+    .overview-panel-body,
+    .right-toc-menu,
+    .right-toc-trigger,
+    .sub-section-header,
+    .highlight-dx {
+        background: var(--app-surface) !important;
+        border: 1px solid var(--app-accent) !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        color: var(--app-accent) !important;
+        font-family: inherit !important;
+        text-shadow: none !important;
+    }
+
+    div[data-testid="stExpander"] > details > summary,
+    .overview-panel-title,
+    .right-toc-header {
+        background: var(--app-accent) !important;
+        border-color: var(--app-accent) !important;
+        border-radius: 5px !important;
+        color: var(--app-surface) !important;
+        font-family: inherit !important;
+        text-shadow: none !important;
+    }
+
+    .overview-panel,
+    .overview-panel-body,
+    .right-toc-menu {
+        border-radius: 6px !important;
+    }
+
+    .overview-row {
+        border-bottom: 1px solid var(--app-accent) !important;
+        color: inherit !important;
+    }
+
+    .overview-label,
+    .overview-diagnosis,
+    .toc-item {
+        color: var(--app-accent) !important;
+    }
+
+    .toc-item:hover,
+    .right-toc-trigger:hover {
+        background: var(--app-accent) !important;
+        color: var(--app-surface) !important;
+    }
+
+    button[kind="primary"] {
+        background: var(--app-accent) !important;
+        border: 1px solid var(--app-accent) !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        color: var(--app-surface) !important;
+        font-family: inherit !important;
+        text-shadow: none !important;
+    }
+
+    button[kind="secondary"],
+    div[data-testid="stFileUploader"] button {
+        background: var(--app-surface) !important;
+        border: 1px solid var(--app-accent) !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        color: var(--app-accent) !important;
+        font-family: inherit !important;
+        text-shadow: none !important;
+    }
+
+    div[data-testid="stTextInput"] > div,
+    div[data-testid="stTextArea"] > div,
+    div[data-testid="stNumberInput"] > div,
+    div[data-testid="stSelectbox"] > div > div,
+    div[data-testid="stFileUploader"] section {
+        border: 1px solid var(--app-accent) !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input {
+        font-family: inherit !important;
     }
 </style>
 """, unsafe_allow_html=True)
