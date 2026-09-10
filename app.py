@@ -369,6 +369,79 @@ st.markdown("""
         color: #102542 !important;
     }
 
+    /* BỘ CHỌN MẪU BỆNH ÁN DẠNG NÚT BEVEL ĐỒNG BỘ THEME */
+    div[data-testid="stRadio"] {
+        background: #d4d0c8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        box-shadow: 1px 1px 0 #000000 !important;
+        padding: 7px 9px 8px !important;
+        margin: 8px 0 14px !important;
+    }
+
+    div[data-testid="stRadio"] > label {
+        color: #000000 !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 6px !important;
+    }
+
+    div[data-testid="stRadio"] [role="radiogroup"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+    }
+
+    div[data-testid="stRadio"] [role="radio"] {
+        min-height: 34px !important;
+        padding: 5px 10px !important;
+        background: #ece9d8 !important;
+        border-top: 2px solid #ffffff !important;
+        border-left: 2px solid #ffffff !important;
+        border-right: 2px solid #404040 !important;
+        border-bottom: 2px solid #404040 !important;
+        border-radius: 0 !important;
+        color: #000000 !important;
+        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+        font-size: 0.84rem !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+        cursor: pointer !important;
+    }
+
+    div[data-testid="stRadio"] [role="radio"]:hover {
+        background: #f5f4ea !important;
+        color: #0a246a !important;
+    }
+
+    div[data-testid="stRadio"] [role="radio"][aria-checked="true"] {
+        background: #0a246a !important;
+        border-top-color: #404040 !important;
+        border-left-color: #404040 !important;
+        border-right-color: #ffffff !important;
+        border-bottom-color: #ffffff !important;
+        box-shadow: inset 1px 1px 0 #000000 !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 1px #000000 !important;
+    }
+
+    div[data-testid="stRadio"] [role="radio"] p,
+    div[data-testid="stRadio"] [role="radio"] span {
+        color: inherit !important;
+        font-family: inherit !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+    }
+
+    @media (max-width: 720px) {
+        div[data-testid="stRadio"] [role="radio"] {
+            flex: 1 1 100% !important;
+        }
+    }
+
     .highlight-dx {
         background-color: #fffde6 !important;
         border: 1px solid #b8860b !important;
