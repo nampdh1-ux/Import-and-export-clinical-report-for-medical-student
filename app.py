@@ -211,12 +211,13 @@ FIELDS_TO_SAVE = [
     "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
     "ly_do_vao_vien", "benh_su", 
     "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", 
+    "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa",
     "ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh",
     "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", 
     "sh_nhip_tho", "sh_can_nang", "sh_chieu_cao", "sh_bmi", "sh_bmi_eval",
     "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu", 
     "uu_tien_co_quan", "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", 
-    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac",
+    "kham_than_kinh", "kham_tiet_nieu", "kham_co_xuong_khop", "kham_co_quan_khac", "kham_san_phu_khoa",
     "tom_tat", "chan_doan_so_bo", "chan_doan_phan_biet", "bien_luan",
     "cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac",
     "chan_doan_xac_dinh", "bien_luan_xac_dinh",
@@ -708,9 +709,22 @@ st.markdown("""
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
 # ==============================================================================
 def get_benh_su_text_for_ai():
-    if st.session_state.get("loai_benh_an") == "Hậu phẫu":
+    if st.session_state.get("loai_benh_an") in ["Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"]:
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
     return st.session_state.get("benh_su")
+
+def is_san_phu_khoa_mode(mode):
+    return mode in ["Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"]
+
+def is_postop_mode(mode):
+    return mode in ["Hậu phẫu", "Sản phụ khoa / Hậu phẫu"]
+
+def clinical_title(mode):
+    if mode == "Hậu phẫu" or mode == "Sản phụ khoa / Hậu phẫu":
+        return "BỆNH ÁN HẬU PHẪU" if mode == "Hậu phẫu" else "BỆNH ÁN SẢN PHỤ KHOA (HẬU PHẪU)"
+    if mode == "Sản phụ khoa / Tiền phẫu":
+        return "BỆNH ÁN SẢN PHỤ KHOA (TIỀN PHẪU)"
+    return "BỆNH ÁN LÂM SÀNG"
 def add_symptom_to_field(field_key, symptom_text):
     """Hàm chèn an toàn triệu chứng vào ô text_area mà không gây lỗi session_state"""
     val = str(st.session_state.get(field_key, "")).strip()
@@ -799,6 +813,7 @@ def get_section_numbers(data):
     return section_numbers
 
 NORMAL_ORGAN_FINDINGS = {
+    "kham_san_phu_khoa": "- Âm hộ sạch, không tổn thương bất thường.\n- Âm đạo không ra máu hay khí hư bất thường.\n- Cổ tử cung không loét, không chảy máu khi chạm.\n- Tử cung không to bất thường, không đau khi di động.\n- Hai phần phụ không sờ thấy khối bất thường, không đau.",
     "kham_tuan_hoan": "- Lồng ngực cân đối, không ổ đập bất thường, không sẹo mổ cũ.\n- Mỏm tim đập ở khoang liên sườn V đường giữa đòn trái, diện đập 1-2 cm.\n- Dấu hiệu Hartzer (-), không có rung miêu.\n- Nhịp tim đều, tần số trùng nhịp mạch.\n- T1, T2 rõ, không nghe thấy tiếng tim bệnh lý (T3, T4, tiếng cọ màng ngoài tim).\n- Không có tiếng thổi bệnh lý ở các ổ van tim.\n- Mạch ngoại vi bắt rõ, đều hai bên.",
     "kham_ho_hap": "- Lồng ngực hai bên cân đối, di động đều theo nhịp thở, không co kéo cơ hô hấp phụ.\n- Khoang liên sườn không giãn rộng, không có tuần hoàn bàng hệ.\n- Rung thanh đều hai bên phế trường.\n- Gõ trong hai bên phổi.\n- Rì rào phế nang êm dịu hai phế trường.\n- Không nghe thấy rale ẩm, rale nổ, rale rít hay rale ngáy.",
     "kham_tieu_hoa": "- Bụng thon đều hai bên, di động theo nhịp thở, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ.\n- Bụng mềm, không có điểm đau khu trú, không có phản ứng thành bụng hay cảm ứng phúc mạc.\n- Gan, lách không sờ thấy dưới bờ sườn, chiều cao gan trong giới hạn bình thường.\n- Các điểm đau ngoại khoa (Ruột thừa, Murphy, túi mật) âm tính.\n- Gõ trong toàn bụng, không có diện đục vùng thấp.\n- Tiếng nhu động ruột bình thường, không có tiếng thổi mạch máu bụng.",
@@ -808,6 +823,19 @@ NORMAL_ORGAN_FINDINGS = {
     "kham_co_quan_khac": "- Răng - Hàm - Mặt, Tai - Mũi - Họng: Chưa phát hiện bất thường.\n- Nội tiết: Tuyến giáp không to, không có dấu hiệu suy hay cường giáp trên lâm sàng."
 }
 DETAILED_ORGAN_TEMPLATES = {
+    "kham_san_phu_khoa": (
+        "- NHÌN:\n"
+        "  + Bụng dưới cân đối, không chướng, không sẹo mổ cũ bất thường.\n"
+        "  + Âm hộ và tầng sinh môn sạch, không loét, không sưng nề hay tổn thương.\n"
+        "  + Âm đạo không ra máu, không khí hư bất thường.\n"
+        "- SỜ:\n"
+        "  + Bụng mềm, không phản ứng thành bụng, không điểm đau khu trú.\n"
+        "  + Tử cung không to bất thường, không đau khi di động.\n"
+        "  + Hai phần phụ không sờ thấy khối bất thường, không đau.\n"
+        "- KHÁM MỎ VỊT / KHÁM ÂM ĐẠO - CỔ TỬ CUNG KHI CÓ CHỈ ĐỊNH:\n"
+        "  + Niêm mạc âm đạo hồng, không tổn thương; cổ tử cung không loét, không chảy máu khi chạm.\n"
+        "  + Không ghi nhận dịch bất thường hoặc khối bất thường qua thăm khám."
+    ),
     "kham_tuan_hoan": (
         "- NHÌN:\n"
         "  + Lồng ngực cân đối, không biến dạng, không sẹo mổ cũ, không tuần hoàn bàng hệ.\n"
@@ -928,7 +956,7 @@ class BenhAnPDF(FPDF):
     def header(self):
         if self.page_no() == 1:
             self.set_font("Roboto-Bold", "", 15)
-            title = "BỆNH ÁN HẬU PHẪU" if self.loai_ba == "Hậu phẫu" else "BỆNH ÁN LÂM SÀNG"
+            title = clinical_title(self.loai_ba)
             self.cell(0, 8, title, align="C", new_x="LMARGIN", new_y="NEXT")
             self.set_font("Roboto", "", 8)
             self.cell(0, 4, f"Thời gian làm bệnh án: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
@@ -1066,9 +1094,20 @@ def export_pdf(data):
     pdf.add_section_header("II. LÝ DO VÀO VIỆN")
     pdf.add_body_text(data['ly_do_vao_vien'])
 
-    # III. BỆNH SỬ
-    pdf.add_section_header("III. BỆNH SỬ")
-    if pdf.loai_ba == "Hậu phẫu":
+    if is_san_phu_khoa_mode(pdf.loai_ba):
+        pdf.add_section_header("III. TIỀN SỬ")
+        pdf.add_subsection_header("1. Tiền sử sản khoa:")
+        pdf.add_body_text(format_history(data.get('ts_san_khoa', '')))
+        pdf.add_subsection_header("2. Tiền sử phụ khoa:")
+        pdf.add_body_text(format_history(data.get('ts_phu_khoa', '')))
+        pdf.add_subsection_header("3. Tiền sử nội - ngoại khoa:")
+        pdf.add_body_text(format_history(data.get('ts_noi_ngoai_khoa', '')))
+        pdf.add_subsection_header("4. Tiền sử gia đình:")
+        pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
+
+    # III hoặc IV. BỆNH SỬ
+    pdf.add_section_header("IV. BỆNH SỬ" if is_san_phu_khoa_mode(pdf.loai_ba) else "III. BỆNH SỬ")
+    if is_postop_mode(pdf.loai_ba) or is_san_phu_khoa_mode(pdf.loai_ba):
         pdf.add_subsection_header("1. Tình trạng trước mổ:")
         pdf.add_body_text(format_bullet_points(data.get('bs_truoc_mo', '')))
         pdf.add_subsection_header("2. Tình trạng trong mổ:")
@@ -1078,21 +1117,21 @@ def export_pdf(data):
     else:
         pdf.add_body_text(data.get('benh_su', ''))
 
-    # IV. TIỀN SỬ
-    pdf.add_section_header("IV. TIỀN SỬ")
-    pdf.add_subsection_header("1. Tiền sử nội khoa:")
-    pdf.add_body_text(format_history(data.get('ts_noi_khoa', '')))
-    pdf.add_subsection_header("2. Tiền sử ngoại khoa và dị ứng:")
-    pdf.add_body_text(format_history(data.get('ts_ngoai_khoa', '')))
-    pdf.add_subsection_header("3. Lối sống và thói quen:")
-    pdf.add_body_text(format_history(data.get('ts_loi_song', '')))
-    pdf.add_subsection_header("4. Tiền sử gia đình:")
-    pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
+    if not is_san_phu_khoa_mode(pdf.loai_ba):
+        pdf.add_section_header("IV. TIỀN SỬ")
+        pdf.add_subsection_header("1. Tiền sử nội khoa:")
+        pdf.add_body_text(format_history(data.get('ts_noi_khoa', '')))
+        pdf.add_subsection_header("2. Tiền sử ngoại khoa và dị ứng:")
+        pdf.add_body_text(format_history(data.get('ts_ngoai_khoa', '')))
+        pdf.add_subsection_header("3. Lối sống và thói quen:")
+        pdf.add_body_text(format_history(data.get('ts_loi_song', '')))
+        pdf.add_subsection_header("4. Tiền sử gia đình:")
+        pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
 
     # V. THĂM KHÁM LÂM SÀNG
     pdf.add_section_header("V. THĂM KHÁM LÂM SÀNG")
     
-    if pdf.loai_ba == "Hậu phẫu":
+    if is_postop_mode(pdf.loai_ba):
         pdf.add_subsection_header("1. Thăm khám hiện tại:")
         pdf.add_highlight_text(f"Hậu phẫu: {data.get('ngay_hau_phau', '...')}")
         pdf.add_body_text("a. Toàn thân:")
@@ -1133,7 +1172,7 @@ def export_pdf(data):
     pdf.cell(col_w3_3, 5.5, bmi_display, border=1, ln=True)
     pdf.ln(2)
     
-    if pdf.loai_ba == "Hậu phẫu":
+    if is_postop_mode(pdf.loai_ba):
         pdf.add_body_text("b. Tình trạng vết mổ và dẫn lưu:")
         pdf.add_subsection_header("Vết mổ:")
         pdf.add_body_text(format_bullet_points(data.get('kham_vet_mo', '')))
@@ -1143,7 +1182,7 @@ def export_pdf(data):
     else:
         pdf.add_body_text("b. Các cơ quan:")
         
-    organ_list = [
+    organ_list = ([{"key": "kham_san_phu_khoa", "name": "Sản phụ khoa"}] if is_san_phu_khoa_mode(pdf.loai_ba) else []) + [
         {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
         {"key": "kham_ho_hap", "name": "Hô hấp"},
         {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
@@ -1196,10 +1235,10 @@ def export_pdf(data):
 
     def pdf_cls():
         pdf.add_section_header(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG")
-        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if pdf.loai_ba == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if is_postop_mode(pdf.loai_ba) else "1. Phục vụ chẩn đoán xác định:"
         pdf.add_subsection_header(nhan_cls1)
         pdf.add_body_text(format_bullet_points(data.get('cls_dx_xac_dinh', '')))
-        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if pdf.loai_ba == "Hậu phẫu" else "2. Phục vụ điều trị:"
+        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if is_postop_mode(pdf.loai_ba) else "2. Phục vụ điều trị:"
         pdf.add_subsection_header(nhan_cls2)
         pdf.add_body_text(format_bullet_points(data.get('cls_dx_dieu_tri', '')))
         pdf.add_subsection_header("3. Cận lâm sàng khác:")
@@ -1335,7 +1374,7 @@ def export_docx(data):
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_after = Pt(2)
-    run_title = p_title.add_run("BỆNH ÁN HẬU PHẪU" if loai_ba == "Hậu phẫu" else "BỆNH ÁN LÂM SÀNG")
+    run_title = p_title.add_run(clinical_title(loai_ba))
     run_title.bold = True
     run_title.font.size = Pt(16)
     run_title.font.color.rgb = RGBColor(10, 36, 106)
@@ -1367,9 +1406,20 @@ def export_docx(data):
     add_sec_title("II. LÝ DO VÀO VIỆN")
     add_normal_text(data.get('ly_do_vao_vien', ''))
 
-    # III. BỆNH SỬ
-    add_sec_title("III. BỆNH SỬ")
-    if loai_ba == "Hậu phẫu":
+    if is_san_phu_khoa_mode(loai_ba):
+        add_sec_title("III. TIỀN SỬ")
+        add_subsec_title("1. Tiền sử sản khoa:")
+        add_bullet_list(format_history(data.get('ts_san_khoa', '')))
+        add_subsec_title("2. Tiền sử phụ khoa:")
+        add_bullet_list(format_history(data.get('ts_phu_khoa', '')))
+        add_subsec_title("3. Tiền sử nội - ngoại khoa:")
+        add_bullet_list(format_history(data.get('ts_noi_ngoai_khoa', '')))
+        add_subsec_title("4. Tiền sử gia đình:")
+        add_bullet_list(format_history(data.get('ts_gia_dinh', '')))
+
+    # III hoặc IV. BỆNH SỬ
+    add_sec_title("IV. BỆNH SỬ" if is_san_phu_khoa_mode(loai_ba) else "III. BỆNH SỬ")
+    if is_postop_mode(loai_ba) or is_san_phu_khoa_mode(loai_ba):
         add_subsec_title("1. Tình trạng trước mổ:")
         add_bullet_list(data.get('bs_truoc_mo', ''))
         add_subsec_title("2. Tình trạng trong mổ:")
@@ -1379,20 +1429,20 @@ def export_docx(data):
     else:
         add_normal_text(data.get('benh_su', ''))
 
-    # IV. TIỀN SỬ
-    add_sec_title("IV. TIỀN SỬ")
-    add_subsec_title("1. Tiền sử nội khoa:")
-    add_bullet_list(format_history(data.get('ts_noi_khoa', '')))
-    add_subsec_title("2. Tiền sử ngoại khoa & dị ứng:")
-    add_bullet_list(format_history(data.get('ts_ngoai_khoa', '')))
-    add_subsec_title("3. Lối sống & thói quen:")
-    add_bullet_list(format_history(data.get('ts_loi_song', '')))
-    add_subsec_title("4. Tiền sử gia đình:")
-    add_bullet_list(format_history(data.get('ts_gia_dinh', '')))
+    if not is_san_phu_khoa_mode(loai_ba):
+        add_sec_title("IV. TIỀN SỬ")
+        add_subsec_title("1. Tiền sử nội khoa:")
+        add_bullet_list(format_history(data.get('ts_noi_khoa', '')))
+        add_subsec_title("2. Tiền sử ngoại khoa & dị ứng:")
+        add_bullet_list(format_history(data.get('ts_ngoai_khoa', '')))
+        add_subsec_title("3. Lối sống & thói quen:")
+        add_bullet_list(format_history(data.get('ts_loi_song', '')))
+        add_subsec_title("4. Tiền sử gia đình:")
+        add_bullet_list(format_history(data.get('ts_gia_dinh', '')))
 
     # V. THĂM KHÁM LÂM SÀNG
     add_sec_title("V. THĂM KHÁM LÂM SÀNG")
-    if loai_ba == "Hậu phẫu":
+    if is_postop_mode(loai_ba):
         add_subsec_title("1. Thăm khám hiện tại:")
         p_hp = doc.add_paragraph()
         run_hp = p_hp.add_run(f"Hậu phẫu: {data.get('ngay_hau_phau', '...')}")
@@ -1443,7 +1493,7 @@ def export_docx(data):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
-    if loai_ba == "Hậu phẫu":
+    if is_postop_mode(loai_ba):
         add_subsec_title("b. Vết mổ & Dẫn lưu:")
         p_vm = doc.add_paragraph(style='List Bullet')
         p_vm.add_run("Vết mổ: ").bold = True
@@ -1460,7 +1510,7 @@ def export_docx(data):
     else:
         add_subsec_title("b. Khám các cơ quan:")
 
-    organ_list = [
+    organ_list = ([{"key": "kham_san_phu_khoa", "name": "Sản phụ khoa"}] if is_san_phu_khoa_mode(loai_ba) else []) + [
         {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
         {"key": "kham_ho_hap", "name": "Hô hấp"},
         {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
@@ -1513,10 +1563,10 @@ def export_docx(data):
 
     # X. ĐỀ XUẤT CẬN LÂM SÀNG
     add_sec_title(f"{section_numbers['de_xuat_cls']}. ĐỀ XUẤT CẬN LÂM SÀNG")
-    nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if loai_ba == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+    nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if is_postop_mode(loai_ba) else "1. Phục vụ chẩn đoán xác định:"
     add_subsec_title(nhan_cls1)
     add_bullet_list(data.get('cls_dx_xac_dinh', ''))
-    nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if loai_ba == "Hậu phẫu" else "2. Phục vụ điều trị:"
+    nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if is_postop_mode(loai_ba) else "2. Phục vụ điều trị:"
     add_subsec_title(nhan_cls2)
     add_bullet_list(data.get('cls_dx_dieu_tri', ''))
     add_subsec_title("3. Cận lâm sàng khác:")
@@ -1720,9 +1770,9 @@ with st.sidebar:
 # GIAO DIỆN CHÍNH (3 TABS)
 # ==============================================================================
 st.title("Bệnh Án Lâm Sàng")
-st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu).")
+st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu, Sản phụ khoa).")
 
-loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu"], horizontal=True, key="loai_benh_an")
+loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"], horizontal=True, key="loai_benh_an")
 initialize_postop_widgets(loai_benh_an)
 
 # Khai báo Dictionary lưu trữ ảnh toàn cục
@@ -1909,9 +1959,9 @@ def ui_tom_tat(num):
         st.markdown(f"**{num}. Tóm tắt bệnh án:**")
     with col_tt_btn:
         # Tự động chọn câu dẫn phù hợp với loại bệnh án
-        help_text = "Tự động trích xuất thông tin phẫu thuật và điền câu dẫn" if loai_benh_an == "Hậu phẫu" else "Tự động tính ngày và điền câu dẫn mở đầu"
+        help_text = "Tự động trích xuất thông tin phẫu thuật và điền câu dẫn" if is_postop_mode(loai_benh_an) else "Tự động tính ngày và điền câu dẫn mở đầu"
         if st.button("⚡ Tạo câu dẫn", key="btn_auto_cau_dan_tt", help=help_text, use_container_width=True):
-            if loai_benh_an == "Hậu phẫu":
+            if is_postop_mode(loai_benh_an):
                 cau_dan_moi = generate_intro_tom_tat_hau_phau()
             else:
                 cau_dan_moi = generate_intro_tom_tat_noi_khoa()
@@ -1963,7 +2013,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
                         f"Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}\n"
                         f"Khám toàn thân: {st.session_state.get('kham_toan_than')}\n"
                     )
-                    if loai_benh_an == "Hậu phẫu":
+                    if is_postop_mode(loai_benh_an):
                         context_cdpb += (
                             f"Ngày hậu phẫu: {st.session_state.get('ngay_hau_phau')}\n"
                             f"Khám vết mổ: {st.session_state.get('kham_vet_mo')}\n"
@@ -2005,7 +2055,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 2: Hai ô nhập liệu ngang hàng nhau, cùng chiều cao
     c_cd1, c_cd2 = st.columns(2)
     with c_cd1:
-        placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if loai_benh_an == "Hậu phẫu" else "Chẩn đoán sơ bộ..."
+        placeholder_cd = "Hậu phẫu ngày thứ [X]... mổ phiên/cấp cứu do [Bệnh lý]..." if is_postop_mode(loai_benh_an) else "Chẩn đoán sơ bộ..."
         st.text_area(f"{num_sb}. Chẩn đoán sơ bộ:", key="chan_doan_so_bo", height=100, placeholder=placeholder_cd, label_visibility="collapsed")
     with c_cd2:
         st.text_area(f"{num_pb}. Chẩn đoán phân biệt:", key="chan_doan_phan_biet", height=100, label_visibility="collapsed")
@@ -2025,7 +2075,7 @@ def ui_cls(num_dx, num_kq):
                     benh_su_str = get_benh_su_text_for_ai()
                     model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                     
-                    if loai_benh_an == "Hậu phẫu":
+                    if is_postop_mode(loai_benh_an):
                         # Prompt chuyên biệt hóa tuyệt đối cho Hậu phẫu
                         context_cls = (
                             f"LOẠI BỆNH ÁN: HẬU PHẪU\n"
@@ -2095,10 +2145,10 @@ def ui_cls(num_dx, num_kq):
 
     c_cls1, c_cls2, c_cls3 = st.columns(3)
     with c_cls1:
-        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if loai_benh_an == "Hậu phẫu" else "1. Phục vụ chẩn đoán xác định:"
+        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if is_postop_mode(loai_benh_an) else "1. Phục vụ chẩn đoán xác định:"
         st.text_area(nhan_cls1, key="cls_dx_xac_dinh", height=130)
     with c_cls2:
-        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if loai_benh_an == "Hậu phẫu" else "2. Phục vụ điều trị:"
+        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if is_postop_mode(loai_benh_an) else "2. Phục vụ điều trị:"
         st.text_area(nhan_cls2, key="cls_dx_dieu_tri", height=130)
     with c_cls3:
         st.text_area("3. Cận lâm sàng khác:", key="cls_dx_khac", height=130)
@@ -2172,7 +2222,7 @@ def ui_cls(num_dx, num_kq):
             if st.button("➖ Bớt hàng cuối"): st.session_state["so_hang_cls"] -= 1; st.rerun()
 
 def ui_cdxd(num_xd, num_blxd):
-    placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if loai_benh_an == "Hậu phẫu" else "Chẩn đoán xác định..."
+    placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if is_postop_mode(loai_benh_an) else "Chẩn đoán xác định..."
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
     st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
 def check_section_has_data(keys):
@@ -2192,7 +2242,7 @@ with tab1:
     # ==============================================================================
     toc_items = [
         ("#sec-hanh-chinh", "I. Hành chính"),
-        ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử" + (" hậu phẫu" if loai_benh_an == "Hậu phẫu" else "")),
+        ("#sec-ly-do-benh-su", "II & III. Lý do & Bệnh sử" + (" sản phụ khoa" if is_san_phu_khoa_mode(loai_benh_an) else " hậu phẫu" if is_postop_mode(loai_benh_an) else "")),
         ("#sec-tien-su", "IV. Tiền sử"),
         ("#sec-kham-lam-sang", "V. Thăm khám lâm sàng"),
         ("#sec-tom-tat-so-bo", "VI - IX. Tóm tắt & CĐ sơ bộ"),
@@ -2250,8 +2300,8 @@ with tab1:
         "- Chẩn đoán sau mổ: "
     )
 
-    keys_bs = ["ly_do_vao_vien", "benh_su", "bs_truoc_mo", "bs_sau_mo"]
-    if loai_benh_an == "Hậu phẫu":
+    keys_bs = ["ly_do_vao_vien", "benh_su", "bs_truoc_mo", "bs_sau_mo", "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa", "ts_gia_dinh"]
+    if is_postop_mode(loai_benh_an) or is_san_phu_khoa_mode(loai_benh_an):
         val_tm = str(st.session_state.get("bs_trong_mo", "")).strip()
         # Mở nếu có thông tin khác với mẫu 5 dòng trống hoặc các trường bệnh sử khác có chữ
         if val_tm and val_tm != mau_5_dong.strip():
@@ -2262,10 +2312,26 @@ with tab1:
         has_bs = check_section_has_data(keys_bs)
 
     st.markdown("<div id='sec-ly-do-benh-su'></div>", unsafe_allow_html=True)
-    with st.expander("II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ", expanded=has_bs):
+    tieu_de_ly_do = "II VÀ III. LÝ DO, TIỀN SỬ VÀ BỆNH SỬ" if is_san_phu_khoa_mode(loai_benh_an) else "II VÀ III. LÝ DO VÀO VIỆN VÀ BỆNH SỬ"
+    with st.expander(tieu_de_ly_do, expanded=has_bs):
         st.text_area("Lý do vào viện:", key="ly_do_vao_vien", placeholder="Ví dụ: Giống bệnh án tiền phẫu", height=65)
         
-        if loai_benh_an == "Hậu phẫu":
+        if is_san_phu_khoa_mode(loai_benh_an):
+            st.markdown("**TIỀN SỬ SẢN PHỤ KHOA:**")
+            c_spk1, c_spk2 = st.columns(2)
+            with c_spk1:
+                st.markdown("**1. Tiền sử sản khoa**")
+                st.text_area("Nội dung tiền sử sản khoa:", key="ts_san_khoa", height=90, label_visibility="collapsed")
+                st.markdown("**2. Tiền sử phụ khoa**")
+                st.text_area("Nội dung tiền sử phụ khoa:", key="ts_phu_khoa", height=90, label_visibility="collapsed")
+            with c_spk2:
+                st.markdown("**3. Tiền sử nội - ngoại khoa**")
+                st.text_area("Nội dung tiền sử nội - ngoại khoa:", key="ts_noi_ngoai_khoa", height=90, label_visibility="collapsed")
+                st.markdown("**4. Tiền sử gia đình**")
+                st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
+            st.markdown("**BỆNH SỬ SẢN PHỤ KHOA:**")
+
+        if is_postop_mode(loai_benh_an) or is_san_phu_khoa_mode(loai_benh_an):
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area(
                 "1. Tình trạng trước mổ:",
@@ -2303,20 +2369,21 @@ with tab1:
     # -------------------------------------------------------------------------
     # IV. TIỀN SỬ (Tự mở khi có dữ liệu)
     # -------------------------------------------------------------------------
-    has_ts = check_section_has_data(["ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh"])
-    st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
-    with st.expander("IV. TIỀN SỬ", expanded=has_ts):
-        c_ts1, c_ts2 = st.columns(2)
-        with c_ts1:
-            st.markdown("<div class='sub-section-header'>1. Tiền sử nội khoa</div>", unsafe_allow_html=True)
-            st.text_area("Nội dung tiền sử nội khoa:", key="ts_noi_khoa", height=90, label_visibility="collapsed")
-            st.markdown("<div class='sub-section-header'>2. Tiền sử ngoại khoa và dị ứng</div>", unsafe_allow_html=True)
-            st.text_area("Nội dung tiền sử ngoại khoa và dị ứng:", key="ts_ngoai_khoa", height=90, label_visibility="collapsed")
-        with c_ts2:
-            st.markdown("<div class='sub-section-header'>3. Lối sống và thói quen</div>", unsafe_allow_html=True)
-            st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
-            st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
-            st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
+    if not is_san_phu_khoa_mode(loai_benh_an):
+        has_ts = check_section_has_data(["ts_noi_khoa", "ts_ngoai_khoa", "ts_loi_song", "ts_gia_dinh"])
+        st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
+        with st.expander("IV. TIỀN SỬ", expanded=has_ts):
+            c_ts1, c_ts2 = st.columns(2)
+            with c_ts1:
+                st.markdown("<div class='sub-section-header'>1. Tiền sử nội khoa</div>", unsafe_allow_html=True)
+                st.text_area("Nội dung tiền sử nội khoa:", key="ts_noi_khoa", height=90, label_visibility="collapsed")
+                st.markdown("<div class='sub-section-header'>2. Tiền sử ngoại khoa và dị ứng</div>", unsafe_allow_html=True)
+                st.text_area("Nội dung tiền sử ngoại khoa và dị ứng:", key="ts_ngoai_khoa", height=90, label_visibility="collapsed")
+            with c_ts2:
+                st.markdown("<div class='sub-section-header'>3. Lối sống và thói quen</div>", unsafe_allow_html=True)
+                st.text_area("Nội dung lối sống và thói quen:", key="ts_loi_song", height=90, label_visibility="collapsed")
+                st.markdown("<div class='sub-section-header'>4. Tiền sử gia đình</div>", unsafe_allow_html=True)
+                st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
 
     # -------------------------------------------------------------------------
     # V. THĂM KHÁM LÂM SÀNG (Tự mở khi có dữ liệu hoặc khi bấm nút điền mẫu)
@@ -2325,11 +2392,11 @@ with tab1:
         "kham_vao_vien", "kham_toan_than", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho",
         "sh_can_nang", "sh_chieu_cao", "ngay_hau_phau", "kham_vet_mo", "kham_dan_luu",
         "kham_tuan_hoan", "kham_ho_hap", "kham_tieu_hoa", "kham_than_kinh", "kham_tiet_nieu",
-        "kham_co_xuong_khop", "kham_co_quan_khac"
+        "kham_co_xuong_khop", "kham_co_quan_khac", "kham_san_phu_khoa"
     ])
     st.markdown("<div id='sec-kham-lam-sang'></div>", unsafe_allow_html=True)
     with st.expander("V. THĂM KHÁM LÂM SÀNG", expanded=has_kham):
-        if loai_benh_an == "Hậu phẫu":
+        if is_postop_mode(loai_benh_an):
             st.markdown("<div class='sub-section-header'>1. Thăm khám hiện tại - Toàn thân & Sinh hiệu</div>", unsafe_allow_html=True)
             st.text_input(
                 "Khám hậu phẫu ngày thứ mấy? Giờ thứ mấy?",
@@ -2411,7 +2478,7 @@ with tab1:
             else:
                 st.session_state["sh_bmi"], st.session_state["sh_bmi_eval"] = "", ""
 
-        if loai_benh_an == "Hậu phẫu":
+        if is_postop_mode(loai_benh_an):
             st.markdown("<div class='sub-section-header'>2. Thăm khám Vết mổ & Dẫn lưu</div>", unsafe_allow_html=True)
             c_vm, c_dl = st.columns(2)
             with c_vm:
@@ -2485,6 +2552,7 @@ with tab1:
         st.markdown("---")
 
         ORGAN_DEF = [
+            {"key": "kham_san_phu_khoa", "name": "Sản phụ khoa"},
             {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
             {"key": "kham_ho_hap", "name": "Hô hấp"},
             {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
@@ -2494,16 +2562,19 @@ with tab1:
             {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"}
         ]
         
+        organ_options = ORGAN_DEF if is_san_phu_khoa_mode(loai_benh_an) else ORGAN_DEF[1:]
+        if not is_san_phu_khoa_mode(loai_benh_an) and st.session_state.get("uu_tien_co_quan") == "Sản phụ khoa":
+            st.session_state["uu_tien_co_quan"] = "Không ưu tiên (Thứ tự mặc định)"
         selected_organ_name = st.selectbox(
             "Chọn cơ quan chuyên khoa ưu tiên:", 
-            ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in ORGAN_DEF], 
+            ["Không ưu tiên (Thứ tự mặc định)"] + [item["name"] for item in organ_options], 
             index=0, 
             key="uu_tien_co_quan"
         )
 
         if selected_organ_name != "Không ưu tiên (Thứ tự mặc định)":
-            fav = next(item for item in ORGAN_DEF if item["name"] == selected_organ_name)
-            others = [item for item in ORGAN_DEF if item["name"] != selected_organ_name]
+            fav = next(item for item in organ_options if item["name"] == selected_organ_name)
+            others = [item for item in organ_options if item["name"] != selected_organ_name]
             
             # Khối cơ quan chuyên khoa trọng điểm
             c_fav_title, c_fav_btn, c_fav_ai = st.columns([2.1, 1.2, 1.6])
@@ -2580,6 +2651,8 @@ with tab1:
                     st.text_area(f"{org['name']}:", key=org["key"], height=85)
         else:
             # Khi không chọn ưu tiên: hiển thị 2 cột mặc định
+            if is_san_phu_khoa_mode(loai_benh_an):
+                st.text_area("Sản phụ khoa:", key="kham_san_phu_khoa", height=110)
             c_cq1, c_cq2 = st.columns(2)
             with c_cq1:
                 st.text_area("Tuần hoàn:", key="kham_tuan_hoan", height=85)
@@ -2742,7 +2815,12 @@ with tab2:
                 with st.spinner("Đang kết xuất văn bản PDF..."):
                     pdf_bytes = export_pdf(data_benh_an)
                     st.session_state["pdf_bytes_preview"] = pdf_bytes
-                    st.session_state["ten_file_pdf"] = f"Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                    ten_mau_file = {
+                        "Hậu phẫu": "Hau_phau_",
+                        "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
+                        "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
+                    }.get(loai_benh_an, "")
+                    st.session_state["ten_file_pdf"] = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
                     st.session_state["active_preview"] = "pdf"
 
         if st.session_state.get("pdf_bytes_preview"):
@@ -2755,7 +2833,12 @@ with tab2:
             else:
                 with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
                     docx_bytes = export_docx(data_benh_an)
-                    ten_file_docx = f"Benh_an_{'Hau_phau_' if loai_benh_an == 'Hậu phẫu' else ''}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
+                    ten_mau_file = {
+                        "Hậu phẫu": "Hau_phau_",
+                        "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
+                        "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
+                    }.get(loai_benh_an, "")
+                    ten_file_docx = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
                     st.session_state["docx_bytes_data"] = docx_bytes
                     st.session_state["ten_file_docx"] = ten_file_docx
                     
