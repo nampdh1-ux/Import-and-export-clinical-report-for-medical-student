@@ -208,7 +208,7 @@ STORAGE_KEY = "clinical_report_draft"
 
 FIELDS_TO_SAVE = [
     "loai_benh_an",  # Phân loại bệnh án
-    "ho_ten", "tuoi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
+    "ho_ten", "tuoi", "tuoi_don_vi", "gioi_tinh", "dan_tok", "nghe_nghiep", "khoa_phong", "dia_chi", "ngay_vao_vien", "sinh_vien",
     "ly_do_vao_vien", "benh_su", 
     "bs_truoc_mo", "bs_trong_mo", "bs_sau_mo", 
     "ts_san_khoa", "ts_phu_khoa", "ts_noi_ngoai_khoa",
@@ -275,6 +275,7 @@ for field in FIELDS_TO_SAVE:
                 "- Chẩn đoán sau mổ: "
             )
         elif field == "tuoi": st.session_state[field] = 45
+        elif field == "tuoi_don_vi": st.session_state[field] = "Năm tuổi"
         elif field == "gioi_tinh": st.session_state[field] = "Nam"
         elif field == "dan_tok": st.session_state[field] = "Kinh"
         elif field == "ngay_vao_vien": st.session_state[field] = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -829,25 +830,47 @@ def clinical_history_context(mode):
         f"Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}"
     )
 
-def pediatric_age_group(age):
+def age_in_months(age, age_unit="Năm tuổi"):
     try:
-        age = int(age or 0)
+        age = float(age or 0)
     except (TypeError, ValueError):
         age = 0
-    if age <= 0:
+    if age_unit == "Ngày tuổi":
+        return age / 30.4375
+    if age_unit == "Tháng tuổi":
+        return age
+    return age * 12
+
+def format_age(age, age_unit="Năm tuổi"):
+    try:
+        age_value = float(age or 0)
+    except (TypeError, ValueError):
+        age_value = 0
+    if age_value.is_integer():
+        age_text = str(int(age_value))
+    else:
+        age_text = f"{age_value:g}"
+    return f"{age_text} {age_unit.lower()}"
+
+def pediatric_age_group(age, age_unit="Năm tuổi"):
+    age_months = age_in_months(age, age_unit)
+    if age_months < 1:
         return "sơ sinh"
-    if age <= 5:
+    if age_months < 12:
+        return "nhũ nhi dưới 1 tuổi"
+    if age_months <= 60:
         return "trẻ nhỏ 1-5 tuổi"
-    if age <= 10:
+    if age_months <= 120:
         return "trẻ học đường 6-10 tuổi"
-    if age <= 15:
+    if age_months <= 180:
         return "trẻ vị thành niên 11-15 tuổi"
     return "vị thành niên 16-18 tuổi"
 
-def pediatric_normal_history(age):
-    age_group = pediatric_age_group(age)
+def pediatric_normal_history(age, age_unit="Năm tuổi"):
+    age_group = pediatric_age_group(age, age_unit)
     nutrition_by_age = {
         "sơ sinh": "Bú mẹ, phản xạ bú tốt, chưa ghi nhận khó khăn nuôi dưỡng hoặc nôn trớ bất thường.",
+        "nhũ nhi dưới 1 tuổi": "Bú mẹ hoặc sử dụng sữa phù hợp, ăn dặm theo lứa tuổi, chưa ghi nhận khó khăn nuôi dưỡng hoặc nôn trớ bất thường.",
         "trẻ nhỏ 1-5 tuổi": "Ăn uống phù hợp lứa tuổi, ăn đa dạng, không biếng ăn kéo dài, không nôn hoặc tiêu chảy mạn tính.",
         "trẻ học đường 6-10 tuổi": "Chế độ ăn đa dạng, phù hợp lứa tuổi, phát triển thể chất phù hợp, không ghi nhận rối loạn dinh dưỡng.",
         "trẻ vị thành niên 11-15 tuổi": "Ăn uống đa dạng, phù hợp giai đoạn dậy thì, chưa ghi nhận rối loạn dinh dưỡng hoặc hành vi ăn uống bất thường.",
@@ -855,6 +878,7 @@ def pediatric_normal_history(age):
     }
     development_by_age = {
         "sơ sinh": "Trẻ đáp ứng phù hợp, bú tốt, phản xạ sơ sinh phù hợp tuổi thai, chưa ghi nhận bất thường phát triển.",
+        "nhũ nhi dưới 1 tuổi": "Các mốc vận động, ngôn ngữ sớm, tương tác và phản ứng xã hội phù hợp lứa tuổi; chưa ghi nhận thoái lui phát triển.",
         "trẻ nhỏ 1-5 tuổi": "Các mốc vận động, ngôn ngữ, nhận thức và giao tiếp xã hội phù hợp lứa tuổi; chưa ghi nhận thoái lui phát triển.",
         "trẻ học đường 6-10 tuổi": "Học tập, giao tiếp, vận động và tự chăm sóc phù hợp lứa tuổi; chưa ghi nhận khó khăn phát triển.",
         "trẻ vị thành niên 11-15 tuổi": "Phát triển thể chất, tâm lý, học tập và giao tiếp xã hội phù hợp lứa tuổi; chưa ghi nhận bất thường dậy thì.",
@@ -874,7 +898,7 @@ def pediatric_normal_history(age):
 
 def fill_pediatric_normal_history():
     filled_count = 0
-    for field_key, normal_text in pediatric_normal_history(st.session_state.get("tuoi", 0)).items():
+    for field_key, normal_text in pediatric_normal_history(st.session_state.get("tuoi", 0), st.session_state.get("tuoi_don_vi", "Năm tuổi")).items():
         if not str(st.session_state.get(field_key, "") or "").strip():
             st.session_state[field_key] = normal_text
             filled_count += 1
@@ -1261,7 +1285,7 @@ def export_pdf(data):
     # I. HÀNH CHÍNH
     pdf.add_section_header("I. PHẦN HÀNH CHÍNH")
     hc_text = (
-        f"- Họ và tên: {str(data['ho_ten']).upper()}    |    Tuổi: {data['tuoi']}    |    Giới tính: {data['gioi_tinh']}\n"
+        f"- Họ và tên: {str(data['ho_ten']).upper()}    |    Tuổi: {format_age(data['tuoi'], data.get('tuoi_don_vi', 'Năm tuổi'))}    |    Giới tính: {data['gioi_tinh']}\n"
         f"- Dân tộc: {data['dan_tok']}    |    Nghề nghiệp: {data['nghe_nghiep']}\n"
         f"- Khoa phòng: {data['khoa_phong']}\n"
         f"- Địa chỉ: {data['dia_chi']}\n"
@@ -1584,7 +1608,7 @@ def export_docx(data):
     # I. HÀNH CHÍNH
     add_sec_title("I. PHẦN HÀNH CHÍNH")
     hc_lines = [
-        f"Họ và tên: {str(data.get('ho_ten', '')).upper()}    |    Tuổi: {data.get('tuoi', '')}    |    Giới tính: {data.get('gioi_tinh', '')}",
+        f"Họ và tên: {str(data.get('ho_ten', '')).upper()}    |    Tuổi: {format_age(data.get('tuoi', ''), data.get('tuoi_don_vi', 'Năm tuổi'))}    |    Giới tính: {data.get('gioi_tinh', '')}",
         f"Dân tộc: {data.get('dan_tok', '')}    |    Nghề nghiệp: {data.get('nghe_nghiep', '')}",
         f"Khoa / Phòng: {data.get('khoa_phong', '')}",
         f"Địa chỉ: {data.get('dia_chi', '')}",
@@ -1998,7 +2022,7 @@ uploaded_imgs = {}
 def generate_intro_tom_tat_noi_khoa():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
-    tuoi_str = f"{tuoi} tuổi" if tuoi else ""
+    tuoi_str = format_age(tuoi, st.session_state.get("tuoi_don_vi", "Năm tuổi")) if tuoi != "" else ""
     
     ts_list = []
     history_keys = ["ts_benh_ly", "ts_dinh_duong", "ts_san_khoa_nhi", "ts_tiem_chung", "ts_phat_trien", "ts_dich_te", "ts_di_ung", "ts_gia_dinh"] if is_pediatric_mode(loai_benh_an) else ["ts_noi_khoa", "ts_ngoai_khoa"]
@@ -2327,7 +2351,7 @@ def ui_cls(num_dx, num_kq):
                     elif is_pediatric_mode(loai_benh_an):
                         context_cls = (
                             f"LOẠI BỆNH ÁN: NHI KHOA\n"
-                            f"Bệnh nhi: {st.session_state.get('tuoi')} tuổi, Giới tính: {st.session_state.get('gioi_tinh')}\n"
+                            f"Bệnh nhi: {format_age(st.session_state.get('tuoi'), st.session_state.get('tuoi_don_vi', 'Năm tuổi'))}, Giới tính: {st.session_state.get('gioi_tinh')}\n"
                             f"Bệnh sử: {benh_su_str}\n"
                             f"{clinical_history_context(loai_benh_an)}\n"
                             f"Khám toàn thân & Sinh hiệu: Mạch {st.session_state.get('sh_mach')}, HA {st.session_state.get('sh_ha')}, Nhiệt độ {st.session_state.get('sh_nhiet_do')}, Nhịp thở {st.session_state.get('sh_nhip_tho')}, Cân nặng {st.session_state.get('sh_can_nang')}, Chiều cao {st.session_state.get('sh_chieu_cao')}\n"
@@ -2511,7 +2535,14 @@ with tab1:
             st.text_input("Họ và tên người bệnh", key="ho_ten", placeholder="Nguyễn Văn A")
             st.text_input("Dân tộc", key="dan_tok", placeholder="Kinh, Tày, Nùng...")
         with c_hc2:
-            st.number_input("Tuổi", min_value=0, max_value=120, key="tuoi")
+            if is_pediatric_mode(loai_benh_an):
+                c_age_value, c_age_unit = st.columns([1, 1.15])
+                with c_age_value:
+                    st.number_input("Số tuổi", min_value=0, max_value=10000, step=1, key="tuoi")
+                with c_age_unit:
+                    st.selectbox("Đơn vị tuổi", ["Ngày tuổi", "Tháng tuổi", "Năm tuổi"], key="tuoi_don_vi")
+            else:
+                st.number_input("Tuổi", min_value=0, max_value=120, key="tuoi")
             st.text_input("Nghề nghiệp", key="nghe_nghiep", placeholder="Kỹ sư, Hưu trí, Nông dân...")
         with c_hc3:
             st.selectbox("Giới tính", ["Nam", "Nữ", "Khác"], key="gioi_tinh")
@@ -2611,7 +2642,7 @@ with tab1:
         with st.expander("IV. TIỀN SỬ", expanded=has_ts):
             if is_pediatric_mode(loai_benh_an):
                 st.markdown("**MẪU TIỀN SỬ BÌNH THƯỜNG THEO TUỔI:**")
-                st.caption(f"Nhóm tuổi hiện tại: {pediatric_age_group(st.session_state.get('tuoi', 0))}. Chỉ các ô đang trống mới được điền.")
+                st.caption(f"Nhóm tuổi hiện tại: {pediatric_age_group(st.session_state.get('tuoi', 0), st.session_state.get('tuoi_don_vi', 'Năm tuổi'))}. Chỉ các ô đang trống mới được điền.")
                 col_fill_history, col_reset_history = st.columns([2, 1])
                 with col_fill_history:
                     st.button(
@@ -3016,7 +3047,7 @@ with tab1:
             else:
                 with st.spinner("AI đang phân tích logic lâm sàng..."):
                     try:
-                        context = f"Loại: {loai_benh_an}\nTuổi: {st.session_state.get('tuoi')}, Giới tính: {st.session_state.get('gioi_tinh')}\n{clinical_history_context(loai_benh_an)}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nĐiều trị: {st.session_state.get('dt_cu_the')}"
+                        context = f"Loại: {loai_benh_an}\nTuổi: {format_age(st.session_state.get('tuoi'), st.session_state.get('tuoi_don_vi', 'Năm tuổi'))}, Giới tính: {st.session_state.get('gioi_tinh')}\n{clinical_history_context(loai_benh_an)}\nChẩn đoán: {st.session_state.get('chan_doan_xac_dinh')}\nĐiều trị: {st.session_state.get('dt_cu_the')}"
                         model = get_feature_model("KEY_AI", "gemini-3.1-flash-lite")
                         prompt = f"Bạn là {'bác sĩ nhi khoa' if is_pediatric_mode(loai_benh_an) else 'bác sĩ lâm sàng'}. Đưa ra TIÊN LƯỢNG và TƯ VẤN cho ca bệnh ({context}). {'Tư vấn phải hướng tới cha mẹ/người chăm sóc và có dấu hiệu cảnh báo cần đưa trẻ đi khám ngay.' if is_pediatric_mode(loai_benh_an) else ''} Yêu cầu trả về đúng 2 tag: [TIEN_LUONG] và [TU_VAN]. {AI_PLAIN_LINE_FORMAT}"
                         res_text = model.generate_content(prompt).text
@@ -3056,7 +3087,7 @@ with tab2:
         so_hang = st.session_state.get("so_hang_cls", 3)
         dem_cls = sum(1 for i in range(so_hang) if str(st.session_state.get(f"cls_kq_{i}", "")).strip() or (locals().get('uploaded_imgs') and uploaded_imgs.get(f"cls_img_{i}")))
         overview_rows = [
-            f"<div class='overview-row'><span class='overview-label'>Bệnh nhân:</span> {html.escape(ho_ten_val.upper())} | {html.escape(str(st.session_state.get('tuoi')))} tuổi | Giới tính: {html.escape(str(st.session_state.get('gioi_tinh')))} | Loại bệnh án: {html.escape(loai_benh_an)}</div>",
+            f"<div class='overview-row'><span class='overview-label'>Bệnh nhân:</span> {html.escape(ho_ten_val.upper())} | {html.escape(format_age(st.session_state.get('tuoi'), st.session_state.get('tuoi_don_vi', 'Năm tuổi')))} | Giới tính: {html.escape(str(st.session_state.get('gioi_tinh')))} | Loại bệnh án: {html.escape(loai_benh_an)}</div>",
             f"<div class='overview-row'><span class='overview-label'>Khoa phòng:</span> {html.escape(str(st.session_state.get('khoa_phong') or 'Chưa điền'))} | <span class='overview-label'>Lý do vào viện:</span> {html.escape(str(st.session_state.get('ly_do_vao_vien') or 'Chưa điền'))}</div>",
             f"<div class='overview-row'><span class='overview-label'>Cận lâm sàng đã nhập:</span> {dem_cls}/{so_hang} hàng</div>",
         ]
@@ -3224,7 +3255,7 @@ with tab3:
     ) or "Chưa ghi nhận kết quả cận lâm sàng"
     ca_benh_summary = f"""
     Loại bệnh án: {loai_benh_an}
-    Hành chính: Họ tên {st.session_state.get('ho_ten')}, tuổi {st.session_state.get('tuoi')}, giới tính {st.session_state.get('gioi_tinh')}, dân tộc {st.session_state.get('dan_tok')}, nghề nghiệp {st.session_state.get('nghe_nghiep')}, khoa/phòng {st.session_state.get('khoa_phong')}
+    Hành chính: Họ tên {st.session_state.get('ho_ten')}, tuổi {format_age(st.session_state.get('tuoi'), st.session_state.get('tuoi_don_vi', 'Năm tuổi'))}, giới tính {st.session_state.get('gioi_tinh')}, dân tộc {st.session_state.get('dan_tok')}, nghề nghiệp {st.session_state.get('nghe_nghiep')}, khoa/phòng {st.session_state.get('khoa_phong')}
     Lý do vào viện: {st.session_state.get('ly_do_vao_vien')}
     Bệnh sử: {benh_su_str_pb}
     {clinical_history_context(loai_benh_an)}
