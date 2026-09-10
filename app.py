@@ -828,6 +828,57 @@ def clinical_history_context(mode):
         f"Lối sống và thói quen: {st.session_state.get('ts_loi_song')}\n"
         f"Tiền sử gia đình: {st.session_state.get('ts_gia_dinh')}"
     )
+
+def pediatric_age_group(age):
+    try:
+        age = int(age or 0)
+    except (TypeError, ValueError):
+        age = 0
+    if age <= 0:
+        return "sơ sinh"
+    if age <= 5:
+        return "trẻ nhỏ 1-5 tuổi"
+    if age <= 10:
+        return "trẻ học đường 6-10 tuổi"
+    if age <= 15:
+        return "trẻ vị thành niên 11-15 tuổi"
+    return "vị thành niên 16-18 tuổi"
+
+def pediatric_normal_history(age):
+    age_group = pediatric_age_group(age)
+    nutrition_by_age = {
+        "sơ sinh": "Bú mẹ, phản xạ bú tốt, chưa ghi nhận khó khăn nuôi dưỡng hoặc nôn trớ bất thường.",
+        "trẻ nhỏ 1-5 tuổi": "Ăn uống phù hợp lứa tuổi, ăn đa dạng, không biếng ăn kéo dài, không nôn hoặc tiêu chảy mạn tính.",
+        "trẻ học đường 6-10 tuổi": "Chế độ ăn đa dạng, phù hợp lứa tuổi, phát triển thể chất phù hợp, không ghi nhận rối loạn dinh dưỡng.",
+        "trẻ vị thành niên 11-15 tuổi": "Ăn uống đa dạng, phù hợp giai đoạn dậy thì, chưa ghi nhận rối loạn dinh dưỡng hoặc hành vi ăn uống bất thường.",
+        "vị thành niên 16-18 tuổi": "Ăn uống đa dạng, phù hợp tuổi và mức độ hoạt động, chưa ghi nhận rối loạn dinh dưỡng hoặc hành vi ăn uống bất thường.",
+    }
+    development_by_age = {
+        "sơ sinh": "Trẻ đáp ứng phù hợp, bú tốt, phản xạ sơ sinh phù hợp tuổi thai, chưa ghi nhận bất thường phát triển.",
+        "trẻ nhỏ 1-5 tuổi": "Các mốc vận động, ngôn ngữ, nhận thức và giao tiếp xã hội phù hợp lứa tuổi; chưa ghi nhận thoái lui phát triển.",
+        "trẻ học đường 6-10 tuổi": "Học tập, giao tiếp, vận động và tự chăm sóc phù hợp lứa tuổi; chưa ghi nhận khó khăn phát triển.",
+        "trẻ vị thành niên 11-15 tuổi": "Phát triển thể chất, tâm lý, học tập và giao tiếp xã hội phù hợp lứa tuổi; chưa ghi nhận bất thường dậy thì.",
+        "vị thành niên 16-18 tuổi": "Phát triển thể chất và tâm lý phù hợp lứa tuổi, học tập và giao tiếp xã hội ổn định.",
+    }
+    birth_history = "Sinh đủ tháng, đẻ thường, cân nặng sơ sinh phù hợp, không ghi nhận ngạt hoặc biến cố chu sinh." if age_group == "sơ sinh" else "Sinh đủ tháng, cân nặng sơ sinh phù hợp, không ghi nhận biến cố sản khoa hoặc bệnh lý chu sinh đáng chú ý."
+    return {
+        "ts_benh_ly": "Chưa ghi nhận bệnh lý nội khoa, ngoại khoa hoặc nhập viện trước đây đáng chú ý.",
+        "ts_dinh_duong": nutrition_by_age[age_group],
+        "ts_san_khoa_nhi": birth_history,
+        "ts_tiem_chung": "Đã tiêm chủng đầy đủ theo lịch tiêm chủng của lứa tuổi, chưa ghi nhận phản ứng nặng sau tiêm.",
+        "ts_phat_trien": development_by_age[age_group],
+        "ts_dich_te": "Chưa ghi nhận tiếp xúc nguồn bệnh, ổ dịch, vật nuôi bất thường hoặc yếu tố dịch tễ đặc biệt.",
+        "ts_di_ung": "Chưa ghi nhận dị ứng thuốc, thức ăn hoặc các dị nguyên khác.",
+        "ts_gia_dinh": "Chưa ghi nhận bệnh di truyền, dị tật bẩm sinh, bệnh mạn tính hoặc bệnh truyền nhiễm đặc biệt trong gia đình.",
+    }
+
+def fill_pediatric_normal_history():
+    filled_count = 0
+    for field_key, normal_text in pediatric_normal_history(st.session_state.get("tuoi", 0)).items():
+        if not str(st.session_state.get(field_key, "") or "").strip():
+            st.session_state[field_key] = normal_text
+            filled_count += 1
+    st.session_state["_pediatric_history_fill_count"] = filled_count
 def add_symptom_to_field(field_key, symptom_text):
     """Hàm chèn an toàn triệu chứng vào ô text_area mà không gây lỗi session_state"""
     val = str(st.session_state.get(field_key, "")).strip()
@@ -2559,6 +2610,31 @@ with tab1:
         st.markdown("<div id='sec-tien-su'></div>", unsafe_allow_html=True)
         with st.expander("IV. TIỀN SỬ", expanded=has_ts):
             if is_pediatric_mode(loai_benh_an):
+                st.markdown("**MẪU TIỀN SỬ BÌNH THƯỜNG THEO TUỔI:**")
+                st.caption(f"Nhóm tuổi hiện tại: {pediatric_age_group(st.session_state.get('tuoi', 0))}. Chỉ các ô đang trống mới được điền.")
+                col_fill_history, col_reset_history = st.columns([2, 1])
+                with col_fill_history:
+                    st.button(
+                        "⚡ Điền tiền sử bình thường",
+                        key="btn_fill_pediatric_history",
+                        on_click=fill_pediatric_normal_history,
+                        use_container_width=True,
+                        help="Tạo mẫu tiền sử bình thường theo tuổi đã nhập, không sử dụng AI và không ghi đè nội dung đã có.",
+                    )
+                with col_reset_history:
+                    st.button(
+                        "🔄 Xóa tiền sử",
+                        key="btn_clear_pediatric_history",
+                        on_click=lambda: [st.session_state.__setitem__(field_key, "") for field_key in pediatric_normal_history(0)],
+                        use_container_width=True,
+                    )
+                if "_pediatric_history_fill_count" in st.session_state:
+                    filled_count = st.session_state.pop("_pediatric_history_fill_count")
+                    if filled_count:
+                        st.toast(f"Đã điền mẫu bình thường cho {filled_count} mục tiền sử theo tuổi.", icon="📋")
+                    else:
+                        st.info("Các mục tiền sử nhi khoa đều đã có nội dung.")
+
                 pediatric_labels = [
                     ("1. Tiền sử bệnh lý", "ts_benh_ly"),
                     ("2. Tiền sử dinh dưỡng", "ts_dinh_duong"),
