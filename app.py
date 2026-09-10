@@ -709,7 +709,7 @@ st.markdown("""
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
 # ==============================================================================
 def get_benh_su_text_for_ai():
-    if st.session_state.get("loai_benh_an") in ["Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"]:
+    if is_postop_mode(st.session_state.get("loai_benh_an", "")):
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
     return st.session_state.get("benh_su")
 
@@ -1107,7 +1107,7 @@ def export_pdf(data):
 
     # III hoặc IV. BỆNH SỬ
     pdf.add_section_header("IV. BỆNH SỬ" if is_san_phu_khoa_mode(pdf.loai_ba) else "III. BỆNH SỬ")
-    if is_postop_mode(pdf.loai_ba) or is_san_phu_khoa_mode(pdf.loai_ba):
+    if is_postop_mode(pdf.loai_ba):
         pdf.add_subsection_header("1. Tình trạng trước mổ:")
         pdf.add_body_text(format_bullet_points(data.get('bs_truoc_mo', '')))
         pdf.add_subsection_header("2. Tình trạng trong mổ:")
@@ -1419,7 +1419,7 @@ def export_docx(data):
 
     # III hoặc IV. BỆNH SỬ
     add_sec_title("IV. BỆNH SỬ" if is_san_phu_khoa_mode(loai_ba) else "III. BỆNH SỬ")
-    if is_postop_mode(loai_ba) or is_san_phu_khoa_mode(loai_ba):
+    if is_postop_mode(loai_ba):
         add_subsec_title("1. Tình trạng trước mổ:")
         add_bullet_list(data.get('bs_truoc_mo', ''))
         add_subsec_title("2. Tình trạng trong mổ:")
@@ -2331,7 +2331,7 @@ with tab1:
                 st.text_area("Nội dung tiền sử gia đình:", key="ts_gia_dinh", height=90, label_visibility="collapsed")
             st.markdown("**BỆNH SỬ SẢN PHỤ KHOA:**")
 
-        if is_postop_mode(loai_benh_an) or is_san_phu_khoa_mode(loai_benh_an):
+        if is_postop_mode(loai_benh_an):
             st.markdown("**BỆNH SỬ HẬU PHẪU:**")
             st.text_area(
                 "1. Tình trạng trước mổ:",
