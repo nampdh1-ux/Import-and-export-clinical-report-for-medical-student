@@ -1931,7 +1931,11 @@ with st.sidebar:
 st.title("Bệnh Án Lâm Sàng")
 st.caption("Cấu trúc bệnh án trình bày ca bệnh và thi lâm sàng (Hỗ trợ Nội khoa, Ngoại khoa, Hậu phẫu, Sản phụ khoa, Nhi khoa).")
 
-loai_benh_an = st.radio("📌 **LỰA CHỌN MẪU BỆNH ÁN:**", ["Nội khoa / Tiền phẫu", "Nhi khoa", "Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"], horizontal=True, key="loai_benh_an")
+loai_benh_an = st.selectbox(
+    "**LỰA CHỌN MẪU BỆNH ÁN:**",
+    ["Nội khoa / Tiền phẫu", "Nhi khoa", "Hậu phẫu", "Sản phụ khoa / Tiền phẫu", "Sản phụ khoa / Hậu phẫu"],
+    key="loai_benh_an",
+)
 initialize_postop_widgets(loai_benh_an)
 
 # Khai báo Dictionary lưu trữ ảnh toàn cục
