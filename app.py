@@ -135,6 +135,42 @@ def send_draft_email(target_email, draft_json, filename):
             except Exception:
                 pass
 
+def send_pdf_email(target_email, pdf_bytes, filename):
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
+    if not (sender_mail and sender_pass):
+        return False, "Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets."
+
+    server = None
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = sender_mail
+        msg["To"] = target_email
+        msg["Subject"] = f"Bệnh án điện tử PDF - {filename}"
+        msg.attach(MIMEText(
+            "Xin chào,\n\nFile bệnh án điện tử PDF của bạn được đính kèm trong email này.",
+            "plain",
+            "utf-8",
+        ))
+
+        attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
+        attachment.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(attachment)
+
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        return True, ""
+    except Exception as e:
+        return False, f"Không thể gửi email: {e}"
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
+
 def check_password():
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
     url_admin_key = str(st.query_params.get("nam", "")).strip()
@@ -2034,6 +2070,38 @@ with st.sidebar:
                 sent, error_message = send_draft_email(draft_email, json_string, draft_filename)
             if sent:
                 st.success(f"Đã gửi bản nháp đến {draft_email}.")
+            else:
+                st.error(error_message)
+
+    st.markdown("**Gửi file PDF qua email:**")
+    pdf_file_to_send = st.file_uploader(
+        "Chọn file PDF bệnh án:",
+        type=["pdf"],
+        key="uploader_pdf_email",
+        help="Bạn có thể chọn PDF lấy từ bệnh viện hoặc PDF đã tải xuống từ ứng dụng.",
+    )
+    pdf_email = st.text_input(
+        "Địa chỉ email nhận PDF:",
+        key="pdf_email_input",
+        placeholder="tenban@gmail.com",
+        label_visibility="collapsed",
+    ).strip().lower()
+    if st.button("📤 Gửi PDF qua email", type="primary", use_container_width=True):
+        if pdf_file_to_send is None:
+            st.error("Vui lòng chọn file PDF trước khi gửi.")
+        elif not pdf_email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", pdf_email):
+            st.error("Vui lòng nhập địa chỉ email hợp lệ.")
+        elif pdf_file_to_send.size > 20 * 1024 * 1024:
+            st.error("File PDF vượt quá giới hạn 20 MB.")
+        else:
+            with st.spinner("Đang gửi file PDF qua email..."):
+                sent, error_message = send_pdf_email(
+                    pdf_email,
+                    pdf_file_to_send.getvalue(),
+                    pdf_file_to_send.name,
+                )
+            if sent:
+                st.success(f"Đã gửi PDF đến {pdf_email}.")
             else:
                 st.error(error_message)
 
