@@ -12,6 +12,7 @@ import tempfile
 import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
 
 from fpdf import FPDF
@@ -97,6 +98,42 @@ def send_login_notification(user_email):
         server.quit()
     except Exception:
         pass
+
+def send_draft_email(target_email, draft_json, filename):
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
+    if not (sender_mail and sender_pass):
+        return False, "Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets."
+
+    server = None
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = sender_mail
+        msg["To"] = target_email
+        msg["Subject"] = f"Bản nháp bệnh án lâm sàng - {filename}"
+        msg.attach(MIMEText(
+            "Xin chào,\n\nBản nháp bệnh án lâm sàng của bạn được đính kèm trong email này.",
+            "plain",
+            "utf-8",
+        ))
+
+        attachment = MIMEApplication(draft_json.encode("utf-8"), _subtype="json")
+        attachment.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(attachment)
+
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        return True, ""
+    except Exception as e:
+        return False, f"Không thể gửi email: {e}"
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
 
 def check_password():
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
@@ -1978,8 +2015,28 @@ with st.sidebar:
     json_string = json.dumps(current_data, ensure_ascii=False, indent=2)
     ten_benh_nhan = str(st.session_state.get("ho_ten", "chua_dat_ten")).strip().replace(" ", "_")
     if not ten_benh_nhan: ten_benh_nhan = "chua_dat_ten"
-        
-    st.download_button("📥 Lưu bản nháp về máy (.json)", data=json_string, file_name=f"Ban_nhap_{ten_benh_nhan}_{datetime.now().strftime('%Y%m%d_%H%M')}.json", mime="application/json", use_container_width=True)
+
+    draft_filename = f"Ban_nhap_{ten_benh_nhan}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+    st.download_button("📥 Lưu bản nháp về máy (.json)", data=json_string, file_name=draft_filename, mime="application/json", use_container_width=True)
+
+    st.markdown("**Gửi bản nháp qua email:**")
+    draft_email = st.text_input(
+        "Địa chỉ email nhận bản nháp:",
+        key="draft_email_input",
+        placeholder="tenban@gmail.com",
+        label_visibility="collapsed",
+    ).strip().lower()
+    if st.button("📧 Gửi bản nháp qua email", type="primary", use_container_width=True):
+        if not draft_email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", draft_email):
+            st.error("Vui lòng nhập địa chỉ email hợp lệ.")
+        else:
+            with st.spinner("Đang gửi bản nháp qua email..."):
+                sent, error_message = send_draft_email(draft_email, json_string, draft_filename)
+            if sent:
+                st.success(f"Đã gửi bản nháp đến {draft_email}.")
+            else:
+                st.error(error_message)
+
     st.markdown("---")
     st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
     file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
