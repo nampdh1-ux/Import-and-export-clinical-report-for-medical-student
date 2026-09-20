@@ -361,495 +361,62 @@ for i in range(st.session_state["so_hang_cls"]):
     if f"cls_pg_{i}" not in st.session_state: st.session_state[f"cls_pg_{i}"] = ""
 
 
-# --- CSS TÙY BIẾN AN TOÀN THEO THEME GỐC CỦA STREAMLIT ---
+# --- CSS HỖ TRỢ HIỂN THỊ CÁC COMPONENT CUSTOM HTML CHO GIAO DIỆN STREAMLIT MẶC ĐỊNH ---
 st.markdown("""
 <style>
-    /* ==============================================================================
-       RETRO OS DESKTOP Y2K (WINDOWS 2000 / MAC OS 9 CLASSIC SYSTEM AESTHETIC)
-       Màu xám công nghiệp dịu mắt, hiệu ứng vát viền Bevel 3D kinh điển
-       ============================================================================== */
-
-    html {
-        scroll-behavior: smooth;
-    }
-
-    /* 1. KHỐI CỬA SỔ HỆ THỐNG (WINDOW BOX & DIALOG) */
-    div[data-testid="stExpander"] {
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        border-radius: 0px !important;
-        margin-bottom: 14px !important;
-        background-color: #ece9d8 !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        overflow: hidden !important;
-    }
-
-    /* Thanh tiêu đề cửa sổ màu xanh Classic Navy đặc trưng */
-    div[data-testid="stExpander"] > details > summary {
-        background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%) !important;
-        border-left: none !important;
-        border-radius: 0px !important;
-        padding: 6px 12px 6px 14px !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 0.95rem !important;
-        letter-spacing: 0.5px !important;
-        color: #ffffff !important;
-        text-shadow: 1px 1px 1px #000000 !important;
-        box-shadow: none !important;
-    }
-
-    div[data-testid="stExpander"] > details > summary:hover {
-        background: linear-gradient(90deg, #1842a8 0%, #b8d5f5 100%) !important;
-        color: #ffffff !important;
-    }
-
-    div[data-testid="stExpander"] > details > summary svg {
-        fill: #ffffff !important;
-    }
-
-    /* 2. THANH TIÊU ĐỀ PHÂN MỤC (MENUBAR / STATUS STRIP) */
+    html { scroll-behavior: smooth; }
+    
+    /* Các header tự tạo */
     .sidebar-header-amboss {
-        background: #d4d0c8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #808080 !important;
-        border-bottom: 2px solid #808080 !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        padding: 5px 12px !important;
-        border-radius: 0px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.92rem !important;
-        font-weight: 700 !important;
-        color: #000000 !important;
-        margin-bottom: 10px !important;
+        font-size: 1.1rem; font-weight: 600; color: #31333F; margin-bottom: 10px;
+        padding-bottom: 5px; border-bottom: 1px solid #e6e9ef;
     }
-
     .sub-section-header {
-        background: #e4e2d5 !important;
-        border-top: 1px solid #ffffff !important;
-        border-left: 4px solid #0a246a !important;
-        border-right: 1px solid #808080 !important;
-        border-bottom: 1px solid #808080 !important;
-        padding: 4px 10px !important;
-        border-radius: 0px !important;
-        margin-top: 10px !important;
-        margin-bottom: 8px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.88rem !important;
-        font-weight: 700 !important;
-        color: #102542 !important;
+        font-size: 1rem; font-weight: 600; color: #1f77b4; margin-top: 15px;
+        margin-bottom: 10px; padding-left: 8px; border-left: 4px solid #1f77b4;
     }
-
-    /* BỘ CHỌN MẪU BỆNH ÁN DẠNG NÚT BEVEL ĐỒNG BỘ THEME */
-    div[data-testid="stRadio"] {
-        background: #d4d0c8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        box-shadow: 1px 1px 0 #000000 !important;
-        padding: 7px 9px 8px !important;
-        margin: 8px 0 14px !important;
-    }
-
-    div[data-testid="stRadio"] > label {
-        color: #000000 !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-size: 0.9rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 6px !important;
-    }
-
-    div[data-testid="stRadio"] [role="radiogroup"] {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 5px !important;
-    }
-
-    div[data-testid="stRadio"] [role="radio"] {
-        min-height: 34px !important;
-        padding: 5px 10px !important;
-        background: #ece9d8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        border-radius: 0 !important;
-        color: #000000 !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-size: 0.84rem !important;
-        font-weight: 700 !important;
-        line-height: 1.25 !important;
-        cursor: pointer !important;
-    }
-
-    div[data-testid="stRadio"] [role="radio"]:hover {
-        background: #f5f4ea !important;
-        color: #0a246a !important;
-    }
-
-    div[data-testid="stRadio"] [role="radio"][aria-checked="true"] {
-        background: #0a246a !important;
-        border-top-color: #404040 !important;
-        border-left-color: #404040 !important;
-        border-right-color: #ffffff !important;
-        border-bottom-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0 #000000 !important;
-        color: #ffffff !important;
-        text-shadow: 1px 1px 1px #000000 !important;
-    }
-
-    div[data-testid="stRadio"] [role="radio"] p,
-    div[data-testid="stRadio"] [role="radio"] span {
-        color: inherit !important;
-        font-family: inherit !important;
-        font-size: inherit !important;
-        font-weight: inherit !important;
-    }
-
-    @media (max-width: 720px) {
-        div[data-testid="stRadio"] [role="radio"] {
-            flex: 1 1 100% !important;
-        }
-    }
-
     .highlight-dx {
-        background-color: #fffde6 !important;
-        border: 1px solid #b8860b !important;
-        color: #8b0000 !important;
-        padding: 6px 12px !important;
-        border-radius: 0px !important;
-        font-weight: 700 !important;
-        font-family: 'Tahoma', sans-serif !important;
+        background-color: #ffcccc; color: #900; padding: 8px 12px;
+        border-radius: 4px; font-weight: bold; margin: 10px 0;
     }
-
+    
+    /* Khung Xem Trước Tab 2 */
     .overview-panel {
-        background: #ece9d8;
-        border-top: 2px solid #ffffff;
-        border-left: 2px solid #ffffff;
-        border-right: 2px solid #404040;
-        border-bottom: 2px solid #404040;
-        box-shadow: 1px 1px 0 #000000;
-        margin: 0 0 14px 0;
-        padding: 0;
-        color: #000000;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif;
+        background: #ffffff; border: 1px solid #e6e9ef; border-radius: 8px;
+        margin-bottom: 15px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-
     .overview-panel-title {
-        background: linear-gradient(90deg, #0a246a 0%, #a6caf0 100%);
-        color: #ffffff;
-        font-size: 0.95rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        padding: 7px 12px;
-        text-shadow: 1px 1px 1px #000000;
+        background: #f8f9fb; font-weight: 600; padding: 10px 15px; border-bottom: 1px solid #e6e9ef;
     }
-
-    .overview-panel-body {
-        padding: 10px 12px 8px 12px;
-        background: #f5f4ea;
-    }
-
-    .overview-row {
-        border-bottom: 1px solid #c8c5b8;
-        line-height: 1.45;
-        padding: 6px 4px;
-    }
-
-    .overview-row:last-child {
-        border-bottom: none;
-    }
-
-    .overview-label {
-        color: #0a246a;
-        font-weight: 700;
-    }
-
+    .overview-panel-body { padding: 15px; }
+    .overview-row { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f2f6; }
+    .overview-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .overview-label { font-weight: 600; color: #555; }
     .overview-diagnosis {
-        background: #fffde6;
-        border: 1px solid #b8860b;
-        color: #8b0000;
-        font-weight: 700;
-        margin-top: 8px;
-        padding: 7px 9px;
+        background: #ffcccc; color: #900; font-weight: 600; padding: 8px 12px;
+        border-radius: 4px; margin-top: 10px;
     }
-
-    .overview-empty {
-        color: #404040;
-        font-style: italic;
-        padding: 10px 4px;
-    }
-
-    /* ==============================================================================
-       3. Ô NHẬP LIỆU CHÌM (CHUYỂN VIỀN ĐỎ BASEWEB THÀNH ĐEN HOÀN TOÀN)
-       ============================================================================== */
-
-    /* 1. KHUNG CHÌM 3D WIN2K NGOÀI CÙNG */
-    div[data-testid="stTextInput"] > div,
-    div[data-testid="stTextArea"] > div,
-    div[data-testid="stNumberInput"] > div,
-    div[data-testid="stSelectbox"] > div > div {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        border-radius: 0px !important;
-        box-shadow: inset 1px 1px 0px #808080 !important;
-        overflow: hidden !important;
-    }
-
-    /* 2. CHẶN VÀ ĐỔI TOÀN BỘ MÀU VIỀN ĐỎ NỘI BỘ SANG TRONG SUỐT / ĐEN */
-    div[data-baseweb="base-input"],
-    div[data-baseweb="input"],
-    div[data-baseweb="textarea"] {
-        border-color: transparent !important;
-        border-radius: 0px !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-    }
-
-    /* Đổi màu đỏ khi focus sang đen hoặc triệt tiêu */
-    div[data-baseweb="base-input"]:focus-within,
-    div[data-baseweb="input"]:focus-within,
-    div[data-baseweb="textarea"]:focus-within,
-    div[data-baseweb="base-input"] > div:focus-within,
-    div[data-baseweb="input"] > div:focus-within {
-        border-color: transparent !important;
-        box-shadow: none !important;
-    }
-
-    /* 3. KHI FOCUS: KHUNG NGOÀI CHUYỂN SANG ĐEN ĐẬM ĐỒNG BỘ */
-    div[data-testid="stTextInput"] > div:focus-within,
-    div[data-testid="stTextArea"] > div:focus-within,
-    div[data-testid="stNumberInput"] > div:focus-within,
-    div[data-testid="stSelectbox"] > div > div:focus-within {
-        border-top: 2px solid #000000 !important;
-        border-left: 2px solid #000000 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0px #000000 !important;
-    }
-
-    /* 4. TẤT CẢ CÁC THẺ CON VÀ INPUT THUẦN */
-    div[data-testid="stTextInput"] *,
-    div[data-testid="stTextArea"] *,
-    div[data-testid="stNumberInput"] * {
-        border-radius: 0px !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-testid="stNumberInput"] input {
-        border: none !important;
-        border-color: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-        color: #000000 !important;
-        font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
-        font-size: 0.92rem !important;
-        padding: 5px 8px !important;
-        background-color: transparent !important;
-    }
-
-    /* 5. NÚT TĂNG GIẢM (+ / -) CỦA NUMBER INPUT */
-    div[data-testid="stNumberInput"] button {
-        border-radius: 0px !important;
-        border-top: 1px solid #ffffff !important;
-        border-left: 1px solid #ffffff !important;
-        border-right: 1px solid #404040 !important;
-        border-bottom: 1px solid #404040 !important;
-        background-color: #ece9d8 !important;
-        color: #000000 !important;
-    }
-
-    div[data-testid="stNumberInput"] button:active {
-        border-top: 1px solid #404040 !important;
-        border-left: 1px solid #404040 !important;
-        border-right: 1px solid #ffffff !important;
-        border-bottom: 1px solid #ffffff !important;
-    }
-
-    *:focus, *:focus-visible {
-        outline: none !important;
-    }
-
-    /* 4. NÚT BẤM CÔNG HỘP CHỮ NHẬT VÁT NỔI 3D (CHUNKY BUTTONS) */
-    button[kind="primary"] {
-        background: #ece9d8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        border-radius: 0px !important;
-        color: #000000 !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 0.88rem !important;
-        padding: 4px 14px !important;
-    }
-
-    /* Hiệu ứng lún nút khi nhấn xuống (Pressed) */
-    button[kind="primary"]:active {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        box-shadow: none !important;
-        transform: translate(1px, 1px) !important;
-    }
-
-    button[kind="secondary"] {
-        background: #ece9d8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        border-radius: 0px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-weight: 600 !important;
-        color: #000000 !important;
-    }
-
-    /* 5. THANH MỤC LỤC BÊN PHẢI DẠNG HỘP CÔNG CỤ SYSTEM TOOLBOX */
-    .right-toc-container {
-        position: fixed !important;
-        top: 75px !important;
-        right: 18px !important;
-        z-index: 999999 !important;
-    }
-
+    .overview-empty { color: #666; font-style: italic; }
+    
+    /* Mục lục nổi (Floating TOC) */
+    .right-toc-container { position: fixed; top: 75px; right: 20px; z-index: 999999; }
     .right-toc-trigger {
-        background: #ece9d8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        color: #000000 !important;
-        padding: 5px 12px !important;
-        border-radius: 0px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.82rem !important;
-        font-weight: 700 !important;
-        cursor: pointer !important;
-        list-style: none !important;
-        user-select: none !important;
+        background: #ffffff; border: 1px solid #dcdfe5; border-radius: 20px;
+        padding: 6px 14px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); list-style: none; user-select: none; color: #31333F;
     }
-
-    .right-toc-trigger:hover {
-        background: #f5f4ea !important;
-    }
-
-    .right-toc-trigger:active {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        box-shadow: none !important;
-    }
-
+    .right-toc-trigger:hover { border-color: #ff4b4b; color: #ff4b4b; }
     .right-toc-menu {
-        position: absolute !important;
-        top: 30px !important;
-        right: 0 !important;
-        width: 250px !important;
-        background: #ece9d8 !important;
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        box-shadow: 3px 3px 0px #000000 !important;
-        padding: 4px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        max-height: 75vh !important;
-        overflow-y: auto !important;
+        position: absolute; top: 38px; right: 0; width: 260px; background: #ffffff;
+        border: 1px solid #dcdfe5; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 10px; max-height: 75vh; overflow-y: auto;
     }
-
     .right-toc-header {
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.72rem !important;
-        font-weight: 700 !important;
-        background: #0a246a !important;
-        color: #ffffff !important;
-        padding: 3px 8px !important;
-        letter-spacing: 0.5px !important;
-        margin-bottom: 4px !important;
+        font-size: 0.8rem; font-weight: bold; color: #888; margin-bottom: 8px;
+        text-transform: uppercase; padding-bottom: 4px; border-bottom: 1px solid #eee;
     }
-
-    .toc-item {
-        color: #000000 !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-size: 0.82rem !important;
-        padding: 5px 8px !important;
-        text-decoration: none !important;
-        display: block !important;
-        border: 1px solid transparent !important;
-    }
-
-    .toc-item:hover {
-        background-color: #0a246a !important;
-        color: #ffffff !important;
-    }
-
-    /* ==============================================================================
-       6. KHUNG TẢI FILE (FILE UPLOADER SUNKEN BOX WIN2K)
-       ============================================================================== */
-    /* Triệt tiêu khung viền ngoài và các góc bo cong mặc định */
-    div[data-testid="stFileUploader"],
-    div[data-testid="stFileUploader"] * {
-        border-radius: 0px !important;
-    }
-
-    /* Khung thả file (Dropzone): Nền trắng phẳng, rãnh chìm 3D */
-    div[data-testid="stFileUploader"] section,
-    div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        background-color: #ffffff !important;
-        box-shadow: inset 1px 1px 0px #808080 !important;
-        padding: 10px 14px !important;
-    }
-
-    /* Ép tất cả các thẻ nền bên trong vùng uploader sang trong suốt */
-    div[data-testid="stFileUploader"] section > div {
-        background-color: transparent !important;
-    }
-
-    /* Nút bấm Browse Files / Upload: Hộp nổi 3D vuông vức */
-    div[data-testid="stFileUploader"] button {
-        border-top: 2px solid #ffffff !important;
-        border-left: 2px solid #ffffff !important;
-        border-right: 2px solid #404040 !important;
-        border-bottom: 2px solid #404040 !important;
-        background-color: #ece9d8 !important;
-        color: #000000 !important;
-        border-radius: 0px !important;
-        box-shadow: 1px 1px 0px #000000 !important;
-        padding: 3px 12px !important;
-        font-family: 'Tahoma', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 0.85rem !important;
-    }
-
-    /* Hiệu ứng lún nút Upload khi bấm */
-    div[data-testid="stFileUploader"] button:active {
-        border-top: 2px solid #404040 !important;
-        border-left: 2px solid #404040 !important;
-        border-right: 2px solid #ffffff !important;
-        border-bottom: 2px solid #ffffff !important;
-        box-shadow: none !important;
-        transform: translate(1px, 1px) !important;
-    }
+    .toc-item { display: block; color: #31333F; text-decoration: none; padding: 6px 8px; border-radius: 4px; font-size: 0.9rem; }
+    .toc-item:hover { background-color: #f0f2f6; color: #ff4b4b; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -976,6 +543,7 @@ def fill_pediatric_normal_history():
             st.session_state[field_key] = normal_text
             filled_count += 1
     st.session_state["_pediatric_history_fill_count"] = filled_count
+
 def add_symptom_to_field(field_key, symptom_text):
     """Hàm chèn an toàn triệu chứng vào ô text_area mà không gây lỗi session_state"""
     val = str(st.session_state.get(field_key, "")).strip()
@@ -1005,6 +573,7 @@ def initialize_postop_widgets(current_mode):
 def sync_postop_field(field_key):
     widget_key = f"_postop_{field_key}"
     st.session_state[field_key] = st.session_state.get(widget_key, "")
+
 def format_bullet_points(text):
     if not text or not str(text).strip(): return "Chưa ghi nhận thông tin."
     lines = str(text).strip().split("\n")
@@ -2198,7 +1767,6 @@ def generate_intro_tom_tat_noi_khoa():
     )
 
 # --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
-# --- HÀM TỰ ĐỘNG TẠO CÂU DẪN TÓM TẮT BỆNH ÁN HẬU PHẪU (KHÔNG DÙNG AI) ---
 def generate_intro_tom_tat_hau_phau():
     gioi_tinh = st.session_state.get("gioi_tinh", "Nam")
     tuoi = st.session_state.get("tuoi", "")
@@ -3113,7 +2681,7 @@ with tab1:
     # X VÀ XI. CẬN LÂM SÀNG
     # -------------------------------------------------------------------------
     cls_keys = ["cls_dx_xac_dinh", "cls_dx_dieu_tri", "cls_dx_khac"]
-    for i in range(st.session_state.get("so_hang_cls", )):
+    for i in range(st.session_state.get("so_hang_cls", 1)):
         cls_keys.extend([f"cls_kq_{i}", f"cls_pg_{i}"])
     has_cls = check_section_has_data(cls_keys)
 
@@ -3153,6 +2721,7 @@ with tab1:
                             st.session_state["dt_cu_the"] = p2[0].strip()
                             st.session_state["dt_theo_doi"] = p2[1].strip()
                             st.success("✨ Đã lên phác đồ điều trị thành công!")
+                            st.rerun()
                         else: st.error("AI phản hồi sai cấu trúc.")
                     except Exception as e: st.error(f"Lỗi AI: {e}")
 
@@ -3182,6 +2751,7 @@ with tab1:
                             st.session_state["tien_luong"] = parts[0].replace("[TIEN_LUONG]", "").strip()
                             st.session_state["tu_van"] = parts[1].strip()
                             st.success("✨ Đã tạo gợi ý thành công!")
+                            st.rerun() 
                         else: st.error("AI trả về sai định dạng.")
                     except Exception as e: st.error(f"Lỗi AI: {e}")
 
@@ -3199,7 +2769,7 @@ data_benh_an["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
 data_benh_an["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
 data_benh_an["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
 data_benh_an["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
-data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", )
+data_benh_an["so_hang_cls"] = st.session_state.get("so_hang_cls", 1)
 for i in range(data_benh_an["so_hang_cls"]):
     data_benh_an[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
     data_benh_an[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
