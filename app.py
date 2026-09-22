@@ -2479,7 +2479,7 @@ with tab1:
         # --- TAB CON 2: XỬ LÝ ẢNH CHỤP / TÀI LIỆU SCAN (CHỌN NHIỀU ẢNH CÙNG LÚC) ---
         with tab_import_img:
             emr_photos = st.file_uploader(
-                "Tải lên các trang ảnh chụp / scan hồ sơ bệnh án (giữ Ctrl/Shift hoặc chọn nhiều ảnh):",
+                "Tải lên các trang ảnh chụp / scan hồ sơ bệnh án (Chọn nhiều ảnh một lần):",
                 type=["png", "jpg", "jpeg"],
                 accept_multiple_files=True,
                 key="emr_photos_batch_uploader"
