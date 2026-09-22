@@ -2403,8 +2403,8 @@ with tab1:
     # 0. KHU VỰC IMPORT DỮ LIỆU TỰ ĐỘNG (GOM CHUNG PDF & ẢNH SCAN VÀO 1 EXPANDER)
     # -------------------------------------------------------------------------
     st.markdown("<div id='sec-auto-import'></div>", unsafe_allow_html=True)
-    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG (FILE PDF HOẶC ẢNH CHỤP / SCAN)", expanded=False):
-        st.caption("Tự động trích xuất thông tin hành chính, bệnh sử, sinh hiệu và các bảng xét nghiệm từ PDF EMR hoặc nhiều ảnh scan hồ sơ bệnh án.")
+    with st.expander("🖥️NẠP DỮ LIỆU TỰ ĐỘNG (FILE PDF HOẶC ẢNH CHỤP / SCAN)", expanded=False):
+        st.caption("Tự động trích xuất thông tin hành chính, bệnh sử, sinh hiệu và các bảng xét nghiệm từ PDF bệnh án điện tử hoặc nhiều ảnh scan, ảnh chụp hồ sơ bệnh án.")
         
         tab_import_pdf, tab_import_img = st.tabs(["📄 File PDF bệnh án", "📷 Ảnh chụp / Scan bệnh án"])
         
