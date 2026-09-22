@@ -490,6 +490,79 @@ def auto_fill_from_emr_text(raw_text):
         return False, "❌ Lỗi: AI không trả về định dạng JSON hợp lệ."
     except Exception as e:
         return False, f"❌ Lỗi trong quá trình trích xuất: {str(e)}"
+def auto_fill_from_emr_images(image_files):
+    """
+    Hàm nhận danh sách nhiều ảnh chụp/scan bệnh án, gửi qua Gemini Vision
+    để vừa OCR vừa trích xuất trực tiếp thành JSON chuẩn y khoa.
+    """
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
+    if not model:
+        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong mục Secrets."
+
+    processed_images = []
+    for photo in image_files:
+        try:
+            # Tái sử dụng hàm optimize_lab_image có sẵn để giảm tải dung lượng gửi
+            img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
+            processed_images.append(img_optimized)
+        except Exception:
+            pass
+
+    if not processed_images:
+        return False, "❌ Không thể xử lý được các file ảnh đã tải lên."
+
+    prompt_ocr = """
+    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa. 
+    Trước mắt bạn là các trang tài liệu scan hoặc ảnh chụp từ bệnh án giấy/bệnh án điện tử của cùng MỘT bệnh nhân.
+    Hãy đọc kỹ chữ in, chữ viết tay, bảng biểu trong tất cả các hình ảnh và trích xuất thành tệp JSON có cấu trúc chính xác sau:
+
+    {
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
+        "gioi_tinh": "Nam hoặc Nữ",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
+        "nghe_nghiep": "",
+        "dia_chi": "",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
+        "ly_do_vao_vien": "Ngắn gọn",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, sử dụng gạch đầu dòng nếu cần",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
+        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
+        "sh_ha": "Huyết áp (VD: 120/80)",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số, dùng dấu chấm (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần khám toàn thân và các cơ quan. BẮT BUỘC: Mỗi triệu chứng hoặc mỗi cơ quan phải bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
+        "can_lam_sang": [
+            {
+                "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
+                "phien_giai": "Đánh giá các chỉ số bất thường (nếu có, không có thì ghi '-')"
+            }
+        ]
+    }
+
+    QUY TẮC BẮT BUỘC:
+    1. Nếu trường nào không có thông tin, hãy để chuỗi rỗng "". Tuyệt đối không tự suy đoán.
+    2. Gom nhóm các xét nghiệm máu, nước tiểu, chẩn đoán hình ảnh cùng loại vào từng mục trong mảng 'can_lam_sang'.
+    3. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong ```json hay thêm bất kỳ lời dẫn nào khác.
+    """
+
+    try:
+        contents = [prompt_ocr] + processed_images
+        response = model.generate_content(contents)
+        res_text = response.text.strip()
+
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
+
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except json.JSONDecodeError:
+        return False, "❌ Lỗi: AI không định dạng được chuỗi JSON từ hình ảnh."
+    except Exception as e:
+        return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
@@ -2368,6 +2441,73 @@ with tab1:
                         
                         st.toast("✅ Đã trích xuất và điền tự động thành công!", icon="🎉")
                         st.rerun()  # Tải lại giao diện để các trường tự động cập nhật
+                    else:
+                        st.error(result)
+    # -------------------------------------------------------------------------
+    # 0.2. KHU VỰC NẠP DỮ LIỆU TỪ ẢNH CHỤP / SCAN (ĐỘC LẬP VỚI PDF)
+    # -------------------------------------------------------------------------
+    st.markdown("<div id='sec-auto-import-images'></div>", unsafe_allow_html=True)
+    with st.expander("📷 NẠP DỮ LIỆU TỰ ĐỘNG TỪ ẢNH CHỤP / TÀI LIỆU SCAN", expanded=False):
+        st.caption("Cho phép tải lên nhiều ảnh chụp bệnh án giấy hoặc tài liệu scan để AI tự đọc và phân loại dữ liệu vào form.")
+        emr_photos = st.file_uploader(
+            "Tải lên các trang ảnh chụp / scan hồ sơ bệnh án (chọn nhiều ảnh cùng lúc):",
+            type=["png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            key="emr_photos_batch_uploader"
+        )
+        
+        if emr_photos:
+            st.caption(f"Đã chọn {len(emr_photos)} file ảnh.")
+            if st.button("⚡ Phân tích & Tự điền từ ảnh scan", type="primary", use_container_width=True, key="btn_run_scan_images"):
+                with st.spinner(f"AI Vision đang đọc {len(emr_photos)} ảnh bệnh án và trích xuất chỉ số (khoảng 5-10 giây)..."):
+                    success, result = auto_fill_from_emr_images(emr_photos)
+                    if success:
+                        fields_mapping = [
+                            "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
+                            "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
+                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
+                            "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
+                        ]
+                        for f in fields_mapping:
+                            val = result.get(f)
+                            if val and str(val).strip() not in ["", "-"]:
+                                text_val = str(val).strip()
+                                if f == "kham_vao_vien":
+                                    if "\n" not in text_val:
+                                        sentences = re.split(r'(?<=[.;])\s+', text_val)
+                                        formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
+                                        text_val = "\n".join(formatted_lines)
+                                    else:
+                                        lines = text_val.split("\n")
+                                        formatted_lines = [
+                                            (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
+                                            for l in lines if l.strip()
+                                        ]
+                                        text_val = "\n".join(formatted_lines)
+                                st.session_state[f] = text_val
+
+                        if result.get("tuoi"):
+                            try:
+                                m_tuoi = re.search(r'\d+', str(result["tuoi"]))
+                                if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
+                            except Exception: pass
+
+                        if result.get("sh_can_nang"):
+                            try:
+                                clean_weight = str(result["sh_can_nang"]).replace(",", ".")
+                                m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
+                                if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
+                            except Exception: pass
+
+                        cls_list = result.get("can_lam_sang", [])
+                        if cls_list and isinstance(cls_list, list):
+                            st.session_state["so_hang_cls"] = len(cls_list)
+                            for i, cls_item in enumerate(cls_list):
+                                st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
+                                st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+
+                        st.toast(f"✅ Đã trích xuất xong từ {len(emr_photos)} ảnh!", icon="🎉")
+                        st.rerun()
                     else:
                         st.error(result)
     # -------------------------------------------------------------------------
