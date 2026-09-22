@@ -7,4 +7,3 @@ streamlit-pdf-viewer
 Pillow
 mammoth
 pypdf
-qrcode[pil]
