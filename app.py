@@ -29,6 +29,7 @@ import google.generativeai as genai
 import streamlit as st
 from streamlit_local_storage import LocalStorage
 from streamlit_pdf_viewer import pdf_viewer
+from pypdf import PdfReader
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN (Phải luôn nằm trên cùng) ---
 st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
@@ -424,6 +425,66 @@ st.markdown("""
 # ==============================================================================
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
 # ==============================================================================
+def auto_fill_from_emr_text(raw_text):
+    """
+    Hàm gửi văn bản thô từ EMR cho AI xử lý và trả về cấu trúc JSON 
+    để ánh xạ (map) vào các trường bệnh án, bao gồm cả cận lâm sàng.
+    """
+    # Sử dụng API Key riêng biệt cho tác vụ đọc PDF
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
+    if not model:
+        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong mục Secrets."
+    
+    prompt = f"""
+    Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
+    
+    VĂN BẢN EMR THÔ:
+    '''
+    {raw_text}
+    '''
+    
+    YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
+    {{
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
+        "gioi_tinh": "Nam hoặc Nữ",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
+        "nghe_nghiep": "",
+        "dia_chi": "",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
+        "ly_do_vao_vien": "Ngắn gọn",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, sử dụng gạch đầu dòng nếu cần",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
+        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "can_lam_sang": [
+            {{
+                "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
+                "phien_giai": "Đánh giá sự bất thường của các chỉ số (nếu có, không có thì ghi '-')"
+            }}
+        ]
+    }}
+    
+    HƯỚNG DẪN QUAN TRỌNG CHUYÊN MÔN:
+    1. Nếu không tìm thấy thông tin cho một trường, hãy để chuỗi rỗng "".
+    2. Đối với mảng 'can_lam_sang', hãy gom nhóm các chỉ số cùng loại vào một Object (ví dụ: tất cả chỉ số hồng cầu, bạch cầu vào nhóm Công thức máu; Glucose, Ure, Creatinine vào nhóm Sinh hóa máu). 
+    3. Cố gắng chia ra tối đa 5-6 nhóm xét nghiệm cơ bản.
+    4. Trả về CHỈ DUY NHẤT chuỗi JSON hợp lệ, tuyệt đối không có markdown block (` ```json `) hay bất kỳ lời bình luận nào khác.
+    """
+    try:
+        response = model.generate_content(prompt)
+        res_text = response.text.strip()
+        
+        # Tiền xử lý dọn dẹp markdown rác nếu AI vẫn vi phạm
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
+        
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except json.JSONDecodeError:
+        return False, "❌ Lỗi: AI không trả về định dạng JSON hợp lệ."
+    except Exception as e:
+        return False, f"❌ Lỗi trong quá trình trích xuất: {str(e)}"
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
@@ -2216,7 +2277,58 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
     
-    
+    # -------------------------------------------------------------------------
+    # 0. KHU VỰC IMPORT DỮ LIỆU TỪ EMR BỆNH VIỆN
+    # -------------------------------------------------------------------------
+    st.markdown("<div id='sec-auto-import'></div>", unsafe_allow_html=True)
+    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG TỪ BỆNH ÁN PDF (EMR)", expanded=False):
+        st.caption("Tính năng bóc tách tự động dữ liệu hành chính, bệnh sử và kết quả cận lâm sàng từ file PDF xuất từ phần mềm quản lý bệnh viện.")
+        emr_file = st.file_uploader("📄 Tải lên file bệnh án PDF (Text-based):", type=["pdf"], key="emr_pdf_uploader")
+        
+        if emr_file and st.button("⚡ Phân tích & Tự điền dữ liệu", type="primary", use_container_width=True):
+            with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
+                try:
+                    reader = PdfReader(emr_file)
+                    raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
+                except Exception as e:
+                    st.error(f"Lỗi đọc file PDF: {e}")
+                    raw_text = ""
+                
+            if len(raw_text) < 100:
+                st.warning("⚠️ Lượng chữ trích xuất quá ít. Có vẻ đây là file PDF dạng ảnh scan hoặc chụp tay. Phương án này chỉ hỗ trợ file PDF chứa văn bản thuần túy.")
+            else:
+                with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm (Có thể mất 5-10 giây)..."):
+                    success, result = auto_fill_from_emr_text(raw_text)
+                    if success:
+                        # 1. Điền dữ liệu Hành chính & Tiền sử/Bệnh sử
+                        fields_mapping = [
+                            "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
+                            "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
+                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa"
+                        ]
+                        for f in fields_mapping:
+                            if result.get(f):
+                                st.session_state[f] = str(result[f]).strip()
+                                
+                        if result.get("tuoi"):
+                            try: st.session_state["tuoi"] = int(result["tuoi"])
+                            except ValueError: pass
+                        
+                        # 2. Xử lý và phân bổ mảng Cận lâm sàng động
+                        cls_list = result.get("can_lam_sang", [])
+                        if cls_list and isinstance(cls_list, list):
+                            so_luong_nhom = len(cls_list)
+                            # Cập nhật số hàng hiển thị giao diện cho CLS
+                            st.session_state["so_hang_cls"] = so_luong_nhom
+                            
+                            for i, cls_item in enumerate(cls_list):
+                                st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
+                                st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+                        
+                        st.toast("✅ Đã trích xuất và điền tự động thành công!", icon="🎉")
+                        st.rerun()  # Tải lại giao diện để các trường tự động cập nhật
+                    else:
+                        st.error(result)
     # -------------------------------------------------------------------------
     # I. HÀNH CHÍNH (Mở nếu có dữ liệu hoặc mặc định luôn mở)
     # -------------------------------------------------------------------------
