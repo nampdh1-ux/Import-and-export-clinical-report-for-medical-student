@@ -457,6 +457,7 @@ def auto_fill_from_emr_text(raw_text):
         "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
         "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
         "sh_mach": "Chỉ lấy con số của Mạch hoặc Nhịp tim (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số của Nhiệt độ, dùng dấu chấm cho số thập phân nếu có (VD: 37.0 hoặc 36.5)",
         "sh_ha": "Huyết áp (VD: 120/80)",
         "sh_nhip_tho": "Chỉ lấy con số của Nhịp thở (VD: 20)",
         "sh_can_nang": "Chỉ lấy con số của Cân nặng, dùng dấu chấm cho số thập phân (VD: 55.5)",
@@ -2309,7 +2310,7 @@ with tab1:
                             "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
                             "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
                             "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
-                            "kham_vao_vien", "sh_mach", "sh_ha", "sh_nhip_tho"
+                            "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
                         ]
                         for f in fields_mapping:
                             val = result.get(f)
