@@ -480,6 +480,7 @@ def auto_fill_from_emr_text(raw_text):
       + Tìm ở CUỐI TRANG, DÒNG NGÀY THÁNG TRƯỚC CHỮ KÝ của bác sĩ/kỹ thuật viên (ví dụ: 'Ngày 12 tháng 10 năm 2026', '12/10/2026 09:30').
     - Gom nhóm các xét nghiệm CÙNG LOẠI (ví dụ: Công thức máu, Sinh hóa máu, Đông máu...) vào cùng một nhóm.
     - Trong từng nhóm xét nghiệm, tách riêng từng lần làm (từng ngày) vào mảng 'cac_lan_xet_nghiem'.
+    LẤY ĐẦY ĐỦ CÁC CẬN LÂM SÀNG KHÁC NỮA CÓ TRONG FILE: Chẩn đoán hình ảnh, ECG,... tất cả những phần có từ: Kết quả hay kết luận
 
     YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
