@@ -2410,7 +2410,7 @@ with tab1:
         
         # --- TAB CON 1: XỬ LÝ FILE PDF BỆNH ÁN ĐIỆN TỬ ---
         with tab_import_pdf:
-            emr_file = st.file_uploader("Chọn file PDF xuất từ phần mềm bệnh viện (Text-based):", type=["pdf"], key="emr_pdf_uploader")
+            emr_file = st.file_uploader("Chọn file PDF bệnh án điện tử:", type=["pdf"], key="emr_pdf_uploader")
             if emr_file and st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_emr"):
                 from pypdf import PdfReader
                 with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
