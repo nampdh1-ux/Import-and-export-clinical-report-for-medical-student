@@ -2355,161 +2355,146 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
     
-    # -------------------------------------------------------------------------
-    # 0. KHU VỰC IMPORT DỮ LIỆU TỪ EMR BỆNH VIỆN
+   # -------------------------------------------------------------------------
+    # 0. KHU VỰC IMPORT DỮ LIỆU TỰ ĐỘNG (GOM CHUNG PDF & ẢNH SCAN VÀO 1 EXPANDER)
     # -------------------------------------------------------------------------
     st.markdown("<div id='sec-auto-import'></div>", unsafe_allow_html=True)
-    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG TỪ BỆNH ÁN ĐIỆN TỬ", expanded=False):
-        st.caption("Tính năng bóc tách tự động dữ liệu hành chính, bệnh sử, thăm khám vào viện và kết quả cận lâm sàng từ file PDF xuất từ bệnh án điện tử.")
-        emr_file = st.file_uploader("📄 Tải lên file bệnh án PDF:", type=["pdf"], key="emr_pdf_uploader")
+    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG (FILE PDF HOẶC ẢNH CHỤP / SCAN)", expanded=False):
+        st.caption("Tự động trích xuất thông tin hành chính, bệnh sử, sinh hiệu và các bảng xét nghiệm từ PDF EMR hoặc nhiều ảnh scan hồ sơ bệnh án.")
         
-        if emr_file and st.button("Phân tích & Tự điền dữ liệu", type="primary", use_container_width=True):
-            with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
-                try:
-                    reader = PdfReader(emr_file)
-                    raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
-                except Exception as e:
-                    st.error(f"Lỗi đọc file PDF: {e}")
-                    raw_text = ""
+        tab_import_pdf, tab_import_img = st.tabs(["📄 File PDF bệnh án", "📷 Ảnh chụp / Scan bệnh án"])
+        
+        # --- TAB CON 1: XỬ LÝ FILE PDF BỆNH ÁN ĐIỆN TỬ ---
+        with tab_import_pdf:
+            emr_file = st.file_uploader("Chọn file PDF xuất từ phần mềm bệnh viện (Text-based):", type=["pdf"], key="emr_pdf_uploader")
+            if emr_file and st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_emr"):
+                from pypdf import PdfReader
+                with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
+                    try:
+                        reader = PdfReader(emr_file)
+                        raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
+                    except Exception as e:
+                        st.error(f"Lỗi đọc file PDF: {e}")
+                        raw_text = ""
                 
-            if len(raw_text) < 100:
-                st.warning("⚠️ Lượng chữ trích xuất quá ít. Có vẻ đây là file PDF dạng ảnh scan hoặc chụp tay. Phương án này chỉ hỗ trợ file PDF chứa văn bản thuần túy.")
-            else:
-                with st.spinner("Đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm (Có thể mất 5-10 giây)..."):
-                    success, result = auto_fill_from_emr_text(raw_text)
-                    if success:
-                        # 1. Điền dữ liệu text thông thường
-                        fields_mapping = [
-                            "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
-                            "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
-                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
-                            "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
-                        ]
-                        for f in fields_mapping:
-                            val = result.get(f)
-                            if val and str(val).strip() not in ["", "-"]:
-                                text_val = str(val).strip()
-                                
-                                # Xử lý riêng cho ô kham_vao_vien để ép xuống dòng đẹp mắt
-                                if f == "kham_vao_vien":
-                                    # Nếu nội dung chưa có ký tự xuống dòng mà viết liền một khối
-                                    if "\n" not in text_val:
-                                        # Tách các câu dựa trên dấu chấm/chấm phẩy theo sau bởi khoảng trắng hoặc từ khóa khám
-                                        sentences = re.split(r'(?<=[.;])\s+', text_val)
-                                        formatted_lines = []
-                                        for s in sentences:
-                                            s_clean = s.strip().lstrip("-*• ")
-                                            if s_clean:
-                                                formatted_lines.append(f"- {s_clean}")
-                                        text_val = "\n".join(formatted_lines)
-                                    else:
-                                        # Đảm bảo các dòng đều có gạch đầu dòng chuẩn
-                                        lines = text_val.split("\n")
-                                        formatted_lines = [
-                                            (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
-                                            for l in lines if l.strip()
-                                        ]
-                                        text_val = "\n".join(formatted_lines)
+                if len(raw_text) < 100:
+                    st.warning("⚠️ Lượng chữ trích xuất quá ít (có thể là PDF dạng ảnh scan). Vui lòng chuyển sang tab 'Ảnh chụp / Scan bệnh án' bên cạnh để AI đọc trực tiếp.")
+                else:
+                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm..."):
+                        success, result = auto_fill_from_emr_text(raw_text)
+                        if success:
+                            fields_mapping = [
+                                "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
+                                "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
+                                "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
+                                "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
+                            ]
+                            for f in fields_mapping:
+                                val = result.get(f)
+                                if val and str(val).strip() not in ["", "-"]:
+                                    text_val = str(val).strip()
+                                    if f == "kham_vao_vien":
+                                        if "\n" not in text_val:
+                                            sentences = re.split(r'(?<=[.;])\s+', text_val)
+                                            formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
+                                            text_val = "\n".join(formatted_lines)
+                                        else:
+                                            lines = text_val.split("\n")
+                                            formatted_lines = [
+                                                (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
+                                                for l in lines if l.strip()
+                                            ]
+                                            text_val = "\n".join(formatted_lines)
+                                    st.session_state[f] = text_val
 
-                                st.session_state[f] = text_val
-                                
-                        # 2. Xử lý các trường dạng số (Tuổi, Cân nặng) tránh lỗi
-                        if result.get("tuoi"):
-                            try:
-                                m_tuoi = re.search(r'\d+', str(result["tuoi"]))
-                                if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
-                            except Exception: pass
-                            
-                        if result.get("sh_can_nang"):
-                            try:
-                                # Chuẩn hóa lỡ AI trả về "55,5 kg" -> "55.5"
-                                clean_weight = str(result["sh_can_nang"]).replace(",", ".")
-                                m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
-                                if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
-                            except Exception: pass
-                        
-                        # 3. Xử lý và phân bổ mảng Cận lâm sàng động
-                        cls_list = result.get("can_lam_sang", [])
-                        if cls_list and isinstance(cls_list, list):
-                            so_luong_nhom = len(cls_list)
-                            # Cập nhật số hàng hiển thị giao diện cho CLS
-                            st.session_state["so_hang_cls"] = so_luong_nhom
-                            
-                            for i, cls_item in enumerate(cls_list):
-                                st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
-                                st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
-                        
-                        st.toast("✅ Đã trích xuất và điền tự động thành công!", icon="🎉")
-                        st.rerun()  # Tải lại giao diện để các trường tự động cập nhật
-                    else:
-                        st.error(result)
-    # -------------------------------------------------------------------------
-    # 0.2. KHU VỰC NẠP DỮ LIỆU TỪ ẢNH CHỤP / SCAN (ĐỘC LẬP VỚI PDF)
-    # -------------------------------------------------------------------------
-    st.markdown("<div id='sec-auto-import-images'></div>", unsafe_allow_html=True)
-    with st.expander("📷 NẠP DỮ LIỆU TỰ ĐỘNG TỪ ẢNH CHỤP / TÀI LIỆU SCAN", expanded=False):
-        st.caption("Cho phép tải lên nhiều ảnh chụp bệnh án giấy hoặc tài liệu scan để AI tự đọc và phân loại dữ liệu vào form.")
-        emr_photos = st.file_uploader(
-            "Tải lên các trang ảnh chụp / scan hồ sơ bệnh án (chọn nhiều ảnh cùng lúc):",
-            type=["png", "jpg", "jpeg"],
-            accept_multiple_files=True,
-            key="emr_photos_batch_uploader"
-        )
-        
-        if emr_photos:
-            st.caption(f"Đã chọn {len(emr_photos)} file ảnh.")
-            if st.button("⚡ Phân tích & Tự điền từ ảnh scan", type="primary", use_container_width=True, key="btn_run_scan_images"):
-                with st.spinner(f"AI Vision đang đọc {len(emr_photos)} ảnh bệnh án và trích xuất chỉ số (khoảng 5-10 giây)..."):
-                    success, result = auto_fill_from_emr_images(emr_photos)
-                    if success:
-                        fields_mapping = [
-                            "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
-                            "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
-                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
-                            "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
-                        ]
-                        for f in fields_mapping:
-                            val = result.get(f)
-                            if val and str(val).strip() not in ["", "-"]:
-                                text_val = str(val).strip()
-                                if f == "kham_vao_vien":
-                                    if "\n" not in text_val:
-                                        sentences = re.split(r'(?<=[.;])\s+', text_val)
-                                        formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
-                                        text_val = "\n".join(formatted_lines)
-                                    else:
-                                        lines = text_val.split("\n")
-                                        formatted_lines = [
-                                            (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
-                                            for l in lines if l.strip()
-                                        ]
-                                        text_val = "\n".join(formatted_lines)
-                                st.session_state[f] = text_val
+                            if result.get("tuoi"):
+                                try:
+                                    m_tuoi = re.search(r'\d+', str(result["tuoi"]))
+                                    if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
+                                except Exception: pass
 
-                        if result.get("tuoi"):
-                            try:
-                                m_tuoi = re.search(r'\d+', str(result["tuoi"]))
-                                if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
-                            except Exception: pass
+                            if result.get("sh_can_nang"):
+                                try:
+                                    clean_weight = str(result["sh_can_nang"]).replace(",", ".")
+                                    m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
+                                    if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
+                                except Exception: pass
 
-                        if result.get("sh_can_nang"):
-                            try:
-                                clean_weight = str(result["sh_can_nang"]).replace(",", ".")
-                                m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
-                                if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
-                            except Exception: pass
+                            cls_list = result.get("can_lam_sang", [])
+                            if cls_list and isinstance(cls_list, list):
+                                st.session_state["so_hang_cls"] = len(cls_list)
+                                for i, cls_item in enumerate(cls_list):
+                                    st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
+                                    st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
 
-                        cls_list = result.get("can_lam_sang", [])
-                        if cls_list and isinstance(cls_list, list):
-                            st.session_state["so_hang_cls"] = len(cls_list)
-                            for i, cls_item in enumerate(cls_list):
-                                st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
-                                st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+                            st.toast("✅ Đã nạp thành công từ PDF!", icon="🎉")
+                            st.rerun()
+                        else:
+                            st.error(result)
 
-                        st.toast(f"✅ Đã trích xuất xong từ {len(emr_photos)} ảnh!", icon="🎉")
-                        st.rerun()
-                    else:
-                        st.error(result)
+        # --- TAB CON 2: XỬ LÝ ẢNH CHỤP / TÀI LIỆU SCAN (CHỌN NHIỀU ẢNH CÙNG LÚC) ---
+        with tab_import_img:
+            emr_photos = st.file_uploader(
+                "Tải lên các trang ảnh chụp / scan hồ sơ bệnh án (giữ Ctrl/Shift hoặc chọn nhiều ảnh):",
+                type=["png", "jpg", "jpeg"],
+                accept_multiple_files=True,
+                key="emr_photos_batch_uploader"
+            )
+            
+            if emr_photos:
+                st.caption(f"Đã chọn {len(emr_photos)} file ảnh.")
+                if st.button("⚡ Phân tích & Tự điền từ ảnh scan", type="primary", use_container_width=True, key="btn_run_scan_images"):
+                    with st.spinner(f"AI Vision đang đọc {len(emr_photos)} ảnh bệnh án và trích xuất chỉ số (khoảng 5-10 giây)..."):
+                        success, result = auto_fill_from_emr_images(emr_photos)
+                        if success:
+                            fields_mapping = [
+                                "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
+                                "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
+                                "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
+                                "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
+                            ]
+                            for f in fields_mapping:
+                                val = result.get(f)
+                                if val and str(val).strip() not in ["", "-"]:
+                                    text_val = str(val).strip()
+                                    if f == "kham_vao_vien":
+                                        if "\n" not in text_val:
+                                            sentences = re.split(r'(?<=[.;])\s+', text_val)
+                                            formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
+                                            text_val = "\n".join(formatted_lines)
+                                        else:
+                                            lines = text_val.split("\n")
+                                            formatted_lines = [
+                                                (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
+                                                for l in lines if l.strip()
+                                            ]
+                                            text_val = "\n".join(formatted_lines)
+                                    st.session_state[f] = text_val
+
+                            if result.get("tuoi"):
+                                try:
+                                    m_tuoi = re.search(r'\d+', str(result["tuoi"]))
+                                    if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
+                                except Exception: pass
+
+                            if result.get("sh_can_nang"):
+                                try:
+                                    clean_weight = str(result["sh_can_nang"]).replace(",", ".")
+                                    m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
+                                    if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
+                                except Exception: pass
+
+                            cls_list = result.get("can_lam_sang", [])
+                            if cls_list and isinstance(cls_list, list):
+                                st.session_state["so_hang_cls"] = len(cls_list)
+                                for i, cls_item in enumerate(cls_list):
+                                    st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
+                                    st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+
+                            st.toast(f"✅ Đã trích xuất xong từ {len(emr_photos)} ảnh!", icon="🎉")
+                            st.rerun()
+                        else:
+                            st.error(result)
     # -------------------------------------------------------------------------
     # I. HÀNH CHÍNH (Mở nếu có dữ liệu hoặc mặc định luôn mở)
     # -------------------------------------------------------------------------
