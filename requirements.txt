@@ -6,3 +6,4 @@ streamlit-local-storage
 streamlit-pdf-viewer
 Pillow
 mammoth
+pypdf
