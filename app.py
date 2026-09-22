@@ -2135,7 +2135,30 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 3: Biện luận chẩn đoán sơ bộ
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
+def xoa_hang_cls(target_idx):
+    """
+    Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
+    tránh để lại lỗ hổng chỉ mục gây lỗi render và xuất file.
+    """
+    current_total = int(st.session_state.get("so_hang_cls", 1))
+    if current_total <= 1:
+        # Nếu chỉ còn 1 hàng thì chỉ cần xóa trắng nội dung, không giảm số hàng < 1
+        st.session_state["cls_kq_0"] = ""
+        st.session_state["cls_pg_0"] = ""
+        return
 
+    # Dồn toàn bộ dữ liệu từ hàng phía sau lên hàng phía trước
+    for i in range(target_idx, current_total - 1):
+        st.session_state[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i+1}", "")
+        st.session_state[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i+1}", "")
+
+    # Xóa sạch dữ liệu của hàng cuối cùng vừa bị dồn
+    last_idx = current_total - 1
+    st.session_state.pop(f"cls_kq_{last_idx}", None)
+    st.session_state.pop(f"cls_pg_{last_idx}", None)
+
+    # Giảm tổng số hàng đi 1
+    st.session_state["so_hang_cls"] = current_total - 1
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
     if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
@@ -2290,25 +2313,46 @@ def ui_cls(num_dx, num_kq):
                     st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
         st.divider()
 
-    for i in range(st.session_state["so_hang_cls"]):
-        st.markdown(f"**Hàng {i + 1}:**")
+    so_hang_cls = int(st.session_state.get("so_hang_cls", 1))
+    for i in range(so_hang_cls):
+        # Header mỗi hàng gồm Tiêu đề bên trái và Nút xóa [✖ Xóa hàng] bên phải
+        col_h_title, col_h_del = st.columns([4, 1])
+        with col_h_title:
+            st.markdown(f"**Hàng {i + 1}:**")
+        with col_h_del:
+            st.button(
+                "✖ Xóa hàng",
+                key=f"btn_del_cls_{i}",
+                help=f"Xóa kết quả hàng {i + 1}",
+                on_click=xoa_hang_cls,
+                args=(i,),
+                use_container_width=True
+            )
+
         col_left, col_right = st.columns([1, 1])
         with col_left:
-            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=85)
+            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
             img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
             if img:
                 uploaded_imgs[f"cls_img_{i}"] = img
-                st.image(img, width=160, caption=f"Ảnh hàng {i + 1}")
+                st.image(img, width=180, caption=f"Ảnh hàng {i + 1}")
         with col_right:
-            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=85)
+            st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
         st.divider()
 
-    col_btn_them, col_btn_bot, _ = st.columns([2, 2, 6])
+    # Nút bấm Thêm hàng (Nút Bớt hàng cuối vẫn giữ hoặc ẩn tùy ý, người dùng có thể xóa trực tiếp bằng nút ✖ trên từng hàng)
+    col_btn_them, col_btn_bot, _ = st.columns([2.5, 2, 5.5])
     with col_btn_them:
-        if st.button("➕ Thêm kết quả cận lâm sàng"): st.session_state["so_hang_cls"] += 1; st.rerun()
+        if st.button("➕ Thêm hàng cận lâm sàng", use_container_width=True):
+            st.session_state["so_hang_cls"] = so_hang_cls + 1
+            st.session_state[f"cls_kq_{so_hang_cls}"] = ""
+            st.session_state[f"cls_pg_{so_hang_cls}"] = ""
+            st.rerun()
     with col_btn_bot:
-        if st.session_state["so_hang_cls"] > 1:
-            if st.button("➖ Bớt hàng cuối"): st.session_state["so_hang_cls"] -= 1; st.rerun()
+        if so_hang_cls > 1:
+            if st.button("➖ Bớt hàng cuối", use_container_width=True):
+                xoa_hang_cls(so_hang_cls - 1)
+                st.rerun()
 
 def ui_cdxd(num_xd, num_blxd):
     placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if is_postop_mode(loai_benh_an) else "Chẩn đoán xác định..."
