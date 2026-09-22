@@ -428,7 +428,7 @@ st.markdown("""
 def auto_fill_from_emr_text(raw_text):
     """
     Hàm gửi văn bản thô từ EMR cho AI xử lý và trả về cấu trúc JSON 
-    để ánh xạ (map) vào các trường bệnh án, bao gồm cả cận lâm sàng.
+    để ánh xạ (map) vào các trường bệnh án, bao gồm cả sinh hiệu, khám lâm sàng và cận lâm sàng.
     """
     # Sử dụng API Key riêng biệt cho tác vụ đọc PDF
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
@@ -456,6 +456,11 @@ def auto_fill_from_emr_text(raw_text):
         "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, sử dụng gạch đầu dòng nếu cần",
         "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
         "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "sh_mach": "Chỉ lấy con số của Mạch hoặc Nhịp tim (VD: 80)",
+        "sh_ha": "Huyết áp (VD: 120/80)",
+        "sh_nhip_tho": "Chỉ lấy con số của Nhịp thở (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số của Cân nặng, dùng dấu chấm cho số thập phân (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan) từ mục Tóm tắt bệnh án hoặc Khám lúc vào viện",
         "can_lam_sang": [
             {{
                 "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
@@ -465,10 +470,9 @@ def auto_fill_from_emr_text(raw_text):
     }}
     
     HƯỚNG DẪN QUAN TRỌNG CHUYÊN MÔN:
-    1. Nếu không tìm thấy thông tin cho một trường, hãy để chuỗi rỗng "".
-    2. Đối với mảng 'can_lam_sang', hãy gom nhóm các chỉ số cùng loại vào một Object (ví dụ: tất cả chỉ số hồng cầu, bạch cầu vào nhóm Công thức máu; Glucose, Ure, Creatinine vào nhóm Sinh hóa máu). 
-    3. Cố gắng chia ra tối đa 5-6 nhóm xét nghiệm cơ bản.
-    4. Trả về CHỈ DUY NHẤT chuỗi JSON hợp lệ, tuyệt đối không có markdown block (` ```json `) hay bất kỳ lời bình luận nào khác.
+    1. Nếu không tìm thấy thông tin cho một trường, hãy để chuỗi rỗng "". Tuyệt đối không tự bịa thông tin.
+    2. Đối với mảng 'can_lam_sang', hãy gom nhóm các chỉ số cùng loại vào một Object. Cố gắng chia tối đa 5-6 nhóm xét nghiệm cơ bản.
+    3. Trả về CHỈ DUY NHẤT chuỗi JSON hợp lệ, tuyệt đối không có markdown block (` ```json `) hay lời bình luận.
     """
     try:
         response = model.generate_content(prompt)
@@ -2300,21 +2304,34 @@ with tab1:
                 with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm (Có thể mất 5-10 giây)..."):
                     success, result = auto_fill_from_emr_text(raw_text)
                     if success:
-                        # 1. Điền dữ liệu Hành chính & Tiền sử/Bệnh sử
+                        # 1. Điền dữ liệu text thông thường
                         fields_mapping = [
                             "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
                             "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
-                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa"
+                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
+                            "kham_vao_vien", "sh_mach", "sh_ha", "sh_nhip_tho"
                         ]
                         for f in fields_mapping:
-                            if result.get(f):
-                                st.session_state[f] = str(result[f]).strip()
+                            val = result.get(f)
+                            if val and str(val).strip() not in ["", "-"]:
+                                st.session_state[f] = str(val).strip()
                                 
+                        # 2. Xử lý các trường dạng số (Tuổi, Cân nặng) tránh lỗi
                         if result.get("tuoi"):
-                            try: st.session_state["tuoi"] = int(result["tuoi"])
-                            except ValueError: pass
+                            try:
+                                m_tuoi = re.search(r'\d+', str(result["tuoi"]))
+                                if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
+                            except Exception: pass
+                            
+                        if result.get("sh_can_nang"):
+                            try:
+                                # Chuẩn hóa lỡ AI trả về "55,5 kg" -> "55.5"
+                                clean_weight = str(result["sh_can_nang"]).replace(",", ".")
+                                m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
+                                if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
+                            except Exception: pass
                         
-                        # 2. Xử lý và phân bổ mảng Cận lâm sàng động
+                        # 3. Xử lý và phân bổ mảng Cận lâm sàng động
                         cls_list = result.get("can_lam_sang", [])
                         if cls_list and isinstance(cls_list, list):
                             so_luong_nhom = len(cls_list)
