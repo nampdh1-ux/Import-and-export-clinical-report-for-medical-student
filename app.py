@@ -2286,11 +2286,11 @@ with tab1:
     # 0. KHU VỰC IMPORT DỮ LIỆU TỪ EMR BỆNH VIỆN
     # -------------------------------------------------------------------------
     st.markdown("<div id='sec-auto-import'></div>", unsafe_allow_html=True)
-    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG TỪ BỆNH ÁN PDF (EMR)", expanded=False):
-        st.caption("Tính năng bóc tách tự động dữ liệu hành chính, bệnh sử và kết quả cận lâm sàng từ file PDF xuất từ phần mềm quản lý bệnh viện.")
-        emr_file = st.file_uploader("📄 Tải lên file bệnh án PDF (Text-based):", type=["pdf"], key="emr_pdf_uploader")
+    with st.expander("🪄 NẠP DỮ LIỆU TỰ ĐỘNG TỪ BỆNH ÁN ĐIỆN TỬ", expanded=False):
+        st.caption("Tính năng bóc tách tự động dữ liệu hành chính, bệnh sử, thăm khám vào viện và kết quả cận lâm sàng từ file PDF xuất từ bệnh án điện tử.")
+        emr_file = st.file_uploader("📄 Tải lên file bệnh án PDF:", type=["pdf"], key="emr_pdf_uploader")
         
-        if emr_file and st.button("⚡ Phân tích & Tự điền dữ liệu", type="primary", use_container_width=True):
+        if emr_file and st.button("Phân tích & Tự điền dữ liệu", type="primary", use_container_width=True):
             with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
                 try:
                     reader = PdfReader(emr_file)
@@ -2302,7 +2302,7 @@ with tab1:
             if len(raw_text) < 100:
                 st.warning("⚠️ Lượng chữ trích xuất quá ít. Có vẻ đây là file PDF dạng ảnh scan hoặc chụp tay. Phương án này chỉ hỗ trợ file PDF chứa văn bản thuần túy.")
             else:
-                with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm (Có thể mất 5-10 giây)..."):
+                with st.spinner("Đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm (Có thể mất 5-10 giây)..."):
                     success, result = auto_fill_from_emr_text(raw_text)
                     if success:
                         # 1. Điền dữ liệu text thông thường
