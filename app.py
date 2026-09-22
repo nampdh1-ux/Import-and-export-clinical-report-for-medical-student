@@ -425,24 +425,62 @@ st.markdown("""
 # ==============================================================================
 # HÀM HỖ TRỢ XUẤT FILE & AI CONTEXT
 # ==============================================================================
+def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
+    """
+    Tính chính xác ngày thứ mấy vào viện dựa trên ngày làm xét nghiệm và ngày vào viện.
+    Quy ước lâm sàng: 
+    - Ngày làm CLS trùng ngày vào viện -> Ngày 1 vào viện.
+    - Làm sau 2 ngày -> Ngày 3 vào viện.
+    """
+    if not ngay_cls_raw:
+        return "Thời điểm chưa xác định"
+    
+    # Tìm mẫu ngày dd/mm/yyyy trong chuỗi ngày CLS
+    m_cls = re.search(r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})', str(ngay_cls_raw))
+    # Nếu có dạng 'ngày ... tháng ... năm ...'
+    if not m_cls:
+        m_cls_text = re.search(r'ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})', str(ngay_cls_raw), re.IGNORECASE)
+        if m_cls_text:
+            m_cls = m_cls_text
+
+    m_vv = re.search(r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})', str(ngay_vv_raw or ""))
+
+    if m_cls and m_vv:
+        try:
+            d_cls = datetime(int(m_cls.group(3)), int(m_cls.group(2)), int(m_cls.group(1))).date()
+            d_vv = datetime(int(m_vv.group(3)), int(m_vv.group(2)), int(m_vv.group(1))).date()
+            diff = (d_cls - d_vv).days
+            date_str = d_cls.strftime("%d/%m/%Y")
+            if diff >= 0:
+                return f"Ngày {diff + 1} vào viện ({date_str})"
+            else:
+                return f"Trước vào viện {abs(diff)} ngày ({date_str})"
+        except Exception:
+            pass
+
+    if m_cls:
+        return f"Ngày {m_cls.group(1)}/{m_cls.group(2)}/{m_cls.group(3)}"
+    return str(ngay_cls_raw).strip()
 def auto_fill_from_emr_text(raw_text):
-    """
-    Hàm gửi văn bản thô từ EMR cho AI xử lý và trả về cấu trúc JSON 
-    để ánh xạ (map) vào các trường bệnh án, bao gồm cả sinh hiệu, khám lâm sàng và cận lâm sàng.
-    """
-    # Sử dụng API Key riêng biệt cho tác vụ đọc PDF
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
-        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong mục Secrets."
-    
+        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
+
     prompt = f"""
     Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
-    
+
     VĂN BẢN EMR THÔ:
     '''
     {raw_text}
     '''
-    
+
+    HƯỚNG DẪN QUÉT THỜI GIAN CẬN LÂM SÀNG ĐẶC BIỆT QUAN TRỌNG:
+    - Trong mỗi trang/phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM:
+      + Tìm ở dòng 'Thời gian lấy mẫu', 'Thời gian nhận mẫu', 'Thời gian thực hiện'
+      + Tìm ở CUỐI TRANG, DÒNG NGÀY THÁNG TRƯỚC CHỮ KÝ của bác sĩ/kỹ thuật viên (ví dụ: 'Ngày 12 tháng 10 năm 2026', '12/10/2026 09:30').
+    - Gom nhóm các xét nghiệm CÙNG LOẠI (ví dụ: Công thức máu, Sinh hóa máu, Đông máu...) vào cùng một nhóm.
+    - Trong từng nhóm xét nghiệm, tách riêng từng lần làm (từng ngày) vào mảng 'cac_lan_xet_nghiem'.
+
     YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
         "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
@@ -453,56 +491,51 @@ def auto_fill_from_emr_text(raw_text):
         "dia_chi": "",
         "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
         "ly_do_vao_vien": "Ngắn gọn",
-        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, sử dụng gạch đầu dòng nếu cần",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, giống bệnh án, văn xuôi, không gạch đầu dòng",
         "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
         "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
-        "sh_mach": "Chỉ lấy con số của Mạch hoặc Nhịp tim (VD: 80)",
-        "sh_nhiet_do": "Chỉ lấy con số của Nhiệt độ, dùng dấu chấm cho số thập phân nếu có (VD: 37.0 hoặc 36.5)",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
         "sh_ha": "Huyết áp (VD: 120/80)",
-        "sh_nhip_tho": "Chỉ lấy con số của Nhịp thở (VD: 20)",
-        "sh_can_nang": "Chỉ lấy con số của Cân nặng, dùng dấu chấm cho số thập phân (VD: 55.5)",
-        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). BẮT BUỘC: Mỗi triệu chứng, mỗi cơ quan hoặc mỗi ý khám riêng biệt phải bắt đầu bằng dấu gạch ngang và cách nhau bởi dấu xuống dòng (ví dụ: - Bệnh nhân tỉnh, tiếp xúc tốt\\n- Da niêm mạc hồng\\n- Tim đều, T1 T2 rõ\\n- Phổi không rale\\n- Bụng mềm, không đau). Tuyệt đối không viết thành một đoạn văn liền tù tì.",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
         "can_lam_sang": [
             {{
-                "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
-                "phien_giai": "Đánh giá sự bất thường của các chỉ số (nếu có, không có thì ghi '-')"
+                "ten_nhom": "Tên nhóm (VD: CÔNG THỨC MÁU hoặc SINH HÓA MÁU)",
+                "cac_lan_xet_nghiem": [
+                    {{
+                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026 hoặc Ngày 10 tháng 10 năm 2026)",
+                        "chi_so": "Liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
+                    }}
+                ],
+                "phien_giai": "Đánh giá các chỉ số bất thường và xu hướng thay đổi giữa các ngày nếu làm nhiều lần"
             }}
         ]
     }}
-    
-    HƯỚNG DẪN QUAN TRỌNG CHUYÊN MÔN:
-    1. Nếu không tìm thấy thông tin cho một trường, hãy để chuỗi rỗng "". Tuyệt đối không tự bịa thông tin.
-    2. Đối với mảng 'can_lam_sang', hãy gom nhóm các chỉ số cùng loại vào một Object. Cố gắng chia tối đa 5-6 nhóm xét nghiệm cơ bản.
-    3. Trả về CHỈ DUY NHẤT chuỗi JSON hợp lệ, tuyệt đối không có markdown block (` ```json `) hay lời bình luận.
+
+    QUY TẮC:
+    1. Không tự bịa thông tin. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong markdown (```json).
     """
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
-        
-        # Tiền xử lý dọn dẹp markdown rác nếu AI vẫn vi phạm
         if res_text.startswith("```json"): res_text = res_text[7:]
         elif res_text.startswith("```"): res_text = res_text[3:]
         if res_text.endswith("```"): res_text = res_text[:-3]
-        
+
         parsed_data = json.loads(res_text.strip())
         return True, parsed_data
-    except json.JSONDecodeError:
-        return False, "❌ Lỗi: AI không trả về định dạng JSON hợp lệ."
     except Exception as e:
-        return False, f"❌ Lỗi trong quá trình trích xuất: {str(e)}"
+        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
 def auto_fill_from_emr_images(image_files):
-    """
-    Hàm nhận danh sách nhiều ảnh chụp/scan bệnh án, gửi qua Gemini Vision
-    để vừa OCR vừa trích xuất trực tiếp thành JSON chuẩn y khoa.
-    """
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
-        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong mục Secrets."
+        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
     processed_images = []
     for photo in image_files:
         try:
-            # Tái sử dụng hàm optimize_lab_image có sẵn để giảm tải dung lượng gửi
             img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
             processed_images.append(img_optimized)
         except Exception:
@@ -512,55 +545,43 @@ def auto_fill_from_emr_images(image_files):
         return False, "❌ Không thể xử lý được các file ảnh đã tải lên."
 
     prompt_ocr = """
-    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa. 
-    Trước mắt bạn là các trang tài liệu scan hoặc ảnh chụp từ bệnh án giấy/bệnh án điện tử của cùng MỘT bệnh nhân.
-    Hãy đọc kỹ chữ in, chữ viết tay, bảng biểu trong tất cả các hình ảnh và trích xuất thành tệp JSON có cấu trúc chính xác sau:
+    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
+    ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - Tìm ngày vào viện ở trang bìa/hành chính.
+    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ xét nghiệm) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
+    - Gom nhóm các xét nghiệm cùng loại và chia theo các lần làm.
 
+    Trả về đúng định dạng JSON:
     {
-        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
-        "tuoi": "Chỉ lấy con số",
-        "gioi_tinh": "Nam hoặc Nữ",
-        "khoa_phong": "Tên khoa đang nằm điều trị",
-        "nghe_nghiep": "",
-        "dia_chi": "",
-        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
-        "ly_do_vao_vien": "Ngắn gọn",
-        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, sử dụng gạch đầu dòng nếu cần",
-        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
-        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
-        "sh_mach": "Chỉ lấy con số (VD: 80)",
-        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
-        "sh_ha": "Huyết áp (VD: 120/80)",
-        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
-        "sh_can_nang": "Chỉ lấy con số, dùng dấu chấm (VD: 55.5)",
-        "kham_vao_vien": "Trích xuất toàn bộ phần khám toàn thân và các cơ quan. BẮT BUỘC: Mỗi triệu chứng hoặc mỗi cơ quan phải bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
+        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
+        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
+        "kham_vao_vien": "Mỗi triệu chứng bắt đầu bằng \\n- ",
+        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
-                "phien_giai": "Đánh giá các chỉ số bất thường (nếu có, không có thì ghi '-')"
+                "ten_nhom": "Tên xét nghiệm (VD: CÔNG THỨC MÁU)",
+                "cac_lan_xet_nghiem": [
+                    {
+                        "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
+                        "chi_so": "Danh sách chỉ số kết quả"
+                    }
+                ],
+                "phien_giai": "Biện giải bất thường và diễn tiến"
             }
         ]
     }
-
-    QUY TẮC BẮT BUỘC:
-    1. Nếu trường nào không có thông tin, hãy để chuỗi rỗng "". Tuyệt đối không tự suy đoán.
-    2. Gom nhóm các xét nghiệm máu, nước tiểu, chẩn đoán hình ảnh cùng loại vào từng mục trong mảng 'can_lam_sang'.
-    3. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong ```json hay thêm bất kỳ lời dẫn nào khác.
+    Chỉ trả về chuỗi JSON thuần túy, không có markdown.
     """
-
     try:
         contents = [prompt_ocr] + processed_images
         response = model.generate_content(contents)
         res_text = response.text.strip()
-
         if res_text.startswith("```json"): res_text = res_text[7:]
         elif res_text.startswith("```"): res_text = res_text[3:]
         if res_text.endswith("```"): res_text = res_text[:-3]
 
         parsed_data = json.loads(res_text.strip())
         return True, parsed_data
-    except json.JSONDecodeError:
-        return False, "❌ Lỗi: AI không định dạng được chuỗi JSON từ hình ảnh."
     except Exception as e:
         return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
 def get_benh_su_text_for_ai():
@@ -2464,15 +2485,38 @@ with tab1:
                                     if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
                                 except Exception: pass
 
-                            cls_list = result.get("can_lam_sang", [])
-                            if cls_list and isinstance(cls_list, list):
-                                st.session_state["so_hang_cls"] = len(cls_list)
-                                for i, cls_item in enumerate(cls_list):
-                                    st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
-                                    st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+                            # 3. Xử lý và phân bổ mảng Cận lâm sàng động kèm Ngày thứ mấy
+                        cls_list = result.get("can_lam_sang", [])
+                        ngay_vv = st.session_state.get("ngay_vao_vien", "")
 
-                            st.toast("✅ Đã nạp thành công từ PDF!", icon="🎉")
-                            st.rerun()
+                        if cls_list and isinstance(cls_list, list):
+                            st.session_state["so_hang_cls"] = len(cls_list)
+                            
+                            for i, item in enumerate(cls_list):
+                                ten_nhom = item.get("ten_nhom") or item.get("loai_cls") or f"XÉT NGHIỆM {i+1}"
+                                cac_lan = item.get("cac_lan_xet_nghiem", [])
+                                
+                                # Nếu AI trả về theo mảng từng lần làm
+                                if cac_lan and isinstance(cac_lan, list):
+                                    khoi_ket_qua = [f"{ten_nhom.upper()}:"]
+                                    for lan in cac_lan:
+                                        ngay_raw = lan.get("ngay_cls", "")
+                                        # Gọi hàm tính toán chính xác ngày thứ mấy vào viện
+                                        ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
+                                        chi_so = str(lan.get("chi_so", "")).strip()
+                                        
+                                        khoi_ket_qua.append(f"\n* {ngay_display}:")
+                                        khoi_ket_qua.append(chi_so)
+                                    
+                                    st.session_state[f"cls_kq_{i}"] = "\n".join(khoi_ket_qua).strip()
+                                else:
+                                    # Fallback nếu AI trả về chuỗi text trực tiếp trong 'ket_qua'
+                                    st.session_state[f"cls_kq_{i}"] = str(item.get("ket_qua", "")).strip()
+
+                                st.session_state[f"cls_pg_{i}"] = str(item.get("phien_giai", "-")).strip()
+
+                        st.toast("✅ Đã trích xuất xong bệnh án", icon="🎉")
+                        st.rerun()
                         else:
                             st.error(result)
 
