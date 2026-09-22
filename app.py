@@ -1022,7 +1022,7 @@ class BenhAnPDF(FPDF):
         self.set_fill_color(230, 235, 245)
         if self.get_y() > 260: self.add_page()
         self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-        self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+        self.cell(col_w, 7, "PHIÊN GIẢI KẾT QUẢ XÉT NGHIỆM", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
         
         temp_files = []
         try:
