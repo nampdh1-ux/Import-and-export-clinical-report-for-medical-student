@@ -461,7 +461,7 @@ def auto_fill_from_emr_text(raw_text):
         "sh_ha": "Huyết áp (VD: 120/80)",
         "sh_nhip_tho": "Chỉ lấy con số của Nhịp thở (VD: 20)",
         "sh_can_nang": "Chỉ lấy con số của Cân nặng, dùng dấu chấm cho số thập phân (VD: 55.5)",
-        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan) từ mục Tóm tắt bệnh án hoặc Khám lúc vào viện",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). BẮT BUỘC: Mỗi triệu chứng, mỗi cơ quan hoặc mỗi ý khám riêng biệt phải bắt đầu bằng dấu gạch ngang và cách nhau bởi dấu xuống dòng (ví dụ: - Bệnh nhân tỉnh, tiếp xúc tốt\\n- Da niêm mạc hồng\\n- Tim đều, T1 T2 rõ\\n- Phổi không rale\\n- Bụng mềm, không đau). Tuyệt đối không viết thành một đoạn văn liền tù tì.",
         "can_lam_sang": [
             {{
                 "ket_qua": "Tên nhóm xét nghiệm (VD: Công thức máu, Sinh hóa máu) và các chỉ số kèm đơn vị (mỗi chỉ số xuống dòng bằng \\n- )",
@@ -2315,7 +2315,30 @@ with tab1:
                         for f in fields_mapping:
                             val = result.get(f)
                             if val and str(val).strip() not in ["", "-"]:
-                                st.session_state[f] = str(val).strip()
+                                text_val = str(val).strip()
+                                
+                                # Xử lý riêng cho ô kham_vao_vien để ép xuống dòng đẹp mắt
+                                if f == "kham_vao_vien":
+                                    # Nếu nội dung chưa có ký tự xuống dòng mà viết liền một khối
+                                    if "\n" not in text_val:
+                                        # Tách các câu dựa trên dấu chấm/chấm phẩy theo sau bởi khoảng trắng hoặc từ khóa khám
+                                        sentences = re.split(r'(?<=[.;])\s+', text_val)
+                                        formatted_lines = []
+                                        for s in sentences:
+                                            s_clean = s.strip().lstrip("-*• ")
+                                            if s_clean:
+                                                formatted_lines.append(f"- {s_clean}")
+                                        text_val = "\n".join(formatted_lines)
+                                    else:
+                                        # Đảm bảo các dòng đều có gạch đầu dòng chuẩn
+                                        lines = text_val.split("\n")
+                                        formatted_lines = [
+                                            (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
+                                            for l in lines if l.strip()
+                                        ]
+                                        text_val = "\n".join(formatted_lines)
+
+                                st.session_state[f] = text_val
                                 
                         # 2. Xử lý các trường dạng số (Tuổi, Cân nặng) tránh lỗi
                         if result.get("tuoi"):
