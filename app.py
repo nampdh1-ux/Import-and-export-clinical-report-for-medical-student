@@ -1152,14 +1152,14 @@ class BenhAnPDF(FPDF):
         self.set_fill_color(230, 235, 245)
         if self.get_y() > 260: self.add_page()
         self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-        self.cell(col_w, 7, "PHIÊN GIẢI KẾT QUẢ XÉT NGHIỆM", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+        self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
         
         temp_files = []
         try:
-            self.set_font("Roboto", "", 9)
             for kq, pg, img in cls_rows:
-                txt_kq = format_bullet_points(kq) if kq else ""
                 txt_pg = format_bullet_points(pg) if pg else "-"
+                trend_data = parse_trend_data(kq) if kq else None
+                
                 temp_img_path = None
                 img_h = 0
                 if img:
@@ -1169,37 +1169,86 @@ class BenhAnPDF(FPDF):
                         temp_img_path = t_img.name
                         temp_files.append(temp_img_path)
                     img_h = 45
-                nb_lines_left = len(self.multi_cell(col_w - 4, line_h, txt_kq, dry_run=True, output="LINES"))
+
+                # 1. Tính toán chiều cao cột trái
+                self.set_font("Roboto", "", 8.5)
+                h_left = 4 + (img_h + 4 if img else 0)
+                if trend_data:
+                    nb_rows = len(trend_data["rows"]) + 1 # +1 header
+                    if trend_data.get("title"): nb_rows += 1
+                    h_left += nb_rows * 5.0 + 3
+                else:
+                    txt_kq = format_bullet_points(kq) if kq else ""
+                    nb_lines_left = len(self.multi_cell(col_w - 4, line_h, txt_kq, dry_run=True, output="LINES"))
+                    h_left += nb_lines_left * line_h
+
+                # 2. Tính toán chiều cao cột phải
+                self.set_font("Roboto", "", 9)
                 nb_lines_right = len(self.multi_cell(col_w - 4, line_h, txt_pg, dry_run=True, output="LINES"))
-                
-                h_left = nb_lines_left * line_h + 4 + (img_h + 4 if img else 0)
                 h_right = nb_lines_right * line_h + 4
-                row_h = max(h_left, h_right, 8)
                 
+                row_h = max(h_left, h_right, 10)
+
                 if self.get_y() + row_h > 275:
                     self.add_page()
                     self.set_font("Roboto-Bold", "", 9.5)
                     self.set_fill_color(230, 235, 245)
                     self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-                    self.cell(col_w, 7, "PHIÊN GIẢI KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
-                    self.set_font("Roboto", "", 9)
+                    self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
 
                 curr_x = self.get_x()
                 curr_y = self.get_y()
                 self.rect(curr_x, curr_y, col_w, row_h)
                 self.rect(curr_x + col_w, curr_y, col_w, row_h)
-                
+
+                # --- VẼ NỘI DUNG CỘT TRÁI ---
                 self.set_xy(curr_x + 2, curr_y + 2)
-                if txt_kq: self.multi_cell(col_w - 4, line_h, txt_kq)
+                if trend_data:
+                    if trend_data.get("title"):
+                        self.set_font("Roboto-Bold", "", 8.5)
+                        self.cell(col_w - 4, 4.5, trend_data["title"].upper(), new_x="LEFT", new_y="NEXT")
+                    
+                    nb_dates = len(trend_data["dates"])
+                    w_param = 30.0
+                    w_trend = 22.0
+                    w_date = max(18.0, (col_w - 4 - w_param - w_trend) / nb_dates)
+
+                    # Tiêu đề bảng nhỏ
+                    self.set_font("Roboto-Bold", "", 7.5)
+                    self.set_fill_color(240, 243, 246)
+                    self.cell(w_param, 5, "Chỉ số", border=1, fill=True)
+                    for d in trend_data["dates"]:
+                        d_short = d.split("(")[0].strip()
+                        self.cell(w_date, 5, d_short, border=1, fill=True, align="C")
+                    self.cell(w_trend, 5, "Xu hướng", border=1, fill=True, align="C", new_x="LEFT", new_y="NEXT")
+
+                    # Dòng dữ liệu
+                    self.set_font("Roboto", "", 7.5)
+                    for r in trend_data["rows"]:
+                        self.set_font("Roboto-Bold", "", 7.5)
+                        self.cell(w_param, 4.8, r["param"], border=1)
+                        self.set_font("Roboto", "", 7.5)
+                        for val in r["values"]:
+                            self.cell(w_date, 4.8, str(val), border=1, align="C")
+                        
+                        trend_label = f"{r['trend_symbol'].split()[0]} {r['trend_text']}".strip()
+                        self.cell(w_trend, 4.8, trend_label, border=1, align="C", new_x="LEFT", new_y="NEXT")
+                else:
+                    self.set_font("Roboto", "", 9)
+                    if kq: self.multi_cell(col_w - 4, line_h, format_bullet_points(kq))
+
                 if temp_img_path:
                     y_img = self.get_y() + 1
-                    img_w = min(col_w - 8, 70)
+                    img_w = min(col_w - 8, 65)
                     x_img = curr_x + (col_w - img_w) / 2
                     try: self.image(temp_img_path, x=x_img, y=y_img, w=img_w, h=img_h)
                     except: pass
-                
+
+                # --- VẼ NỘI DUNG CỘT PHẢI (PHIÊN GIẢI) ---
                 self.set_xy(curr_x + col_w + 2, curr_y + 2)
+                self.set_font("Roboto", "", 9)
                 self.multi_cell(col_w - 4, line_h, txt_pg)
+                
                 self.set_xy(curr_x, curr_y + row_h)
             self.ln(3)
         finally:
@@ -1207,7 +1256,6 @@ class BenhAnPDF(FPDF):
                 if os.path.exists(p):
                     try: os.remove(p)
                     except: pass
-
 def export_pdf(data):
     pdf = BenhAnPDF()
     pdf.loai_ba = data.get("loai_benh_an", "Nội khoa / Tiền phẫu")
@@ -1738,8 +1786,8 @@ def export_docx(data):
     add_subsec_title("3. Cận lâm sàng khác:")
     add_bullet_list(data.get('cls_dx_khac', ''))
 
-    # XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG WORD KÈM ẢNH NẾU CÓ)
-    add_sec_title(f"{section_numbers['cls_da_co']}. CẬN LÂM SÀNG ĐÃ CÓ")
+    # XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG WORD KÈM BẢNG MA TRẬN TIẾN TRÌNH & ẢNH)
+    add_sec_title("XI. CẬN LÂM SÀNG ĐÃ CÓ")
     cls_rows = []
     so_hang = data.get("so_hang_cls", 3)
     for i in range(so_hang):
@@ -1756,7 +1804,7 @@ def export_docx(data):
         table_cls.alignment = WD_TABLE_ALIGNMENT.CENTER
         hdr_cells = table_cls.rows[0].cells
         hdr_cells[0].text = "KẾT QUẢ CẬN LÂM SÀNG"
-        hdr_cells[1].text = "PHIÊN GIẢI"
+        hdr_cells[1].text = "PHIÊN GIẢI / BIỆN GIẢI"
         for c in hdr_cells:
             set_cell_background(c, "E1EBF5")
             p = c.paragraphs[0]
@@ -1771,10 +1819,58 @@ def export_docx(data):
                 set_cell_margins(row_cells[0], top=80, bottom=80, left=120, right=120)
                 set_cell_margins(row_cells[1], top=80, bottom=80, left=120, right=120)
                 
-                # Cột Kết quả
-                p_kq = row_cells[0].paragraphs[0]
-                p_kq.text = kq if kq else "-"
-                p_kq.runs[0].font.size = Pt(9.5)
+                # Cột Kết quả: Kiểm tra có phải bảng đa ngày không
+                trend_data = parse_trend_data(kq) if kq else None
+                cell_left = row_cells[0]
+                
+                if trend_data:
+                    # Tiêu đề nhóm nếu có
+                    if trend_data.get("title"):
+                        p_t = cell_left.paragraphs[0]
+                        p_t.text = trend_data["title"].upper()
+                        p_t.runs[0].bold = True
+                        p_t.runs[0].font.size = Pt(9.5)
+                    else:
+                        cell_left.paragraphs[0].text = ""
+
+                    # Tạo bảng con ma trận nhúng bên trong ô Word
+                    nb_cols = len(trend_data["dates"]) + 2
+                    sub_tbl = cell_left.add_table(rows=len(trend_data["rows"]) + 1, cols=nb_cols)
+                    sub_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+                    
+                    # Header bảng con
+                    sub_hdr = sub_tbl.rows[0].cells
+                    sub_hdr[0].text = "Chỉ số"
+                    for d_idx, d_label in enumerate(trend_data["dates"]):
+                        sub_hdr[d_idx + 1].text = d_label.split("(")[0].strip()
+                    sub_hdr[-1].text = "Xu hướng"
+                    for c_h in sub_hdr:
+                        set_cell_background(c_h, "F1F5F9")
+                        c_h.paragraphs[0].runs[0].font.bold = True
+                        c_h.paragraphs[0].runs[0].font.size = Pt(8)
+                        set_cell_margins(c_h, top=40, bottom=40, left=60, right=60)
+
+                    # Dữ liệu các dòng
+                    for r_idx, r_item in enumerate(trend_data["rows"]):
+                        row_cells_sub = sub_tbl.rows[r_idx + 1].cells
+                        row_cells_sub[0].text = r_item["param"]
+                        row_cells_sub[0].paragraphs[0].runs[0].font.bold = True
+                        row_cells_sub[0].paragraphs[0].runs[0].font.size = Pt(8)
+                        set_cell_margins(row_cells_sub[0], top=40, bottom=40, left=60, right=60)
+                        
+                        for v_i, v_val in enumerate(r_item["values"]):
+                            row_cells_sub[v_i + 1].text = str(v_val)
+                            row_cells_sub[v_i + 1].paragraphs[0].runs[0].font.size = Pt(8)
+                            set_cell_margins(row_cells_sub[v_i + 1], top=40, bottom=40, left=60, right=60)
+                        
+                        trend_str = f"{r_item['trend_symbol']} {r_item['trend_text']}".strip()
+                        row_cells_sub[-1].text = trend_str
+                        row_cells_sub[-1].paragraphs[0].runs[0].font.size = Pt(8)
+                        set_cell_margins(row_cells_sub[-1], top=40, bottom=40, left=60, right=60)
+                else:
+                    p_kq = cell_left.paragraphs[0]
+                    p_kq.text = kq if kq else "-"
+                    p_kq.runs[0].font.size = Pt(9.5)
                 
                 if img:
                     suffix = os.path.splitext(img.name)[1]
@@ -1782,8 +1878,8 @@ def export_docx(data):
                         t_f.write(img.getbuffer())
                         t_path = t_f.name
                         temp_docx_imgs.append(t_path)
-                    p_img = row_cells[0].add_paragraph()
-                    p_img.add_run().add_picture(t_path, width=Inches(2.5))
+                    p_img = cell_left.add_paragraph()
+                    p_img.add_run().add_picture(t_path, width=Inches(2.4))
                 
                 # Cột Biện giải
                 p_pg = row_cells[1].paragraphs[0]
@@ -1792,10 +1888,8 @@ def export_docx(data):
         finally:
             for p_path in temp_docx_imgs:
                 if os.path.exists(p_path):
-                    try:
-                        os.remove(p_path)
-                    except Exception:
-                        pass
+                    try: os.remove(p_path)
+                    except Exception: pass
 
     # XII. CHẨN ĐOÁN XÁC ĐỊNH
     add_sec_title(f"{section_numbers['chan_doan_xac_dinh']}. CHẨN ĐOÁN XÁC ĐỊNH")
