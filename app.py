@@ -951,7 +951,137 @@ def organ_findings_for_mode(mode):
 
 def detailed_organ_templates_for_mode(mode):
     return PEDIATRIC_DETAILED_ORGAN_TEMPLATES if is_pediatric_mode(mode) else DETAILED_ORGAN_TEMPLATES
+def parse_trend_data(text_content):
+    """
+    Bóc tách dữ liệu chuỗi kết quả CLS đa ngày thành cấu trúc Python thuần.
+    Trả về dict: { 'title': str, 'dates': list, 'rows': [ (param, [val_day1, val_day2, ...], trend_str) ] }
+    """
+    if not text_content or "*" not in text_content:
+        return None
 
+    lines_raw = text_content.strip().split("\n")
+    main_title = ""
+    first_line = lines_raw[0].strip()
+    if not first_line.startswith("*") and ":" in first_line:
+        main_title = first_line.rstrip(":")
+
+    day_blocks = re.split(r'\n(?=\*\s*)', text_content.strip())
+    dates = []
+    param_data = {}
+
+    for block in day_blocks:
+        block = block.strip()
+        if not block.startswith("*"):
+            continue
+        lines = block.split("\n")
+        header_match = re.match(r'\*\s*([^:]+):?', lines[0])
+        if not header_match:
+            continue
+        date_label = header_match.group(1).strip()
+        dates.append(date_label)
+
+        for line in lines[1:]:
+            line_clean = line.strip().lstrip("-*• ")
+            if not line_clean or ":" not in line_clean:
+                continue
+            parts = line_clean.split(":", 1)
+            name = parts[0].strip()
+            val_str = parts[1].strip()
+
+            num_match = re.search(r'[-+]?\d*\.?\d+', val_str.replace(",", "."))
+            num_val = float(num_match.group()) if num_match else None
+
+            if name not in param_data:
+                param_data[name] = {}
+            param_data[name][date_label] = (val_str, num_val)
+
+    if len(dates) < 2 or not param_data:
+        return None
+
+    rows = []
+    for param, day_dict in param_data.items():
+        vals = []
+        first_num = None
+        last_num = None
+        for d in dates:
+            if d in day_dict:
+                v_str, n_val = day_dict[d]
+                vals.append(v_str)
+                if first_num is None and n_val is not None:
+                    first_num = n_val
+                if n_val is not None:
+                    last_num = n_val
+            else:
+                vals.append("--")
+
+        trend_txt = "--"
+        trend_sym = "➡️"
+        if first_num is not None and last_num is not None:
+            delta = last_num - first_num
+            if delta > 0.05:
+                trend_txt = f"+{delta:.1f}"
+                trend_sym = "📈 Tăng"
+            elif delta < -0.05:
+                trend_txt = f"{delta:.1f}"
+                trend_sym = "📉 Giảm"
+            else:
+                trend_sym = "➡️ Không đổi"
+                trend_txt = ""
+
+        rows.append({
+            "param": param,
+            "values": vals,
+            "trend_symbol": trend_sym,
+            "trend_text": trend_txt
+        })
+
+    return {
+        "title": main_title,
+        "dates": dates,
+        "rows": rows
+    }
+
+def render_trend_table_streamlit(trend_data):
+    """Render bảng HTML theo phong cách tối giản mặc định của Streamlit."""
+    if not trend_data:
+        return ""
+    
+    dates = trend_data["dates"]
+    rows = trend_data["rows"]
+    title = trend_data.get("title")
+
+    html = "<div style='overflow-x: auto; margin: 8px 0; border: 1px solid #e6e9ef; border-radius: 6px;'>"
+    if title:
+        html += f"<div style='background-color: #fafafa; padding: 6px 12px; font-weight: 600; font-size: 0.88rem; border-bottom: 1px solid #e6e9ef; color: #1e293b;'>{title.upper()}</div>"
+    
+    html += "<table style='width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.84rem;'>"
+    html += "<thead><tr style='background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left;'>"
+    html += "<th style='padding: 8px 10px; font-weight: 600;'>Chỉ số</th>"
+    for d in dates:
+        html += f"<th style='padding: 8px 10px; text-align: center; font-weight: 600;'>{d}</th>"
+    html += "<th style='padding: 8px 10px; text-align: center; font-weight: 600;'>Động học</th></tr></thead><tbody>"
+
+    for idx, r in enumerate(rows):
+        bg = "#ffffff" if idx % 2 == 0 else "#fcfcfd"
+        html += f"<tr style='background-color: {bg}; border-bottom: 1px solid #f1f5f9;'>"
+        html += f"<td style='padding: 7px 10px; font-weight: 500; color: #0f172a;'>{r['param']}</td>"
+        for v in r["values"]:
+            html += f"<td style='padding: 7px 10px; text-align: center; color: #334155;'>{v}</td>"
+        
+        sym = r['trend_symbol']
+        diff = f" ({r['trend_text']})" if r['trend_text'] else ""
+        if "Tăng" in sym:
+            trend_color = "#b91c1c"
+        elif "Giảm" in sym:
+            trend_color = "#15803d"
+        else:
+            trend_color = "#64748b"
+
+        html += f"<td style='padding: 7px 10px; text-align: center; font-weight: 500; color: {trend_color};'>{sym}{diff}</td>"
+        html += "</tr>"
+
+    html += "</tbody></table></div>"
+    return html
 class BenhAnPDF(FPDF):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2454,12 +2584,11 @@ def ui_cls(num_dx, num_kq):
         with col_left:
             st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=100)
             
-            # TỰ ĐỘNG TẠO BẢNG TIẾN TRÌNH MA TRẬN NẾU CÓ NHIỀU NGÀY
+            # TỰ ĐỘNG HIỂN THỊ BẢNG SO SÁNH MA TRẬN PHONG CÁCH STREAMLIT
             kq_hientai = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
-            bang_ma_tran = parse_and_render_trend_table(kq_hientai)
-            if bang_ma_tran:
-                with st.expander("📊 Bảng ma trận so sánh tiến trình đa ngày", expanded=True):
-                    st.markdown(bang_ma_tran, unsafe_allow_html=True)
+            parsed_trend = parse_trend_data(kq_hientai)
+            if parsed_trend:
+                st.markdown(render_trend_table_streamlit(parsed_trend), unsafe_allow_html=True)
 
             img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
             if img:
