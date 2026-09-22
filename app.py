@@ -1146,11 +1146,13 @@ class BenhAnPDF(FPDF):
         self.ln(2)
 
     def render_table_cls(self, cls_rows):
-        col_w = 95
+        col_w = 95.0
         line_h = 5.0
         self.set_font("Roboto-Bold", "", 9.5)
         self.set_fill_color(230, 235, 245)
-        if self.get_y() > 260: self.add_page()
+        if self.get_y() > 260: 
+            self.add_page()
+            
         self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
         self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
         
@@ -1170,25 +1172,27 @@ class BenhAnPDF(FPDF):
                         temp_files.append(temp_img_path)
                     img_h = 45
 
-                # 1. Tính toán chiều cao cột trái
-                self.set_font("Roboto", "", 8.5)
+                # 1. Tính chiều cao nội dung cột trái
                 h_left = 4 + (img_h + 4 if img else 0)
                 if trend_data:
-                    nb_rows = len(trend_data["rows"]) + 1 # +1 header
-                    if trend_data.get("title"): nb_rows += 1
-                    h_left += nb_rows * 5.0 + 3
+                    nb_rows = len(trend_data["rows"]) + 1  # 1 dòng header
+                    if trend_data.get("title"): 
+                        nb_rows += 1
+                    h_left += nb_rows * 5.2 + 2
                 else:
+                    self.set_font("Roboto", "", 9)
                     txt_kq = format_bullet_points(kq) if kq else ""
                     nb_lines_left = len(self.multi_cell(col_w - 4, line_h, txt_kq, dry_run=True, output="LINES"))
-                    h_left += nb_lines_left * line_h
+                    h_left += nb_lines_left * line_h + 4
 
-                # 2. Tính toán chiều cao cột phải
+                # 2. Tính chiều cao nội dung cột phải
                 self.set_font("Roboto", "", 9)
                 nb_lines_right = len(self.multi_cell(col_w - 4, line_h, txt_pg, dry_run=True, output="LINES"))
                 h_right = nb_lines_right * line_h + 4
                 
-                row_h = max(h_left, h_right, 10)
+                row_h = max(h_left, h_right, 10.0)
 
+                # Ngắt trang nếu vượt quá đáy
                 if self.get_y() + row_h > 275:
                     self.add_page()
                     self.set_font("Roboto-Bold", "", 9.5)
@@ -1198,64 +1202,109 @@ class BenhAnPDF(FPDF):
 
                 curr_x = self.get_x()
                 curr_y = self.get_y()
+                
+                # Vẽ khung ngoài 2 ô
                 self.rect(curr_x, curr_y, col_w, row_h)
                 self.rect(curr_x + col_w, curr_y, col_w, row_h)
 
-                # --- VẼ NỘI DUNG CỘT TRÁI ---
-                self.set_xy(curr_x + 2, curr_y + 2)
+                # =======================================================
+                # CỘT TRÁI: DỰNG BẢNG MA TRẬN TIẾN TRÌNH HOẶC TEXT THƯỜNG
+                # =======================================================
+                sub_x = curr_x + 2.0
+                sub_y = curr_y + 2.5
+                self.set_xy(sub_x, sub_y)
+
                 if trend_data:
+                    # In tiêu đề nhóm xét nghiệm
                     if trend_data.get("title"):
                         self.set_font("Roboto-Bold", "", 8.5)
-                        self.cell(col_w - 4, 4.5, trend_data["title"].upper(), new_x="LEFT", new_y="NEXT")
-                    
-                    nb_dates = len(trend_data["dates"])
-                    w_param = 30.0
-                    w_trend = 22.0
-                    w_date = max(18.0, (col_w - 4 - w_param - w_trend) / nb_dates)
+                        self.set_text_color(10, 36, 106)
+                        self.cell(col_w - 4, 5, trend_data["title"].upper(), border=0, align="L")
+                        self.set_text_color(0, 0, 0)
+                        sub_y += 5.2
 
-                    # Tiêu đề bảng nhỏ
+                    nb_dates = len(trend_data["dates"])
+                    w_total = col_w - 4.0
+                    w_param = 26.0
+                    w_trend = 20.0
+                    w_date = (w_total - w_param - w_trend) / max(1, nb_dates)
+
+                    # Header bảng con
+                    self.set_xy(sub_x, sub_y)
                     self.set_font("Roboto-Bold", "", 7.5)
                     self.set_fill_color(240, 243, 246)
-                    self.cell(w_param, 5, "Chỉ số", border=1, fill=True)
+                    self.cell(w_param, 5.0, "Chỉ số", border=1, fill=True, align="L")
                     for d in trend_data["dates"]:
                         d_short = d.split("(")[0].strip()
-                        self.cell(w_date, 5, d_short, border=1, fill=True, align="C")
-                    self.cell(w_trend, 5, "Xu hướng", border=1, fill=True, align="C", new_x="LEFT", new_y="NEXT")
+                        self.cell(w_date, 5.0, d_short, border=1, fill=True, align="C")
+                    self.cell(w_trend, 5.0, "Xu hướng", border=1, fill=True, align="C")
+                    
+                    sub_y += 5.0
 
-                    # Dòng dữ liệu
-                    self.set_font("Roboto", "", 7.5)
+                    # Từng dòng chỉ số (Dùng text ASCII thay cho Emoji để tránh vỡ font)
                     for r in trend_data["rows"]:
+                        self.set_xy(sub_x, sub_y)
+                        
+                        # Cột Tên thông số
                         self.set_font("Roboto-Bold", "", 7.5)
-                        self.cell(w_param, 4.8, r["param"], border=1)
+                        self.cell(w_param, 4.8, str(r["param"])[:16], border=1, align="L")
+                        
+                        # Các cột ngày
                         self.set_font("Roboto", "", 7.5)
                         for val in r["values"]:
                             self.cell(w_date, 4.8, str(val), border=1, align="C")
                         
-                        trend_label = f"{r['trend_symbol'].split()[0]} {r['trend_text']}".strip()
-                        self.cell(w_trend, 4.8, trend_label, border=1, align="C", new_x="LEFT", new_y="NEXT")
+                        # Cột Xu hướng: Chuyển đổi icon thành text ASCII an toàn cho PDF
+                        sym = r['trend_symbol']
+                        diff = f" ({r['trend_text']})" if r['trend_text'] else ""
+                        if "Tăng" in sym:
+                            trend_display = f"(+) Tang{diff}"
+                            self.set_text_color(180, 0, 0)
+                        elif "Giảm" in sym:
+                            trend_display = f"(-) Giam{diff}"
+                            self.set_text_color(0, 110, 0)
+                        else:
+                            trend_display = f"(=) On dinh"
+                            self.set_text_color(80, 80, 80)
+                            
+                        self.set_font("Roboto-Bold", "", 7.0)
+                        self.cell(w_trend, 4.8, trend_display, border=1, align="C")
+                        self.set_text_color(0, 0, 0)
+                        
+                        sub_y += 4.8
                 else:
                     self.set_font("Roboto", "", 9)
-                    if kq: self.multi_cell(col_w - 4, line_h, format_bullet_points(kq))
+                    if kq: 
+                        self.multi_cell(col_w - 4, line_h, format_bullet_points(kq))
 
+                # Chèn ảnh đính kèm nếu có
                 if temp_img_path:
-                    y_img = self.get_y() + 1
+                    y_img = sub_y + 1 if trend_data else self.get_y() + 1
                     img_w = min(col_w - 8, 65)
                     x_img = curr_x + (col_w - img_w) / 2
-                    try: self.image(temp_img_path, x=x_img, y=y_img, w=img_w, h=img_h)
-                    except: pass
+                    try: 
+                        self.image(temp_img_path, x=x_img, y=y_img, w=img_w, h=img_h)
+                    except Exception: 
+                        pass
 
-                # --- VẼ NỘI DUNG CỘT PHẢI (PHIÊN GIẢI) ---
-                self.set_xy(curr_x + col_w + 2, curr_y + 2)
+                # =======================================================
+                # CỘT PHẢI: BIỆN GIẢI / PHIÊN GIẢI
+                # =======================================================
+                self.set_xy(curr_x + col_w + 2.0, curr_y + 2.5)
                 self.set_font("Roboto", "", 9)
                 self.multi_cell(col_w - 4, line_h, txt_pg)
                 
+                # Di chuyển con trỏ xuống hàng tiếp theo của bảng lớn
                 self.set_xy(curr_x, curr_y + row_h)
+                
             self.ln(3)
         finally:
             for p in temp_files:
                 if os.path.exists(p):
-                    try: os.remove(p)
-                    except: pass
+                    try: 
+                        os.remove(p)
+                    except Exception: 
+                        pass
 def export_pdf(data):
     pdf = BenhAnPDF()
     pdf.loai_ba = data.get("loai_benh_an", "Nội khoa / Tiền phẫu")
