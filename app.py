@@ -1051,7 +1051,7 @@ class BenhAnPDF(FPDF):
                     self.set_font("Roboto-Bold", "", 9.5)
                     self.set_fill_color(230, 235, 245)
                     self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-                    self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+                    self.cell(col_w, 7, "PHIÊN GIẢI KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
                     self.set_font("Roboto", "", 9)
 
                 curr_x = self.get_x()
@@ -1626,7 +1626,7 @@ def export_docx(data):
         table_cls.alignment = WD_TABLE_ALIGNMENT.CENTER
         hdr_cells = table_cls.rows[0].cells
         hdr_cells[0].text = "KẾT QUẢ CẬN LÂM SÀNG"
-        hdr_cells[1].text = "PHIÊN GIẢI / BIỆN GIẢI"
+        hdr_cells[1].text = "PHIÊN GIẢI"
         for c in hdr_cells:
             set_cell_background(c, "E1EBF5")
             p = c.paragraphs[0]
