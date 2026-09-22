@@ -2180,6 +2180,106 @@ def xoa_hang_cls(target_idx):
 
     # Giảm tổng số hàng đi 1
     st.session_state["so_hang_cls"] = current_total - 1
+def parse_and_render_trend_table(text_content):
+    """
+    Phân tích chuỗi kết quả CLS đa ngày và dựng thành bảng ma trận tiến trình:
+    - Bóc tách các mốc ngày (cột)
+    - Bóc tách chỉ số (hàng)
+    - So sánh giá trị số để tính xu hướng (Tăng/Giảm/Bằng)
+    """
+    if not text_content or "*" not in text_content:
+        return None
+
+    # 1. Tách các khối theo từng mốc ngày (bắt đầu bằng dấu *)
+    day_blocks = re.split(r'\n(?=\*\s*)', text_content.strip())
+    
+    dates = []
+    # Cấu trúc: { 'Tên chỉ số': { 'Ngày 1': (giá_trị_hiển_thị, giá_trị_số), 'Ngày 2': ... } }
+    param_data = {}
+
+    for block in day_blocks:
+        block = block.strip()
+        if not block.startswith("*"):
+            continue
+        
+        lines = block.split("\n")
+        # Lấy tiêu đề ngày (ví dụ: "Ngày 1 vào viện (18/09/2026)")
+        header_match = re.match(r'\*\s*([^:]+):?', lines[0])
+        if not header_match:
+            continue
+        date_label = header_match.group(1).strip()
+        dates.append(date_label)
+
+        # Đọc các chỉ số trong ngày đó
+        for line in lines[1:]:
+            line_clean = line.strip().lstrip("-*• ")
+            if not line_clean or ":" not in line_clean:
+                continue
+            parts = line_clean.split(":", 1)
+            name = parts[0].strip()
+            val_str = parts[1].strip()
+
+            # Trích xuất số thực đầu tiên để tính xu hướng
+            num_match = re.search(r'[-+]?\d*\.?\d+', val_str.replace(",", "."))
+            num_val = float(num_match.group()) if num_match else None
+
+            if name not in param_data:
+                param_data[name] = {}
+            param_data[name][date_label] = (val_str, num_val)
+
+    # Nếu chỉ có 1 mốc ngày hoặc không bóc tách được chỉ số thì không cần dựng bảng so sánh
+    if len(dates) < 2 or not param_data:
+        return None
+
+    # 2. Dựng bảng HTML Retro / Y2K đồng bộ với theme
+    html = """
+    <div style='overflow-x: auto; margin: 10px 0;'>
+    <table style='width: 100%; border-collapse: collapse; font-family: Tahoma, sans-serif; font-size: 0.85rem;'>
+        <thead>
+            <tr style='background-color: #0a246a; color: #ffffff;'>
+                <th style='padding: 6px 10px; border: 1px solid #404040; text-align: left;'>Thông số xét nghiệm</th>
+    """
+    for d in dates:
+        html += f"<th style='padding: 6px 10px; border: 1px solid #404040; text-align: center;'>{d}</th>"
+    html += "<th style='padding: 6px 10px; border: 1px solid #404040; text-align: center;'>Động học (Xu hướng)</th></tr></thead><tbody>"
+
+    for idx, (param, day_dict) in enumerate(param_data.items()):
+        bg_row = "#f9f9f6" if idx % 2 == 0 else "#ffffff"
+        html += f"<tr style='background-color: {bg_row};'>"
+        html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; font-weight: bold;'>{param}</td>"
+
+        first_num = None
+        last_num = None
+
+        for d in dates:
+            if d in day_dict:
+                val_text, num_val = day_dict[d]
+                html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center;'>{val_text}</td>"
+                if first_num is None and num_val is not None:
+                    first_num = num_val
+                if num_val is not None:
+                    last_num = num_val
+            else:
+                html += "<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center; color: #888;'>--</td>"
+
+        # Tính toán xu hướng động học giữa mốc đầu tiên và mốc gần nhất
+        trend_html = "<span style='color: #888;'>--</span>"
+        if first_num is not None and last_num is not None and len(dates) >= 2:
+            delta = last_num - first_num
+            percent_change = (delta / first_num * 100) if first_num != 0 else 0
+            
+            if delta > 0.05:
+                trend_html = f"<span style='color: #b80000; font-weight: bold;'>📈 Tăng (+{delta:.1f})</span>"
+            elif delta < -0.05:
+                trend_html = f"<span style='color: #007000; font-weight: bold;'>📉 Giảm ({delta:.1f})</span>"
+            else:
+                trend_html = "<span style='color: #555;'>➡️ Không đổi</span>"
+
+        html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center;'>{trend_html}</td>"
+        html += "</tr>"
+
+    html += "</tbody></table></div>"
+    return html
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
     if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
@@ -2352,7 +2452,15 @@ def ui_cls(num_dx, num_kq):
 
         col_left, col_right = st.columns([1, 1])
         with col_left:
-            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=75)
+            st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=100)
+            
+            # TỰ ĐỘNG TẠO BẢNG TIẾN TRÌNH MA TRẬN NẾU CÓ NHIỀU NGÀY
+            kq_hientai = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
+            bang_ma_tran = parse_and_render_trend_table(kq_hientai)
+            if bang_ma_tran:
+                with st.expander("📊 Bảng ma trận so sánh tiến trình đa ngày", expanded=True):
+                    st.markdown(bang_ma_tran, unsafe_allow_html=True)
+
             img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
             if img:
                 uploaded_imgs[f"cls_img_{i}"] = img
