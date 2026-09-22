@@ -2475,48 +2475,50 @@ with tab1:
                             if result.get("tuoi"):
                                 try:
                                     m_tuoi = re.search(r'\d+', str(result["tuoi"]))
-                                    if m_tuoi: st.session_state["tuoi"] = int(m_tuoi.group())
-                                except Exception: pass
+                                    if m_tuoi: 
+                                        st.session_state["tuoi"] = int(m_tuoi.group())
+                                except Exception: 
+                                    pass
 
                             if result.get("sh_can_nang"):
                                 try:
                                     clean_weight = str(result["sh_can_nang"]).replace(",", ".")
                                     m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
-                                    if m_cn: st.session_state["sh_can_nang"] = float(m_cn.group())
-                                except Exception: pass
+                                    if m_cn: 
+                                        st.session_state["sh_can_nang"] = float(m_cn.group())
+                                except Exception: 
+                                    pass
 
-                            # 3. Xử lý và phân bổ mảng Cận lâm sàng động kèm Ngày thứ mấy
-                        cls_list = result.get("can_lam_sang", [])
-                        ngay_vv = st.session_state.get("ngay_vao_vien", "")
+                            cls_list = result.get("can_lam_sang", [])
+                            ngay_vv = st.session_state.get("ngay_vao_vien", "")
 
-                        if cls_list and isinstance(cls_list, list):
-                            st.session_state["so_hang_cls"] = len(cls_list)
-                            
-                            for i, item in enumerate(cls_list):
-                                ten_nhom = item.get("ten_nhom") or item.get("loai_cls") or f"XÉT NGHIỆM {i+1}"
-                                cac_lan = item.get("cac_lan_xet_nghiem", [])
+                            if cls_list and isinstance(cls_list, list):
+                                st.session_state["so_hang_cls"] = len(cls_list)
                                 
-                                # Nếu AI trả về theo mảng từng lần làm
-                                if cac_lan and isinstance(cac_lan, list):
-                                    khoi_ket_qua = [f"{ten_nhom.upper()}:"]
-                                    for lan in cac_lan:
-                                        ngay_raw = lan.get("ngay_cls", "")
-                                        # Gọi hàm tính toán chính xác ngày thứ mấy vào viện
-                                        ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
-                                        chi_so = str(lan.get("chi_so", "")).strip()
-                                        
-                                        khoi_ket_qua.append(f"\n* {ngay_display}:")
-                                        khoi_ket_qua.append(chi_so)
+                                for i, item in enumerate(cls_list):
+                                    ten_nhom = item.get("ten_nhom") or item.get("loai_cls") or f"XÉT NGHIỆM {i+1}"
+                                    cac_lan = item.get("cac_lan_xet_nghiem", [])
                                     
-                                    st.session_state[f"cls_kq_{i}"] = "\n".join(khoi_ket_qua).strip()
-                                else:
-                                    # Fallback nếu AI trả về chuỗi text trực tiếp trong 'ket_qua'
-                                    st.session_state[f"cls_kq_{i}"] = str(item.get("ket_qua", "")).strip()
+                                    # Nếu AI trả về theo mảng từng lần làm
+                                    if cac_lan and isinstance(cac_lan, list):
+                                        khoi_ket_qua = [f"{ten_nhom.upper()}:"]
+                                        for lan in cac_lan:
+                                            ngay_raw = lan.get("ngay_cls", "")
+                                            ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
+                                            chi_so = str(lan.get("chi_so", "")).strip()
+                                            
+                                            khoi_ket_qua.append(f"\n* {ngay_display}:")
+                                            khoi_ket_qua.append(chi_so)
+                                        
+                                        st.session_state[f"cls_kq_{i}"] = "\n".join(khoi_ket_qua).strip()
+                                    else:
+                                        # Fallback nếu AI trả về chuỗi text trực tiếp trong 'ket_qua'
+                                        st.session_state[f"cls_kq_{i}"] = str(item.get("ket_qua", "")).strip()
 
-                                st.session_state[f"cls_pg_{i}"] = str(item.get("phien_giai", "-")).strip()
+                                    st.session_state[f"cls_pg_{i}"] = str(item.get("phien_giai", "-")).strip()
 
-                        st.toast("✅ Đã trích xuất xong bệnh án", icon="🎉")
-                        st.rerun()
+                            st.toast("✅ Đã trích xuất xong bệnh án và đồng bộ ngày xét nghiệm!", icon="🎉")
+                            st.rerun()  
                         else:
                             st.error(result)
 
