@@ -1173,104 +1173,26 @@ class BenhAnPDF(FPDF):
                     img_h = 45
 
                 # 1. Tính chiều cao nội dung cột trái
-                h_left = 4 + (img_h + 4 if img else 0)
+                h_left = 4.0 + (img_h + 4.0 if img else 0.0)
                 if trend_data:
-                    # In tiêu đề nhóm xét nghiệm
-                    if trend_data.get("title"):
-                        self.set_font("Roboto-Bold", "", 8.5)
-                        self.set_text_color(10, 36, 106)
-                        self.cell(col_w - 4, 4.5, trend_data["title"].upper(), border=0, align="L")
-                        self.set_text_color(0, 0, 0)
-                        sub_y += 4.8
-
-                    nb_dates = len(trend_data["dates"])
-                    w_total = col_w - 4.0
-
-                    # 1. Phân bổ tỉ lệ bề rộng cột thông minh theo số lượng ngày
-                    if nb_dates >= 3:
-                        w_param = 22.0
-                        w_trend = 19.0
-                        font_size_header = 6.5
-                        font_size_val = 6.5
-                    else:
-                        w_param = 25.0
-                        w_trend = 20.0
-                        font_size_header = 7.0
-                        font_size_val = 7.0
-
-                    w_date = (w_total - w_param - w_trend) / max(1, nb_dates)
-
-                    # 2. Hàm rút gọn nhãn ngày (ví dụ: "Ngày 1 vào viện (16/09)" -> "16/09" hoặc "N1")
-                    def rut_gon_nhan_ngay(label):
-                        # Ưu tiên lấy ngày tháng dạng dd/mm nếu có
-                        m_date = re.search(r'(\d{1,2}/\d{1,2})', label)
-                        if m_date:
-                            return m_date.group(1)
-                        # Nếu không có ngày tháng, lấy số ngày (Ngày 1 -> N1)
-                        m_day = re.search(r'(?:ngày|n)\s*(\d+)', label, re.IGNORECASE)
-                        if m_day:
-                            return f"N{m_day.group(1)}"
-                        # Trường hợp còn lại cắt ngắn tối đa 8 ký tự
-                        return label.split("(")[0].strip()[:8]
-
-                    # --- HEADER BẢNG CON ---
-                    self.set_xy(sub_x, sub_y)
-                    self.set_font("Roboto-Bold", "", font_size_header)
-                    self.set_fill_color(240, 243, 246)
-                    self.cell(w_param, 4.8, "Chỉ số", border=1, fill=True, align="L")
-                    for d in trend_data["dates"]:
-                        d_short = rut_gon_nhan_ngay(d)
-                        self.cell(w_date, 4.8, d_short, border=1, fill=True, align="C")
-                    self.cell(w_trend, 4.8, "Xu hướng", border=1, fill=True, align="C")
-                    
-                    sub_y += 4.8
-
-                    # --- DÒNG DỮ LIỆU TỪNG CHỈ SỐ ---
-                    for r in trend_data["rows"]:
-                        self.set_xy(sub_x, sub_y)
-                        
-                        # Cột Tên thông số
-                        self.set_font("Roboto-Bold", "", font_size_val)
-                        ten_param = str(r["param"]).strip()
-                        # Cắt bớt nếu tên chỉ số quá dài (ví dụ: Bilirubin TP -> Bili TP)
-                        if len(ten_param) > 13:
-                            ten_param = ten_param[:12] + "."
-                        self.cell(w_param, 4.5, ten_param, border=1, align="L")
-                        
-                        # Các cột giá trị ngày
-                        self.set_font("Roboto", "", font_size_val)
-                        for val in r["values"]:
-                            # Nếu chuỗi số liệu quá dài trong bảng 3 ngày thì rút gọn đơn vị nhẹ nhàng
-                            val_str = str(val).strip()
-                            self.cell(w_date, 4.5, val_str, border=1, align="C")
-                        
-                        # Cột Xu hướng
-                        sym = r['trend_symbol']
-                        diff = f" ({r['trend_text']})" if r['trend_text'] else ""
-                        if "Tăng" in sym:
-                            trend_display = f"(+) Tang{diff}"
-                            self.set_text_color(180, 0, 0)
-                        elif "Giảm" in sym:
-                            trend_display = f"(-) Giam{diff}"
-                            self.set_text_color(0, 110, 0)
-                        else:
-                            trend_display = "(=) On dinh"
-                            self.set_text_color(80, 80, 80)
-                            
-                        self.set_font("Roboto-Bold", "", font_size_val - 0.5)
-                        self.cell(w_trend, 4.5, trend_display, border=1, align="C")
-                        self.set_text_color(0, 0, 0)
-                        
-                        sub_y += 4.5
+                    nb_rows = len(trend_data["rows"]) + 1  # 1 dòng header
+                    if trend_data.get("title"): 
+                        nb_rows += 1
+                    h_left = h_left + nb_rows * 4.8 + 3.0
+                else:
+                    self.set_font("Roboto", "", 9)
+                    txt_kq = format_bullet_points(kq) if kq else ""
+                    nb_lines_left = len(self.multi_cell(col_w - 4, line_h, txt_kq, dry_run=True, output="LINES"))
+                    h_left = h_left + nb_lines_left * line_h + 4.0
 
                 # 2. Tính chiều cao nội dung cột phải
                 self.set_font("Roboto", "", 9)
                 nb_lines_right = len(self.multi_cell(col_w - 4, line_h, txt_pg, dry_run=True, output="LINES"))
-                h_right = nb_lines_right * line_h + 4
+                h_right = nb_lines_right * line_h + 4.0
                 
                 row_h = max(h_left, h_right, 10.0)
 
-                # Ngắt trang nếu vượt quá đáy
+                # Ngắt trang nếu vượt quá đáy trang
                 if self.get_y() + row_h > 275:
                     self.add_page()
                     self.set_font("Roboto-Bold", "", 9.5)
@@ -1293,46 +1215,66 @@ class BenhAnPDF(FPDF):
                 self.set_xy(sub_x, sub_y)
 
                 if trend_data:
-                    # In tiêu đề nhóm xét nghiệm
+                    # In tiêu đề nhóm xét nghiệm nếu có
                     if trend_data.get("title"):
                         self.set_font("Roboto-Bold", "", 8.5)
                         self.set_text_color(10, 36, 106)
-                        self.cell(col_w - 4, 5, trend_data["title"].upper(), border=0, align="L")
+                        self.cell(col_w - 4, 4.5, trend_data["title"].upper(), border=0, align="L")
                         self.set_text_color(0, 0, 0)
-                        sub_y += 5.2
+                        sub_y = sub_y + 4.8
 
                     nb_dates = len(trend_data["dates"])
                     w_total = col_w - 4.0
-                    w_param = 26.0
-                    w_trend = 20.0
+
+                    if nb_dates >= 3:
+                        w_param = 22.0
+                        w_trend = 19.0
+                        font_size_header = 6.5
+                        font_size_val = 6.5
+                    else:
+                        w_param = 25.0
+                        w_trend = 20.0
+                        font_size_header = 7.0
+                        font_size_val = 7.0
+
                     w_date = (w_total - w_param - w_trend) / max(1, nb_dates)
 
-                    # Header bảng con
-                    self.set_xy(sub_x, sub_y)
-                    self.set_font("Roboto-Bold", "", 7.5)
-                    self.set_fill_color(240, 243, 246)
-                    self.cell(w_param, 5.0, "Chỉ số", border=1, fill=True, align="L")
-                    for d in trend_data["dates"]:
-                        d_short = d.split("(")[0].strip()
-                        self.cell(w_date, 5.0, d_short, border=1, fill=True, align="C")
-                    self.cell(w_trend, 5.0, "Xu hướng", border=1, fill=True, align="C")
-                    
-                    sub_y += 5.0
+                    def rut_gon_nhan_ngay(label):
+                        m_date = re.search(r'(\d{1,2}/\d{1,2})', label)
+                        if m_date:
+                            return m_date.group(1)
+                        m_day = re.search(r'(?:ngày|n)\s*(\d+)', label, re.IGNORECASE)
+                        if m_day:
+                            return f"N{m_day.group(1)}"
+                        return label.split("(")[0].strip()[:8]
 
-                    # Từng dòng chỉ số (Dùng text ASCII thay cho Emoji để tránh vỡ font)
+                    # --- HEADER BẢNG CON ---
+                    self.set_xy(sub_x, sub_y)
+                    self.set_font("Roboto-Bold", "", font_size_header)
+                    self.set_fill_color(240, 243, 246)
+                    self.cell(w_param, 4.5, "Chỉ số", border=1, fill=True, align="L")
+                    for d in trend_data["dates"]:
+                        d_short = rut_gon_nhan_ngay(d)
+                        self.cell(w_date, 4.5, d_short, border=1, fill=True, align="C")
+                    self.cell(w_trend, 4.5, "Xu hướng", border=1, fill=True, align="C")
+                    
+                    sub_y = sub_y + 4.5
+
+                    # --- DÒNG DỮ LIỆU TỪNG CHỈ SỐ ---
                     for r in trend_data["rows"]:
                         self.set_xy(sub_x, sub_y)
                         
-                        # Cột Tên thông số
-                        self.set_font("Roboto-Bold", "", 7.5)
-                        self.cell(w_param, 4.8, str(r["param"])[:16], border=1, align="L")
+                        self.set_font("Roboto-Bold", "", font_size_val)
+                        ten_param = str(r["param"]).strip()
+                        if len(ten_param) > 13:
+                            ten_param = ten_param[:12] + "."
+                        self.cell(w_param, 4.2, ten_param, border=1, align="L")
                         
-                        # Các cột ngày
-                        self.set_font("Roboto", "", 7.5)
+                        self.set_font("Roboto", "", font_size_val)
                         for val in r["values"]:
-                            self.cell(w_date, 4.8, str(val), border=1, align="C")
+                            val_str = str(val).strip()
+                            self.cell(w_date, 4.2, val_str, border=1, align="C")
                         
-                        # Cột Xu hướng: Chuyển đổi icon thành text ASCII an toàn cho PDF
                         sym = r['trend_symbol']
                         diff = f" ({r['trend_text']})" if r['trend_text'] else ""
                         if "Tăng" in sym:
@@ -1342,14 +1284,14 @@ class BenhAnPDF(FPDF):
                             trend_display = f"(-) Giam{diff}"
                             self.set_text_color(0, 110, 0)
                         else:
-                            trend_display = f"(=) On dinh"
+                            trend_display = "(=) On dinh"
                             self.set_text_color(80, 80, 80)
                             
-                        self.set_font("Roboto-Bold", "", 7.0)
-                        self.cell(w_trend, 4.8, trend_display, border=1, align="C")
+                        self.set_font("Roboto-Bold", "", font_size_val - 0.5)
+                        self.cell(w_trend, 4.2, trend_display, border=1, align="C")
                         self.set_text_color(0, 0, 0)
                         
-                        sub_y += 4.8
+                        sub_y = sub_y + 4.2
                 else:
                     self.set_font("Roboto", "", 9)
                     if kq: 
@@ -1357,7 +1299,7 @@ class BenhAnPDF(FPDF):
 
                 # Chèn ảnh đính kèm nếu có
                 if temp_img_path:
-                    y_img = sub_y + 1 if trend_data else self.get_y() + 1
+                    y_img = sub_y + 1.0 if trend_data else self.get_y() + 1.0
                     img_w = min(col_w - 8, 65)
                     x_img = curr_x + (col_w - img_w) / 2
                     try: 
