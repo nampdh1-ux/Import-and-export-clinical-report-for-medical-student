@@ -1588,7 +1588,7 @@ with st.sidebar:
 
         st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
         st.rerun()
-    st.markdown("**Nạp dữ liệu từ bản nháp để tiếp tục làm bệnh án trên thiết bị này:**")
+    st.markdown("Nạp dữ liệu từ bản nháp để tiếp tục làm bệnh án trên thiết bị này:")
     file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
     if file_nhap is not None:
         if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
