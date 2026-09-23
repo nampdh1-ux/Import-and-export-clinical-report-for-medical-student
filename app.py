@@ -2802,13 +2802,13 @@ with tab1:
                 st.markdown(f"⭐ **{fav['name'].upper()} (CƠ QUAN CHUYÊN KHOA TRỌNG ĐIỂM):**")
             with c_fav_btn:
                 # Nút cho phép nạp mẫu chuyên sâu hoặc chèn mẫu nếu ô đang trống
-                if st.button(f"⚡ Mẫu khám sâu {fav['name']}", key=f"btn_fill_deep_{fav['key']}", use_container_width=True):
+                if st.button(f"⚡ Mẫu khám sâu {fav['name']} có sẵn", key=f"btn_fill_deep_{fav['key']}", use_container_width=True):
                     st.session_state[fav["key"]] = active_detailed_templates.get(fav["key"], "")
                     st.toast(f"Đã nạp khung khám chuyên sâu cho cơ quan {fav['name']}!", icon="🩺")
                     st.rerun()
             with c_fav_ai:
                 btn_ai_organ = st.button(
-                    f"Gợi ý khám {fav['name']}",
+                    f"Gợi ý khám {fav['name']} sử dụng AI",
                     key=f"btn_ai_organ_{fav['key']}",
                     type="primary",
                     use_container_width=True,
