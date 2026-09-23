@@ -1921,7 +1921,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     with col_h_right_title:
         st.markdown(f"**{num_pb}. Chẩn đoán phân biệt:**")
     with col_h_right_btn:
-        btn_ai_cdpb = st.button("🪄 Làm phép", key="btn_ai_cdpb", type="primary", use_container_width=True)
+        btn_ai_cdpb = st.button("Làm phép", key="btn_ai_cdpb", type="primary", use_container_width=True)
 
     # Xử lý logic AI khi bấm nút
     if btn_ai_cdpb:
@@ -2021,7 +2021,7 @@ def xoa_hang_cls(target_idx):
 
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
-    if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
+    if st.button("Làm phép", type="primary", key="btn_ai_cls"):
         if "GEMINI_API_KEY" not in st.secrets:
             st.error("⚠️ Chưa cài đặt API Key!")
         else:
@@ -2918,7 +2918,7 @@ with tab1:
     has_dt = check_section_has_data(["dt_muc_tieu", "dt_cu_the", "dt_theo_doi"])
     st.markdown("<div id='sec-dieu-tri'></div>", unsafe_allow_html=True)
     with st.expander("XIV. HƯỚNG DẪN VÀ KẾ HOẠCH ĐIỀU TRỊ", expanded=has_dt):
-        if st.button("🪄 Làm phép", key="btn_ai_dt", type="primary"):
+        if st.button("Làm phép", key="btn_ai_dt", type="primary"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
             else:
                 with st.spinner("AI đang phân tích phác đồ điều trị..."):
@@ -2951,7 +2951,7 @@ with tab1:
     has_tltv = check_section_has_data(["tien_luong", "tu_van"])
     st.markdown("<div id='sec-tien-luong-tu-van'></div>", unsafe_allow_html=True)
     with st.expander("XV VÀ XVI. TIÊN LƯỢNG VÀ TƯ VẤN", expanded=has_tltv):
-        if st.button("🪄 Làm phép", type="primary", key="btn_ai_tienluong"):
+        if st.button("Làm phép", type="primary", key="btn_ai_tienluong"):
             if "GEMINI_API_KEY" not in st.secrets: st.error("⚠️ Chưa cài đặt API Key!")
             else:
                 with st.spinner("AI đang phân tích logic lâm sàng..."):
