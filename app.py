@@ -1528,19 +1528,7 @@ def export_docx(data):
 # ==============================================================================
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
-    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
-    st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
-    file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
-    if file_nhap is not None:
-        if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
-            try:
-                loaded_data = json.load(file_nhap)
-                load_draft_to_session(loaded_data)
-                st.success("Đã nạp bản nháp thành công!")
-                st.rerun()
-            except Exception as e: st.error(f"Không thể đọc file: {e}")
-    
-    
+    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")    
     # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
     #     saved_raw = local_storage.getItem(STORAGE_KEY)
     #     if saved_raw:
@@ -1600,7 +1588,16 @@ with st.sidebar:
 
         st.toast("Đã xóa sạch bản nháp và làm mới form!", icon="🗑️")
         st.rerun()
-
+    st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
+    file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
+    if file_nhap is not None:
+        if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
+            try:
+                loaded_data = json.load(file_nhap)
+                load_draft_to_session(loaded_data)
+                st.success("Đã nạp bản nháp thành công!")
+                st.rerun()
+            except Exception as e: st.error(f"Không thể đọc file: {e}")
     st.markdown("---")
     st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
     current_data = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
