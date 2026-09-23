@@ -1621,7 +1621,8 @@ with st.sidebar:
             with st.spinner("Đang kết xuất văn bản Word và gửi email..."):
                 # Gom dữ liệu hiện thời để tạo file docx
                 data_export = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
-                data_export["loai_benh_an"] = loai_benh_an
+                loai_ba_val = st.session_state.get("loai_benh_an", "Nội khoa / Tiền phẫu")
+                data_export["loai_benh_an"] = loai_ba_val
                 data_export["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
                 data_export["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
                 data_export["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
@@ -1648,7 +1649,7 @@ with st.sidebar:
                     "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
                     "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
                 }
-                ten_prefix = prefix_map.get(loai_benh_an, "")
+                ten_prefix = prefix_map.get(loai_ba_val, "")
                 file_name_send = f"Benh_an_{ten_prefix}{ho_ten_check.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
                 
                 sent, err_msg = send_docx_email(docx_email, file_bytes, file_name_send)
