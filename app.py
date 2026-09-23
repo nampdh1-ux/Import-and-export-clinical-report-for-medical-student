@@ -1527,7 +1527,7 @@ def export_docx(data):
 # SIDEBAR: QUẢN LÝ BẢN NHÁP & ĐĂNG XUẤT
 # ==============================================================================
 with st.sidebar:
-    st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp và gửi mail</div>", unsafe_allow_html=True)
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")    
     # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
     #     saved_raw = local_storage.getItem(STORAGE_KEY)
