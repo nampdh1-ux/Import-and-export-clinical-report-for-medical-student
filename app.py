@@ -1657,7 +1657,7 @@ with st.sidebar:
                     st.success(f"✅ Đã gửi file Word đến {docx_email}!")
                 else:
                     st.error(f"❌ {err_msg}")
-    st.markdown("**Gửi bản nháp qua email:**")
+    st.markdown("**Gửi bản nháp qua email để làm trên thiết bị khác:**")
     draft_email = st.text_input(
         "Địa chỉ email nhận bản nháp:",
         key="draft_email_input",
