@@ -921,7 +921,7 @@ def detailed_organ_templates_for_mode(mode):
 def parse_trend_data(text_content):
     """
     Bóc tách dữ liệu chuỗi kết quả CLS đa ngày thành cấu trúc Python thuần.
-    Trả về dict: { 'title': str, 'dates': list, 'rows': [ (param, [val_day1, val_day2, ...], trend_str) ] }
+    Trả về dict: { 'title': str, 'dates': list, 'rows': [ {'param': str, 'values': list} ] }
     """
     if not text_content or "*" not in text_content:
         return None
@@ -955,12 +955,9 @@ def parse_trend_data(text_content):
             name = parts[0].strip()
             val_str = parts[1].strip()
 
-            num_match = re.search(r'[-+]?\d*\.?\d+', val_str.replace(",", "."))
-            num_val = float(num_match.group()) if num_match else None
-
             if name not in param_data:
                 param_data[name] = {}
-            param_data[name][date_label] = (val_str, num_val)
+            param_data[name][date_label] = val_str
 
     if len(dates) < 2 or not param_data:
         return None
@@ -968,38 +965,12 @@ def parse_trend_data(text_content):
     rows = []
     for param, day_dict in param_data.items():
         vals = []
-        first_num = None
-        last_num = None
         for d in dates:
-            if d in day_dict:
-                v_str, n_val = day_dict[d]
-                vals.append(v_str)
-                if first_num is None and n_val is not None:
-                    first_num = n_val
-                if n_val is not None:
-                    last_num = n_val
-            else:
-                vals.append("--")
-
-        trend_txt = "--"
-        trend_sym = "➡️"
-        if first_num is not None and last_num is not None:
-            delta = last_num - first_num
-            if delta > 0.05:
-                trend_txt = f"+{delta:.1f}"
-                trend_sym = "📈 Tăng"
-            elif delta < -0.05:
-                trend_txt = f"{delta:.1f}"
-                trend_sym = "📉 Giảm"
-            else:
-                trend_sym = "➡️ Không đổi"
-                trend_txt = ""
+            vals.append(day_dict.get(d, "--"))
 
         rows.append({
             "param": param,
-            "values": vals,
-            "trend_symbol": trend_sym,
-            "trend_text": trend_txt
+            "values": vals
         })
 
     return {
@@ -1009,7 +980,7 @@ def parse_trend_data(text_content):
     }
 
 def render_trend_table_streamlit(trend_data):
-    """Render bảng HTML theo phong cách tối giản mặc định của Streamlit."""
+    """Render bảng HTML bảng tiến trình theo phong cách bo tròn mặc định Streamlit, đồng bộ màu Custom."""
     if not trend_data:
         return ""
     
@@ -1017,34 +988,37 @@ def render_trend_table_streamlit(trend_data):
     rows = trend_data["rows"]
     title = trend_data.get("title")
 
-    html = "<div style='overflow-x: auto; margin: 8px 0; border: 1px solid #e6e9ef; border-radius: 6px;'>"
+    # Bảng màu tương thích giao diện
+    bg_main = "#ece9d8"
+    bg_header = "#d4d0c8"
+    bg_row_alt = "#f4f3eb" # Nhạt hơn nền chính 1 chút để tạo vệt sọc dễ đọc
+    border_color = "#c8c6b7"
+
+    # Giữ nguyên khung div có border-radius: 6px để bo tròn góc
+    html = f"<div style='overflow-x: auto; margin: 8px 0; border: 1px solid {border_color}; border-radius: 6px; background-color: {bg_main}; overflow: hidden;'>"
     if title:
-        html += f"<div style='background-color: #fafafa; padding: 6px 12px; font-weight: 600; font-size: 0.88rem; border-bottom: 1px solid #e6e9ef; color: #1e293b;'>{title.upper()}</div>"
+        html += f"<div style='background-color: {bg_header}; padding: 6px 12px; font-weight: 600; font-size: 0.88rem; border-bottom: 1px solid {border_color}; color: #1e293b;'>{title.upper()}</div>"
     
+    # Bảng sử dụng font sans-serif mặc định, không kẻ viền dọc chắp vá
     html += "<table style='width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.84rem;'>"
-    html += "<thead><tr style='background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left;'>"
+    html += f"<thead><tr style='background-color: {bg_header}; border-bottom: 1px solid {border_color}; color: #1e293b; text-align: left;'>"
     html += "<th style='padding: 8px 10px; font-weight: 600;'>Chỉ số</th>"
+    
+    # Render các cột mốc ngày (Không có cột Động học)
     for d in dates:
         html += f"<th style='padding: 8px 10px; text-align: center; font-weight: 600;'>{d}</th>"
-    html += "<th style='padding: 8px 10px; text-align: center; font-weight: 600;'>Động học</th></tr></thead><tbody>"
+    html += "</tr></thead><tbody>"
 
     for idx, r in enumerate(rows):
-        bg = "#ffffff" if idx % 2 == 0 else "#fcfcfd"
-        html += f"<tr style='background-color: {bg}; border-bottom: 1px solid #f1f5f9;'>"
+        bg = bg_main if idx % 2 == 0 else bg_row_alt
+        border_bottom = f"1px solid {border_color}" if idx < len(rows) - 1 else "none"
+        
+        html += f"<tr style='background-color: {bg}; border-bottom: {border_bottom};'>"
         html += f"<td style='padding: 7px 10px; font-weight: 500; color: #0f172a;'>{r['param']}</td>"
+        
         for v in r["values"]:
             html += f"<td style='padding: 7px 10px; text-align: center; color: #334155;'>{v}</td>"
         
-        sym = r['trend_symbol']
-        diff = f" ({r['trend_text']})" if r['trend_text'] else ""
-        if "Tăng" in sym:
-            trend_color = "#b91c1c"
-        elif "Giảm" in sym:
-            trend_color = "#15803d"
-        else:
-            trend_color = "#64748b"
-
-        html += f"<td style='padding: 7px 10px; text-align: center; font-weight: 500; color: {trend_color};'>{sym}{diff}</td>"
         html += "</tr>"
 
     html += "</tbody></table></div>"
@@ -1394,8 +1368,8 @@ def export_docx(data):
                     else:
                         cell_left.paragraphs[0].text = ""
 
-                    # Tạo bảng con ma trận nhúng bên trong ô Word
-                    nb_cols = len(trend_data["dates"]) + 2
+                    # Tạo bảng con ma trận nhúng bên trong ô Word (BỎ CỘT XU HƯỚNG)
+                    nb_cols = len(trend_data["dates"]) + 1
                     sub_tbl = cell_left.add_table(rows=len(trend_data["rows"]) + 1, cols=nb_cols)
                     sub_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
                     
@@ -1404,7 +1378,7 @@ def export_docx(data):
                     sub_hdr[0].text = "Chỉ số"
                     for d_idx, d_label in enumerate(trend_data["dates"]):
                         sub_hdr[d_idx + 1].text = d_label.split("(")[0].strip()
-                    sub_hdr[-1].text = "Xu hướng"
+                        
                     for c_h in sub_hdr:
                         set_cell_background(c_h, "F1F5F9")
                         c_h.paragraphs[0].runs[0].font.bold = True
@@ -1414,6 +1388,7 @@ def export_docx(data):
                     # Dữ liệu các dòng
                     for r_idx, r_item in enumerate(trend_data["rows"]):
                         row_cells_sub = sub_tbl.rows[r_idx + 1].cells
+                        
                         row_cells_sub[0].text = r_item["param"]
                         row_cells_sub[0].paragraphs[0].runs[0].font.bold = True
                         row_cells_sub[0].paragraphs[0].runs[0].font.size = Pt(8)
@@ -1423,11 +1398,6 @@ def export_docx(data):
                             row_cells_sub[v_i + 1].text = str(v_val)
                             row_cells_sub[v_i + 1].paragraphs[0].runs[0].font.size = Pt(8)
                             set_cell_margins(row_cells_sub[v_i + 1], top=40, bottom=40, left=60, right=60)
-                        
-                        trend_str = f"{r_item['trend_symbol']} {r_item['trend_text']}".strip()
-                        row_cells_sub[-1].text = trend_str
-                        row_cells_sub[-1].paragraphs[0].runs[0].font.size = Pt(8)
-                        set_cell_margins(row_cells_sub[-1], top=40, bottom=40, left=60, right=60)
                 else:
                     p_kq = cell_left.paragraphs[0]
                     p_kq.text = kq if kq else "-"
