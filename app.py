@@ -133,7 +133,44 @@ def send_draft_email(target_email, draft_json, filename):
                 server.quit()
             except Exception:
                 pass
+def send_docx_email(target_email, docx_bytes, filename):
+    sender_mail = st.secrets.get("SENDER_EMAIL")
+    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
+    if not (sender_mail and sender_pass):
+        return False, "Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets."
 
+    server = None
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = sender_mail
+        msg["To"] = target_email
+        msg["Subject"] = f"Bệnh án lâm sàng Word - {filename}"
+        msg.attach(MIMEText(
+            "Xin chào,\n\nFile văn bản Word (.docx) của bệnh án lâm sàng được đính kèm trong email này.",
+            "plain",
+            "utf-8",
+        ))
+
+        attachment = MIMEApplication(
+            docx_bytes,
+            _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        attachment.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(attachment)
+
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        server.starttls()
+        server.login(sender_mail, sender_pass)
+        server.send_message(msg)
+        return True, ""
+    except Exception as e:
+        return False, f"Không thể gửi email: {e}"
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
 def check_password():
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
     url_admin_key = str(st.query_params.get("nam", "")).strip()
@@ -1566,7 +1603,59 @@ with st.sidebar:
 
     draft_filename = f"Ban_nhap_{ten_benh_nhan}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
     st.download_button("📥 Lưu bản nháp về máy (.json)", data=json_string, file_name=draft_filename, mime="application/json", use_container_width=True)
+    st.markdown("**Gửi file Word (.docx) qua email:**")
+    docx_email = st.text_input(
+        "Địa chỉ email nhận file Word:",
+        key="docx_email_input",
+        placeholder="tenban@gmail.com",
+        label_visibility="collapsed",
+    ).strip().lower()
+    
+    if st.button("📤 Gửi Word qua email", type="primary", use_container_width=True):
+        ho_ten_check = str(st.session_state.get("ho_ten", "")).strip()
+        if not ho_ten_check:
+            st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất file!")
+        elif not docx_email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", docx_email):
+            st.error("Vui lòng nhập địa chỉ email hợp lệ.")
+        else:
+            with st.spinner("Đang kết xuất văn bản Word và gửi email..."):
+                # Gom dữ liệu hiện thời để tạo file docx
+                data_export = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
+                data_export["loai_benh_an"] = loai_benh_an
+                data_export["sh_mach"] = str(st.session_state.get("sh_mach", "")).strip()
+                data_export["sh_nhiet_do"] = str(st.session_state.get("sh_nhiet_do", "")).strip()
+                data_export["sh_ha"] = str(st.session_state.get("sh_ha", "")).strip()
+                data_export["sh_nhip_tho"] = str(st.session_state.get("sh_nhip_tho", "")).strip()
+                data_export["sh_can_nang"] = str(st.session_state.get("sh_can_nang", 0.0))
+                data_export["sh_chieu_cao"] = str(st.session_state.get("sh_chieu_cao", 0.0))
+                data_export["sh_bmi"] = str(st.session_state.get("sh_bmi", ""))
+                data_export["sh_bmi_eval"] = str(st.session_state.get("sh_bmi_eval", ""))
+                
+                n_cls = st.session_state.get("so_hang_cls", 1)
+                data_export["so_hang_cls"] = n_cls
+                for i in range(n_cls):
+                    data_export[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+                    data_export[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+                if 'uploaded_imgs' in locals():
+                    data_export.update(uploaded_imgs)
 
+                # Kết xuất file docx
+                file_bytes = export_docx(data_export)
+                
+                prefix_map = {
+                    "Nhi khoa": "Nhi_khoa_",
+                    "Hậu phẫu": "Hau_phau_",
+                    "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
+                    "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
+                }
+                ten_prefix = prefix_map.get(loai_benh_an, "")
+                file_name_send = f"Benh_an_{ten_prefix}{ho_ten_check.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                
+                sent, err_msg = send_docx_email(docx_email, file_bytes, file_name_send)
+                if sent:
+                    st.success(f"✅ Đã gửi file Word đến {docx_email}!")
+                else:
+                    st.error(f"❌ {err_msg}")
     st.markdown("**Gửi bản nháp qua email:**")
     draft_email = st.text_input(
         "Địa chỉ email nhận bản nháp:",
