@@ -1528,6 +1528,7 @@ def export_docx(data):
 # ==============================================================================
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
+    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
     st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
     file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
     if file_nhap is not None:
@@ -1538,7 +1539,7 @@ with st.sidebar:
                 st.success("Đã nạp bản nháp thành công!")
                 st.rerun()
             except Exception as e: st.error(f"Không thể đọc file: {e}")
-    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
+    
     
     # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
     #     saved_raw = local_storage.getItem(STORAGE_KEY)
@@ -1683,10 +1684,7 @@ with st.sidebar:
             if sent:
                 st.success(f"Đã gửi bản nháp đến {draft_email}.")
             else:
-                st.error(error_message)
-
-    st.markdown("---")
-    
+                st.error(error_message)    
 
     if st.session_state.get("password_correct") and not st.session_state.get("is_admin"):
         st.markdown("---")
