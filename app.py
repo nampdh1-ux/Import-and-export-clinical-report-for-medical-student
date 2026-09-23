@@ -2206,7 +2206,7 @@ with tab1:
                 if len(raw_text) < 100:
                     st.warning("⚠️ Lượng chữ trích xuất quá ít (có thể là PDF dạng ảnh scan). Vui lòng chuyển sang tab 'Ảnh chụp / Scan bệnh án' bên cạnh để AI đọc trực tiếp.")
                 else:
-                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm..."):
+                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm, chờ xíu..."):
                         success, result = auto_fill_from_emr_text(raw_text)
                         if success:
                             fields_mapping = [
