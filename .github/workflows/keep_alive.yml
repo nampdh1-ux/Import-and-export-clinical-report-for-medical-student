@@ -1,0 +1,15 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    # Chạy mỗi 30 phút một lần (UTC)
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Cho phép bấm chạy thử thủ công trên GitHub
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit App
+        run: |
+          curl -sL -o /dev/null -w "%{http_code}" https://anbenh.streamlit.app
