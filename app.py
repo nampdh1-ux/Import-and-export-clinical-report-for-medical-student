@@ -2135,19 +2135,39 @@ def ui_cls(num_dx, num_kq):
 
         if btn_ocr and lab_photos:
             vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
-            if not vision_model: st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
+            if not vision_model:
+                st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
             else:
                 progress_bar = st.progress(0, text="Bắt đầu phân tích...")
-                ocr_prompt = "Bạn là bác sĩ xét nghiệm. Đọc phiếu này và trả về JSON có 2 khóa: 'ket_qua' (liệt kê chỉ số dạng \\n- ) và 'phien_giai' (biện luận chỉ số bất thường)."
+                
+                # Prompt chuẩn hóa cấu trúc đầu ra tuyệt đối
+                ocr_prompt = """
+                Bạn là bác sĩ chuyên khoa xét nghiệm / chẩn đoán hình ảnh. Hãy trích xuất toàn bộ dữ liệu từ hình ảnh phiếu xét nghiệm / cận lâm sàng này.
+                
+                BẮT BUỘC trả về duy nhất một khối mã JSON thuần túy (không kèm giải thích bên ngoài), tuân thủ đúng 2 khóa sau:
+                {
+                  "ket_qua": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: Giá trị đơn vị...",
+                  "phien_giai": "- Chỉ ra các chỉ số tăng/giảm bất thường và ý nghĩa bệnh lý lâm sàng..."
+                }
+
+                LƯU Ý:
+                - Khóa "ket_qua" PHẢI là một chuỗi văn bản (string), mỗi chỉ số xuống một dòng bắt đầu bằng dấu gạch đầu dòng "- ".
+                - Ghi rõ tên chỉ số, giá trị đo được, đơn vị và khoảng tham chiếu nếu có trên phiếu.
+                - Khóa "phien_giai" nêu rõ đánh giá các giá trị bất thường.
+                """
+
                 so_hang_cls = int(st.session_state.get("so_hang_cls", 3))
                 last_used_idx = -1
                 for r in range(so_hang_cls):
-                    val_k, val_p = str(st.session_state.get(f"cls_kq_{r}", "")).strip(), str(st.session_state.get(f"cls_pg_{r}", "")).strip()
-                    if (val_k and val_k not in ["None", "-"]) or (val_p and val_p not in ["None", "-"]): last_used_idx = r
+                    val_k = str(st.session_state.get(f"cls_kq_{r}", "")).strip()
+                    val_p = str(st.session_state.get(f"cls_pg_{r}", "")).strip()
+                    if (val_k and val_k not in ["None", "-"]) or (val_p and val_p not in ["None", "-"]):
+                        last_used_idx = r
 
                 start_row = last_used_idx + 1
                 empty_rows = [start_row + i for i in range(len(lab_photos))]
-                if start_row + len(lab_photos) > so_hang_cls: st.session_state["so_hang_cls"] = start_row + len(lab_photos)
+                if start_row + len(lab_photos) > so_hang_cls:
+                    st.session_state["so_hang_cls"] = start_row + len(lab_photos)
 
                 thanh_cong = 0
                 for idx, photo in enumerate(lab_photos):
@@ -2157,21 +2177,52 @@ def ui_cls(num_dx, num_kq):
                         img_input = optimize_lab_image(photo)
                         resp = vision_model.generate_content([ocr_prompt, img_input])
                         raw_text = resp.text.strip()
-                        if raw_text.startswith("```json"): raw_text = raw_text[7:]
-                        elif raw_text.startswith("```"): raw_text = raw_text[3:]
-                        if raw_text.endswith("```"): raw_text = raw_text[:-3]
+                        
+                        # Làm sạch chuỗi JSON nếu có code block markdown
+                        if "```json" in raw_text:
+                            raw_text = raw_text.split("```json")[1].split("```")[0]
+                        elif "```" in raw_text:
+                            raw_text = raw_text.split("```")[1].split("```")[0]
 
                         lab_data = json.loads(raw_text.strip())
                         if isinstance(lab_data, dict):
-                            st.session_state[f"cls_kq_{target_row}"] = lab_data.get("ket_qua", "")
-                            st.session_state[f"cls_pg_{target_row}"] = lab_data.get("phien_giai", "")
+                            # Dự phòng bắt nhiều biến thể tên trường của khóa ket_qua
+                            raw_kq = (
+                                lab_data.get("ket_qua") 
+                                or lab_data.get("ketqua") 
+                                or lab_data.get("results") 
+                                or lab_data.get("chi_so") 
+                                or ""
+                            )
+                            # Chuẩn hóa về chuỗi nếu model trả về dạng mảng (list)
+                            if isinstance(raw_kq, list):
+                                str_kq = "\n".join([f"- {str(item).lstrip('-*• ')}" for item in raw_kq])
+                            else:
+                                str_kq = str(raw_kq).strip()
+
+                            # Dự phòng bắt nhiều biến thể tên trường của khóa phien_giai
+                            raw_pg = (
+                                lab_data.get("phien_giai") 
+                                or lab_data.get("phiengiai") 
+                                or lab_data.get("interpretation") 
+                                or lab_data.get("bien_luan") 
+                                or ""
+                            )
+                            if isinstance(raw_pg, list):
+                                str_pg = "\n".join([f"- {str(item).lstrip('-*• ')}" for item in raw_pg])
+                            else:
+                                str_pg = str(raw_pg).strip()
+
+                            st.session_state[f"cls_kq_{target_row}"] = str_kq
+                            st.session_state[f"cls_pg_{target_row}"] = str_pg
                             thanh_cong += 1
-                    except Exception as e: st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
+                    except Exception as e:
+                        st.warning(f"Không thể phân tích ảnh {photo.name}: {e}")
 
                 progress_bar.empty()
                 if thanh_cong > 0:
-                    st.toast(f"✅ Đã phân tích xong {thanh_cong} ảnh!", icon="🧪")
-        st.divider()
+                    st.toast(f"✅ Đã phân tích xong {thanh_cong} phiếu xét nghiệm!", icon="🧪")
+                    st.rerun()
 
     so_hang_cls = int(st.session_state.get("so_hang_cls", 1))
     for i in range(so_hang_cls):
