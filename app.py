@@ -1528,6 +1528,16 @@ def export_docx(data):
 # ==============================================================================
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
+    st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
+    file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
+    if file_nhap is not None:
+        if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
+            try:
+                loaded_data = json.load(file_nhap)
+                load_draft_to_session(loaded_data)
+                st.success("Đã nạp bản nháp thành công!")
+                st.rerun()
+            except Exception as e: st.error(f"Không thể đọc file: {e}")
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
     
     # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
@@ -1676,16 +1686,7 @@ with st.sidebar:
                 st.error(error_message)
 
     st.markdown("---")
-    st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
-    file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
-    if file_nhap is not None:
-        if st.button("🔄 Nhấn vào đây để nạp dữ liệu", type="primary", use_container_width=True):
-            try:
-                loaded_data = json.load(file_nhap)
-                load_draft_to_session(loaded_data)
-                st.success("Đã nạp bản nháp thành công!")
-                st.rerun()
-            except Exception as e: st.error(f"Không thể đọc file: {e}")
+    
 
     if st.session_state.get("password_correct") and not st.session_state.get("is_admin"):
         st.markdown("---")
