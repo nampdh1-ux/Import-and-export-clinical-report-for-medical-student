@@ -1530,16 +1530,16 @@ with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp</div>", unsafe_allow_html=True)
     st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")
     
-    if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
-        saved_raw = local_storage.getItem(STORAGE_KEY)
-        if saved_raw:
-            try:
-                loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
-                load_draft_to_session(loaded_ls)
-                st.toast("Đã khôi phục bệnh án thành công!", icon="✅")
-                st.rerun()
-            except Exception as e: st.error(f"Lỗi khi đọc bản nháp: {e}")
-        else: st.warning("Không tìm thấy dữ liệu nháp nào.")
+    # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
+    #     saved_raw = local_storage.getItem(STORAGE_KEY)
+    #     if saved_raw:
+    #         try:
+    #             loaded_ls = json.loads(saved_raw) if isinstance(saved_raw, str) else saved_raw
+    #             load_draft_to_session(loaded_ls)
+    #             st.toast("Đã khôi phục bệnh án thành công!", icon="✅")
+    #             st.rerun()
+    #         except Exception as e: st.error(f"Lỗi khi đọc bản nháp: {e}")
+    #     else: st.warning("Không tìm thấy dữ liệu nháp nào.")
 
     if st.button("🗑️ Xóa bản nháp (Làm bệnh án mới)", use_container_width=True):
         # 1. Xóa an toàn chống KeyError từ streamlit_local_storage
