@@ -437,13 +437,25 @@ def auto_fill_from_emr_text(raw_text):
     {raw_text}
     '''
 
-    HƯỚNG DẪN QUÉT THỜI GIAN CẬN LÂM SÀNG ĐẶC BIỆT QUAN TRỌNG:
-    - Trong mỗi trang/phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM:
-      + Tìm ở dòng 'Thời gian lấy mẫu', 'Thời gian nhận mẫu', 'Thời gian thực hiện'
-      + Tìm ở CUỐI TRANG, DÒNG NGÀY THÁNG TRƯỚC CHỮ KÝ của bác sĩ/kỹ thuật viên (ví dụ: 'Ngày 12 tháng 10 năm 2026', '12/10/2026 09:30').
-    - Gom nhóm các xét nghiệm CÙNG LOẠI (ví dụ: Công thức máu, Sinh hóa máu, Đông máu...) vào cùng một nhóm.
-    - Trong từng nhóm xét nghiệm, tách riêng từng lần làm (từng ngày) vào mảng 'cac_lan_xet_nghiem'.
-    LẤY ĐẦY ĐỦ CÁC CẬN LÂM SÀNG KHÁC NỮA CÓ TRONG FILE: Chẩn đoán hình ảnh, ECG,... tất cả những phần có từ: Kết quả hay kết luận
+    HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU (RẤT QUAN TRỌNG):
+    - ĐỂ TRÁNH THIẾU SÓT: Hãy lướt tìm TOÀN BỘ các trang/đoạn có chứa từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "PHIẾU XÉT NGHIỆM", "CHỈ SỐ", "KẾT LUẬN". Mọi tờ kết quả phát hiện được đều phải bóc tách đủ.
+    - Trong mỗi phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM (ở dòng 'Thời gian lấy mẫu' hoặc ở cuối trang trước chữ ký bác sĩ, ví dụ: 'Ngày 12 tháng 10 năm 2026').
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Bắt buộc tách riêng biệt từng loại cận lâm sàng sau thành một đối tượng độc lập trong mảng `can_lam_sang`:
+    1. CÔNG THỨC MÁU (Huyết học)
+    2. HÓA SINH MÁU
+    3. ĐÔNG MÁU
+    4. KHÍ MÁU
+    5. ĐIỆN GIẢI ĐỒ
+    6. TỔNG PHÂN TÍCH NƯỚC TIỂU
+    7. SIÊU ÂM (Tách riêng ra từng hàng nếu có nhiều vùng: VD Siêu âm ổ bụng, Siêu âm tim, Siêu âm mạch máu...)
+    8. CT-SCANNER (VD: CT sọ não, CT ổ bụng...)
+    9. X-QUANG (VD: X-quang ngực thẳng, X-quang xương...)
+    10. MRI (Cộng hưởng từ)
+    11. ĐIỆN TÂM ĐỒ (ECG)
+    12. NỘI SOI (VD: Nội soi dạ dày, đại tràng...)
+    13. CÁC XÉT NGHIỆM KHÁC (Vi sinh, Giải phẫu bệnh, Miễn dịch...)
 
     YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
@@ -466,14 +478,15 @@ def auto_fill_from_emr_text(raw_text):
         "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
         "can_lam_sang": [
             {{
-                "ten_nhom": "Tên nhóm (VD: CÔNG THỨC MÁU hoặc SINH HÓA MÁU)",
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây.",
                 "cac_lan_xet_nghiem": [
                     {{
-                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026 hoặc Ngày 10 tháng 10 năm 2026)",
-                        "chi_so": "Liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
+                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026)",
+                        "chi_so": "Với Xét nghiệm số liệu (Số 1-6), liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
                     }}
                 ],
-                "phien_giai": "Đánh giá các chỉ số bất thường và xu hướng thay đổi giữa các ngày nếu làm nhiều lần"
+                "phien_giai": "Đánh giá các chỉ số bất thường hoặc ý nghĩa của hình ảnh đối với chẩn đoán hiện tại."
             }}
         ]
     }}
@@ -512,9 +525,23 @@ def auto_fill_from_emr_images(image_files):
     prompt_ocr = """
     Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
     ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - TÌM KIẾM CHỐNG BỎ SÓT: Quét toàn bộ các trang để tìm các từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "CHỈ SỐ", "KẾT LUẬN". Đảm bảo TẤT CẢ các tờ cận lâm sàng đều được bóc tách.
     - Tìm ngày vào viện ở trang bìa/hành chính.
-    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ xét nghiệm) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
-    - Gom nhóm các xét nghiệm cùng loại và chia theo các lần làm.
+    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Tách riêng biệt từng loại xét nghiệm/hình ảnh thành các đối tượng độc lập trong mảng "can_lam_sang":
+    1. Công thức máu
+    2. Hóa sinh máu
+    3. Đông máu
+    4. Khí máu
+    5. Điện giải đồ
+    6. Siêu âm (Ghi rõ Siêu âm ổ bụng, Siêu âm tim...)
+    7. CT-Scanner
+    8. X-quang
+    9. MRI
+    10. Điện tâm đồ (ECG)
+    11. Nội soi
 
     Trả về đúng định dạng JSON:
     {
@@ -524,7 +551,8 @@ def auto_fill_from_emr_images(image_files):
         "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ten_nhom": "Tên xét nghiệm (VD: CÔNG THỨC MÁU)",
+                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG)",
+                "ket_qua": "Với CĐHA/Thăm dò chức năng (Siêu âm, XQ, CT, ECG, Nội soi...), ghi toàn bộ mô tả và kết luận vào đây.",
                 "cac_lan_xet_nghiem": [
                     {
                         "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
