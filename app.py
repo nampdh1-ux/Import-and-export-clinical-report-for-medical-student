@@ -15,7 +15,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
 
-from fpdf import FPDF
 from PIL import Image
 import docx
 from docx import Document
@@ -28,7 +27,6 @@ from docx.oxml.ns import nsdecls, qn
 import google.generativeai as genai
 import streamlit as st
 from streamlit_local_storage import LocalStorage
-from streamlit_pdf_viewer import pdf_viewer
 from pypdf import PdfReader
 
 # --- CẤU HÌNH TRANG ĐẦU TIÊN (Phải luôn nằm trên cùng) ---
@@ -119,42 +117,6 @@ def send_draft_email(target_email, draft_json, filename):
         ))
 
         attachment = MIMEApplication(draft_json.encode("utf-8"), _subtype="json")
-        attachment.add_header("Content-Disposition", "attachment", filename=filename)
-        msg.attach(attachment)
-
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
-        server.starttls()
-        server.login(sender_mail, sender_pass)
-        server.send_message(msg)
-        return True, ""
-    except Exception as e:
-        return False, f"Không thể gửi email: {e}"
-    finally:
-        if server is not None:
-            try:
-                server.quit()
-            except Exception:
-                pass
-
-def send_pdf_email(target_email, pdf_bytes, filename):
-    sender_mail = st.secrets.get("SENDER_EMAIL")
-    sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
-    if not (sender_mail and sender_pass):
-        return False, "Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets."
-
-    server = None
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = sender_mail
-        msg["To"] = target_email
-        msg["Subject"] = f"Bệnh án điện tử PDF - {filename}"
-        msg.attach(MIMEText(
-            "Xin chào,\n\nFile bệnh án điện tử PDF của bạn được đính kèm trong email này.",
-            "plain",
-            "utf-8",
-        ))
-
-        attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
         attachment.add_header("Content-Disposition", "attachment", filename=filename)
         msg.attach(attachment)
 
@@ -461,6 +423,7 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     if m_cls:
         return f"Ngày {m_cls.group(1)}/{m_cls.group(2)}/{m_cls.group(3)}"
     return str(ngay_cls_raw).strip()
+
 def auto_fill_from_emr_text(raw_text):
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
@@ -529,6 +492,7 @@ def auto_fill_from_emr_text(raw_text):
         return True, parsed_data
     except Exception as e:
         return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
+
 def auto_fill_from_emr_images(image_files):
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
@@ -585,6 +549,7 @@ def auto_fill_from_emr_images(image_files):
         return True, parsed_data
     except Exception as e:
         return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
+
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
         return f"- Trước mổ: {st.session_state.get('bs_truoc_mo')}\n- Trong mổ: {st.session_state.get('bs_trong_mo')}\n- Sau mổ: {st.session_state.get('bs_sau_mo')}"
@@ -952,6 +917,7 @@ def organ_findings_for_mode(mode):
 
 def detailed_organ_templates_for_mode(mode):
     return PEDIATRIC_DETAILED_ORGAN_TEMPLATES if is_pediatric_mode(mode) else DETAILED_ORGAN_TEMPLATES
+
 def parse_trend_data(text_content):
     """
     Bóc tách dữ liệu chuỗi kết quả CLS đa ngày thành cấu trúc Python thuần.
@@ -1083,481 +1049,6 @@ def render_trend_table_streamlit(trend_data):
 
     html += "</tbody></table></div>"
     return html
-class BenhAnPDF(FPDF):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.add_font("Roboto", "", "Roboto-Regular.ttf")
-        self.add_font("Roboto-Bold", "", "Roboto-Bold.ttf")
-        self.loai_ba = "Nội khoa / Tiền phẫu"
-
-    def header(self):
-        if self.page_no() == 1:
-            self.set_font("Roboto-Bold", "", 15)
-            title = clinical_title(self.loai_ba)
-            self.cell(0, 8, title, align="C", new_x="LMARGIN", new_y="NEXT")
-            self.set_font("Roboto", "", 8)
-            self.cell(0, 4, f"Thời gian làm bệnh án: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align="C", new_x="LMARGIN", new_y="NEXT")
-            self.ln(3)
-
-    def footer(self):
-        self.set_y(-12)
-        self.set_font("Roboto", "", 8)
-        self.cell(0, 10, f"Trang {self.page_no()}/{{nb}}", align="C")
-
-    def add_section_header(self, title):
-        self.set_font("Roboto-Bold", "", 11)
-        self.set_fill_color(225, 235, 245)
-        self.cell(0, 7, title, fill=True, new_x="LMARGIN", new_y="NEXT")
-        self.ln(1)
-
-    def add_subsection_header(self, title):
-        self.set_font("Roboto-Bold", "", 10)
-        self.cell(0, 6, title, new_x="LMARGIN", new_y="NEXT")
-
-    def add_body_text(self, text):
-        self.set_font("Roboto", "", 9.5)
-        self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 5, str(text).strip() if str(text).strip() else "Chưa ghi nhận thông tin.")
-        self.ln(2)
-
-    def add_highlight_text(self, text):
-        self.set_font("Roboto-Bold", "", 10.5)
-        self.set_text_color(180, 0, 0)
-        self.multi_cell(0, 5.5, str(text).strip() if str(text).strip() else "Chưa ghi nhận thông tin.")
-        self.set_text_color(0, 0, 0)
-        self.ln(2)
-
-    def render_tom_tat_pdf(self, text):
-        if not text or not str(text).strip():
-            self.add_body_text("Chưa ghi nhận thông tin.")
-            return
-        lines = [line.strip() for line in str(text).strip().split("\n") if line.strip()]
-        if not lines: return
-        self.set_font("Roboto", "", 9.5)
-        self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 5, lines[0])
-        self.ln(1)
-        orig_l_margin = self.l_margin
-        self.set_left_margin(orig_l_margin + 8.0)
-        for line in lines[1:]:
-            bullet_line = line if (line.startswith("-") or line.startswith("*")) else f"- {line}"
-            self.multi_cell(0, 5, bullet_line)
-            self.ln(1)
-        self.set_left_margin(orig_l_margin)
-        self.ln(2)
-
-    def render_table_cls(self, cls_rows):
-        col_w = 95.0
-        line_h = 5.0
-        self.set_font("Roboto-Bold", "", 9.5)
-        self.set_fill_color(230, 235, 245)
-        if self.get_y() > 260: 
-            self.add_page()
-            
-        self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-        self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
-        
-        temp_files = []
-        try:
-            for kq, pg, img in cls_rows:
-                txt_pg = format_bullet_points(pg) if pg else "-"
-                trend_data = parse_trend_data(kq) if kq else None
-                
-                temp_img_path = None
-                img_h = 0
-                if img:
-                    suffix = os.path.splitext(img.name)[1]
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_img:
-                        t_img.write(img.getbuffer())
-                        temp_img_path = t_img.name
-                        temp_files.append(temp_img_path)
-                    img_h = 45
-
-                # 1. Tính chiều cao nội dung cột trái
-                h_left = 4.0 + (img_h + 4.0 if img else 0.0)
-                if trend_data:
-                    nb_rows = len(trend_data["rows"]) + 1  # 1 dòng header
-                    if trend_data.get("title"): 
-                        nb_rows += 1
-                    h_left = h_left + nb_rows * 4.8 + 3.0
-                else:
-                    self.set_font("Roboto", "", 9)
-                    txt_kq = format_bullet_points(kq) if kq else ""
-                    nb_lines_left = len(self.multi_cell(col_w - 4, line_h, txt_kq, dry_run=True, output="LINES"))
-                    h_left = h_left + nb_lines_left * line_h + 4.0
-
-                # 2. Tính chiều cao nội dung cột phải
-                self.set_font("Roboto", "", 9)
-                nb_lines_right = len(self.multi_cell(col_w - 4, line_h, txt_pg, dry_run=True, output="LINES"))
-                h_right = nb_lines_right * line_h + 4.0
-                
-                row_h = max(h_left, h_right, 10.0)
-
-                # Ngắt trang nếu vượt quá đáy trang
-                if self.get_y() + row_h > 275:
-                    self.add_page()
-                    self.set_font("Roboto-Bold", "", 9.5)
-                    self.set_fill_color(230, 235, 245)
-                    self.cell(col_w, 7, "KẾT QUẢ CẬN LÂM SÀNG", border=1, align="C", fill=True)
-                    self.cell(col_w, 7, "PHIÊN GIẢI / BIỆN GIẢI", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
-
-                curr_x = self.get_x()
-                curr_y = self.get_y()
-                
-                # Vẽ khung ngoài 2 ô
-                self.rect(curr_x, curr_y, col_w, row_h)
-                self.rect(curr_x + col_w, curr_y, col_w, row_h)
-
-                # =======================================================
-                # CỘT TRÁI: DỰNG BẢNG MA TRẬN TIẾN TRÌNH HOẶC TEXT THƯỜNG
-                # =======================================================
-                sub_x = curr_x + 2.0
-                sub_y = curr_y + 2.5
-                self.set_xy(sub_x, sub_y)
-
-                if trend_data:
-                    # In tiêu đề nhóm xét nghiệm nếu có
-                    if trend_data.get("title"):
-                        self.set_font("Roboto-Bold", "", 8.5)
-                        self.set_text_color(10, 36, 106)
-                        self.cell(col_w - 4, 4.5, trend_data["title"].upper(), border=0, align="L")
-                        self.set_text_color(0, 0, 0)
-                        sub_y = sub_y + 4.8
-
-                    nb_dates = len(trend_data["dates"])
-                    w_total = col_w - 4.0
-
-                    if nb_dates >= 3:
-                        w_param = 22.0
-                        w_trend = 19.0
-                        font_size_header = 6.5
-                        font_size_val = 6.5
-                    else:
-                        w_param = 25.0
-                        w_trend = 20.0
-                        font_size_header = 7.0
-                        font_size_val = 7.0
-
-                    w_date = (w_total - w_param - w_trend) / max(1, nb_dates)
-
-                    def rut_gon_nhan_ngay(label):
-                        m_date = re.search(r'(\d{1,2}/\d{1,2})', label)
-                        if m_date:
-                            return m_date.group(1)
-                        m_day = re.search(r'(?:ngày|n)\s*(\d+)', label, re.IGNORECASE)
-                        if m_day:
-                            return f"N{m_day.group(1)}"
-                        return label.split("(")[0].strip()[:8]
-
-                    # --- HEADER BẢNG CON ---
-                    self.set_xy(sub_x, sub_y)
-                    self.set_font("Roboto-Bold", "", font_size_header)
-                    self.set_fill_color(240, 243, 246)
-                    self.cell(w_param, 4.5, "Chỉ số", border=1, fill=True, align="L")
-                    for d in trend_data["dates"]:
-                        d_short = rut_gon_nhan_ngay(d)
-                        self.cell(w_date, 4.5, d_short, border=1, fill=True, align="C")
-                    self.cell(w_trend, 4.5, "Xu hướng", border=1, fill=True, align="C")
-                    
-                    sub_y = sub_y + 4.5
-
-                    # --- DÒNG DỮ LIỆU TỪNG CHỈ SỐ ---
-                    for r in trend_data["rows"]:
-                        self.set_xy(sub_x, sub_y)
-                        
-                        self.set_font("Roboto-Bold", "", font_size_val)
-                        ten_param = str(r["param"]).strip()
-                        if len(ten_param) > 13:
-                            ten_param = ten_param[:12] + "."
-                        self.cell(w_param, 4.2, ten_param, border=1, align="L")
-                        
-                        self.set_font("Roboto", "", font_size_val)
-                        for val in r["values"]:
-                            val_str = str(val).strip()
-                            self.cell(w_date, 4.2, val_str, border=1, align="C")
-                        
-                        sym = r['trend_symbol']
-                        diff = f" ({r['trend_text']})" if r['trend_text'] else ""
-                        if "Tăng" in sym:
-                            trend_display = f"(+) Tang{diff}"
-                            self.set_text_color(180, 0, 0)
-                        elif "Giảm" in sym:
-                            trend_display = f"(-) Giam{diff}"
-                            self.set_text_color(0, 110, 0)
-                        else:
-                            trend_display = "(=) On dinh"
-                            self.set_text_color(80, 80, 80)
-                            
-                        self.set_font("Roboto-Bold", "", font_size_val - 0.5)
-                        self.cell(w_trend, 4.2, trend_display, border=1, align="C")
-                        self.set_text_color(0, 0, 0)
-                        
-                        sub_y = sub_y + 4.2
-                else:
-                    self.set_font("Roboto", "", 9)
-                    if kq: 
-                        self.multi_cell(col_w - 4, line_h, format_bullet_points(kq))
-
-                # Chèn ảnh đính kèm nếu có
-                if temp_img_path:
-                    y_img = sub_y + 1.0 if trend_data else self.get_y() + 1.0
-                    img_w = min(col_w - 8, 65)
-                    x_img = curr_x + (col_w - img_w) / 2
-                    try: 
-                        self.image(temp_img_path, x=x_img, y=y_img, w=img_w, h=img_h)
-                    except Exception: 
-                        pass
-
-                # =======================================================
-                # CỘT PHẢI: BIỆN GIẢI / PHIÊN GIẢI
-                # =======================================================
-                self.set_xy(curr_x + col_w + 2.0, curr_y + 2.5)
-                self.set_font("Roboto", "", 9)
-                self.multi_cell(col_w - 4, line_h, txt_pg)
-                
-                # Di chuyển con trỏ xuống hàng tiếp theo của bảng lớn
-                self.set_xy(curr_x, curr_y + row_h)
-                
-            self.ln(3)
-        finally:
-            for p in temp_files:
-                if os.path.exists(p):
-                    try: 
-                        os.remove(p)
-                    except Exception: 
-                        pass
-def export_pdf(data):
-    pdf = BenhAnPDF()
-    pdf.loai_ba = data.get("loai_benh_an", "Nội khoa / Tiền phẫu")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # I. HÀNH CHÍNH
-    pdf.add_section_header("I. PHẦN HÀNH CHÍNH")
-    hc_text = (
-        f"- Họ và tên: {str(data['ho_ten']).upper()}    |    Tuổi: {format_age(data['tuoi'], data.get('tuoi_don_vi', 'Năm tuổi'))}    |    Giới tính: {data['gioi_tinh']}\n"
-        f"- Dân tộc: {data['dan_tok']}    |    Nghề nghiệp: {data['nghe_nghiep']}\n"
-        f"- Khoa phòng: {data['khoa_phong']}\n"
-        f"- Địa chỉ: {data['dia_chi']}\n"
-        f"- Ngày giờ vào viện: {data['ngay_vao_vien']}\n"
-        f"- Sinh viên thực hiện: {data['sinh_vien']}"
-    )
-    pdf.add_body_text(hc_text)
-
-    # II. LÝ DO VÀO VIỆN
-    pdf.add_section_header("II. LÝ DO VÀO VIỆN")
-    pdf.add_body_text(data['ly_do_vao_vien'])
-
-    if is_san_phu_khoa_mode(pdf.loai_ba):
-        pdf.add_section_header("III. TIỀN SỬ")
-        pdf.add_subsection_header("1. Tiền sử sản khoa:")
-        pdf.add_body_text(format_history(data.get('ts_san_khoa', '')))
-        pdf.add_subsection_header("2. Tiền sử phụ khoa:")
-        pdf.add_body_text(format_history(data.get('ts_phu_khoa', '')))
-        pdf.add_subsection_header("3. Tiền sử nội - ngoại khoa:")
-        pdf.add_body_text(format_history(data.get('ts_noi_ngoai_khoa', '')))
-        pdf.add_subsection_header("4. Tiền sử gia đình:")
-        pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
-
-    # III hoặc IV. BỆNH SỬ
-    pdf.add_section_header("IV. BỆNH SỬ" if is_san_phu_khoa_mode(pdf.loai_ba) else "III. BỆNH SỬ")
-    if is_postop_mode(pdf.loai_ba):
-        pdf.add_subsection_header("1. Tình trạng trước mổ:")
-        pdf.add_body_text(format_bullet_points(data.get('bs_truoc_mo', '')))
-        pdf.add_subsection_header("2. Tình trạng trong mổ:")
-        pdf.add_body_text(format_bullet_points(data.get('bs_trong_mo', '')))
-        pdf.add_subsection_header("3. Quá trình sau mổ:")
-        pdf.add_body_text(format_bullet_points(data.get('bs_sau_mo', '')))
-    else:
-        pdf.add_body_text(data.get('benh_su', ''))
-
-    if is_pediatric_mode(pdf.loai_ba):
-        pdf.add_section_header("IV. TIỀN SỬ")
-        pediatric_history = [
-            ("1. Tiền sử bệnh lý:", "ts_benh_ly"),
-            ("2. Tiền sử dinh dưỡng:", "ts_dinh_duong"),
-            ("3. Tiền sử sản khoa:", "ts_san_khoa_nhi"),
-            ("4. Tiền sử tiêm chủng:", "ts_tiem_chung"),
-            ("5. Tiền sử phát triển tâm thần vận động:", "ts_phat_trien"),
-            ("6. Tiền sử dịch tễ:", "ts_dich_te"),
-            ("7. Tiền sử dị ứng:", "ts_di_ung"),
-            ("8. Tiền sử gia đình:", "ts_gia_dinh"),
-        ]
-        for title, key in pediatric_history:
-            pdf.add_subsection_header(title)
-            pdf.add_body_text(format_history(data.get(key, '')))
-    elif not is_san_phu_khoa_mode(pdf.loai_ba):
-        pdf.add_section_header("IV. TIỀN SỬ")
-        pdf.add_subsection_header("1. Tiền sử nội khoa:")
-        pdf.add_body_text(format_history(data.get('ts_noi_khoa', '')))
-        pdf.add_subsection_header("2. Tiền sử ngoại khoa và dị ứng:")
-        pdf.add_body_text(format_history(data.get('ts_ngoai_khoa', '')))
-        pdf.add_subsection_header("3. Lối sống và thói quen:")
-        pdf.add_body_text(format_history(data.get('ts_loi_song', '')))
-        pdf.add_subsection_header("4. Tiền sử gia đình:")
-        pdf.add_body_text(format_history(data.get('ts_gia_dinh', '')))
-
-    # V. THĂM KHÁM LÂM SÀNG
-    pdf.add_section_header("V. THĂM KHÁM LÂM SÀNG")
-    
-    if is_postop_mode(pdf.loai_ba):
-        pdf.add_subsection_header("1. Thăm khám hiện tại:")
-        pdf.add_highlight_text(f"Hậu phẫu: {data.get('ngay_hau_phau', '...')}")
-        pdf.add_body_text("a. Toàn thân:")
-    else:
-        pdf.add_subsection_header("1. Thăm khám lúc vào viện:")
-        pdf.add_body_text(format_bullet_points(data.get('kham_vao_vien', '')))
-        pdf.add_subsection_header("2. Thăm khám hiện tại:")
-        pdf.add_body_text("a. Toàn thân:")
-
-    pdf.add_body_text(format_bullet_points(data.get('kham_toan_than', '')))
-    
-    # BẢNG SINH HIỆU
-    mach_val = data.get('sh_mach') or "--"
-    nhiet_val = data.get('sh_nhiet_do') or "--"
-    ha_val = data.get('sh_ha') or "--"
-    nt_val = data.get('sh_nhip_tho') or "--"
-    cn_val = data.get('sh_can_nang') if float(data.get('sh_can_nang', 0)) > 0 else "--"
-    cc_val = data.get('sh_chieu_cao') if float(data.get('sh_chieu_cao', 0)) > 0 else "--"
-    bmi_num = data.get('sh_bmi', '')
-    bmi_txt = data.get('sh_bmi_eval', '')
-
-    pdf.ln(1)
-    pdf.set_draw_color(180, 180, 180)
-    pdf.set_fill_color(245, 247, 250)
-    col_w4 = (pdf.w - pdf.l_margin - pdf.r_margin) / 4.0
-    pdf.set_font("Roboto-Bold", size=8.5)
-    pdf.cell(col_w4, 5.5, f"Mạch: {mach_val} ck/phút", border=1, fill=True)
-    pdf.cell(col_w4, 5.5, f"Nhiệt độ: {nhiet_val} °C", border=1, fill=True)
-    pdf.cell(col_w4, 5.5, f"Huyết áp: {ha_val} mmHg", border=1, fill=True)
-    pdf.cell(col_w4, 5.5, f"Nhịp thở: {nt_val} l/phút", border=1, fill=True, ln=True)
-    
-    col_w3_1 = col_w4
-    col_w3_2 = col_w4
-    col_w3_3 = col_w4 * 2.0
-    bmi_display = f"BMI: {bmi_num} kg/m² ({bmi_txt})" if bmi_num else "BMI: --"
-    pdf.cell(col_w3_1, 5.5, f"Chiều cao: {cc_val} cm", border=1)
-    pdf.cell(col_w3_2, 5.5, f"Cân nặng: {cn_val} kg", border=1)
-    pdf.cell(col_w3_3, 5.5, bmi_display, border=1, ln=True)
-    pdf.ln(2)
-    
-    if is_postop_mode(pdf.loai_ba):
-        pdf.add_body_text("b. Tình trạng vết mổ và dẫn lưu:")
-        pdf.add_subsection_header("Vết mổ:")
-        pdf.add_body_text(format_bullet_points(data.get('kham_vet_mo', '')))
-        pdf.add_subsection_header("Ống dẫn lưu:")
-        pdf.add_body_text(format_bullet_points(data.get('kham_dan_luu', '')))
-        pdf.add_body_text("c. Các cơ quan:")
-    else:
-        pdf.add_body_text("b. Các cơ quan:")
-        
-    organ_list = ([{"key": "kham_san_phu_khoa", "name": "Sản phụ khoa"}] if is_san_phu_khoa_mode(pdf.loai_ba) else []) + [
-        {"key": "kham_tuan_hoan", "name": "Tuần hoàn"},
-        {"key": "kham_ho_hap", "name": "Hô hấp"},
-        {"key": "kham_tieu_hoa", "name": "Tiêu hóa"},
-        {"key": "kham_than_kinh", "name": "Thần kinh"},
-        {"key": "kham_tiet_nieu", "name": "Thận - Tiết niệu"},
-        {"key": "kham_co_xuong_khop", "name": "Cơ xương khớp"},
-        {"key": "kham_co_quan_khac", "name": "Các cơ quan khác"},
-    ]
-    selected_organ = data.get("uu_tien_co_quan", "Không ưu tiên (Thứ tự mặc định)")
-    if selected_organ != "Không ưu tiên (Thứ tự mặc định)":
-        fav = next((it for it in organ_list if it["name"] == selected_organ), None)
-        others = [it for it in organ_list if it["name"] != selected_organ]
-        render_list = ([fav] + others) if fav else organ_list
-    else:
-        render_list = organ_list
-
-    for org in render_list:
-        content = format_bullet_points(data.get(org["key"], ""))
-        title_text = f"{org['name']}:"
-        pdf.add_subsection_header(title_text)
-        text_w = pdf.get_string_width(title_text)
-        x = pdf.get_x()
-        y = pdf.get_y() - 1
-        pdf.set_draw_color(50, 50, 50)
-        pdf.set_line_width(0.3)
-        pdf.line(x, y, x + text_w, y)
-        pdf.add_body_text(content)
-
-    section_numbers = get_section_numbers(data)
-    num_tt = section_numbers["tom_tat"]
-    num_cdsb = section_numbers["chan_doan_so_bo"]
-    num_dxcls = section_numbers["de_xuat_cls"]
-    num_cls = section_numbers["cls_da_co"]
-    num_cdxd = section_numbers["chan_doan_xac_dinh"]
-
-    def pdf_tt():
-        pdf.add_section_header(f"{num_tt}. TÓM TẮT BỆNH ÁN")
-        pdf.render_tom_tat_pdf(data.get('tom_tat', ''))
-
-    def pdf_cdsb():
-        pdf.add_section_header(f"{num_cdsb}. CHẨN ĐOÁN SƠ BỘ")
-        pdf.add_body_text(data.get('chan_doan_so_bo', ''))
-        if "chan_doan_phan_biet" in section_numbers:
-            pdf.add_section_header(f"{section_numbers['chan_doan_phan_biet']}. CHẨN ĐOÁN PHÂN BIỆT")
-            pdf.add_body_text(data.get('chan_doan_phan_biet', ''))
-        bl = str(data.get('bien_luan', '')).strip()
-        if bl:
-            pdf.add_section_header(f"{section_numbers['bien_luan']}. BIỆN LUẬN CHẨN ĐOÁN SƠ BỘ")
-            pdf.add_body_text(bl)
-
-    def pdf_cls():
-        pdf.add_section_header(f"{num_dxcls}. ĐỀ XUẤT CẬN LÂM SÀNG")
-        nhan_cls1 = "1. Phát hiện biến chứng / Đánh giá sau mổ:" if is_postop_mode(pdf.loai_ba) else "1. Phục vụ chẩn đoán xác định:"
-        pdf.add_subsection_header(nhan_cls1)
-        pdf.add_body_text(format_bullet_points(data.get('cls_dx_xac_dinh', '')))
-        nhan_cls2 = "2. Theo dõi hồi phục & Điều trị:" if is_postop_mode(pdf.loai_ba) else "2. Phục vụ điều trị:"
-        pdf.add_subsection_header(nhan_cls2)
-        pdf.add_body_text(format_bullet_points(data.get('cls_dx_dieu_tri', '')))
-        pdf.add_subsection_header("3. Cận lâm sàng khác:")
-        pdf.add_body_text(format_bullet_points(data.get('cls_dx_khac', '')))
-
-        pdf.add_section_header(f"{num_cls}. CẬN LÂM SÀNG ĐÃ CÓ")
-        cls_rows = []
-        so_hang = data.get("so_hang_cls", 3)
-        for i in range(so_hang):
-            kq = data.get(f"cls_kq_{i}", "").strip()
-            pg = data.get(f"cls_pg_{i}", "").strip()
-            img = data.get(f"cls_img_{i}", None)
-            if kq or pg or img: cls_rows.append((kq, pg, img))
-        if not cls_rows: pdf.add_body_text("Chưa ghi nhận kết quả cận lâm sàng.")
-        else: pdf.render_table_cls(cls_rows)
-
-    def pdf_cdxd():
-        pdf.add_section_header(f"{num_cdxd}. CHẨN ĐOÁN XÁC ĐỊNH")
-        pdf.add_highlight_text(format_bullet_points(data.get('chan_doan_xac_dinh', '')))
-        noi_dung_bl_xd = str(data.get('bien_luan_xac_dinh', '')).strip()
-        if noi_dung_bl_xd:
-            pdf.add_section_header(f"{section_numbers['bien_luan_xac_dinh']}. BIỆN LUẬN CHẨN ĐOÁN XÁC ĐỊNH")
-            pdf.add_body_text(format_bullet_points(noi_dung_bl_xd))
-
-    # THỨ TỰ THỐNG NHẤT CHO CẢ TIỀN PHẪU VÀ HẬU PHẪU
-    pdf_tt()
-    pdf_cdsb()
-    pdf_cls()
-    pdf_cdxd()
-
-    pdf.add_section_header(f"{section_numbers['dieu_tri']}. ĐIỀU TRỊ")
-    pdf.add_subsection_header("1. Mục tiêu điều trị:")
-    pdf.add_body_text(format_bullet_points(data.get('dt_muc_tieu', '')))
-    pdf.add_subsection_header("2. Điều trị cụ thể:")
-    pdf.add_body_text(format_bullet_points(data.get('dt_cu_the', '')))
-    pdf.add_subsection_header("3. Theo dõi sau điều trị:")
-    pdf.add_body_text(format_bullet_points(data.get('dt_theo_doi', '')))
-
-    noi_dung_tien_luong = str(data.get("tien_luong", "")).strip()
-    if noi_dung_tien_luong:
-        pdf.add_section_header(f"{section_numbers['tien_luong']}. TIÊN LƯỢNG")
-        pdf.add_body_text(format_bullet_points(noi_dung_tien_luong))
-
-    noi_dung_tu_van = str(data.get("tu_van", "")).strip()
-    if noi_dung_tu_van:
-        ten_de_muc_tu_van = f"{section_numbers['tu_van']}. TƯ VẤN"
-        pdf.add_section_header(ten_de_muc_tu_van)
-        pdf.add_body_text(format_bullet_points(noi_dung_tu_van))
-
-    return bytes(pdf.output())
 
 def set_cell_background(cell, fill_hex):
     """Tô màu nền cho ô trong bảng docx."""
@@ -2096,38 +1587,6 @@ with st.sidebar:
             else:
                 st.error(error_message)
 
-    st.markdown("**Gửi file PDF qua email:**")
-    pdf_file_to_send = st.file_uploader(
-        "Chọn file PDF bệnh án:",
-        type=["pdf"],
-        key="uploader_pdf_email",
-        help="Bạn có thể chọn PDF lấy từ bệnh viện hoặc PDF đã tải xuống từ ứng dụng.",
-    )
-    pdf_email = st.text_input(
-        "Địa chỉ email nhận PDF:",
-        key="pdf_email_input",
-        placeholder="tenban@gmail.com",
-        label_visibility="collapsed",
-    ).strip().lower()
-    if st.button("📤 Gửi PDF qua email", type="primary", use_container_width=True):
-        if pdf_file_to_send is None:
-            st.error("Vui lòng chọn file PDF trước khi gửi.")
-        elif not pdf_email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", pdf_email):
-            st.error("Vui lòng nhập địa chỉ email hợp lệ.")
-        elif pdf_file_to_send.size > 20 * 1024 * 1024:
-            st.error("File PDF vượt quá giới hạn 20 MB.")
-        else:
-            with st.spinner("Đang gửi file PDF qua email..."):
-                sent, error_message = send_pdf_email(
-                    pdf_email,
-                    pdf_file_to_send.getvalue(),
-                    pdf_file_to_send.name,
-                )
-            if sent:
-                st.success(f"Đã gửi PDF đến {pdf_email}.")
-            else:
-                st.error(error_message)
-
     st.markdown("---")
     st.markdown("**Khôi phục dữ liệu từ bản nháp:**")
     file_nhap = st.file_uploader("Chọn tập tin .json đã lưu:", type=["json"], key="uploader_nhap_json")
@@ -2450,6 +1909,7 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 3: Biện luận chẩn đoán sơ bộ
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
+
 def xoa_hang_cls(target_idx):
     """
     Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
@@ -2474,106 +1934,7 @@ def xoa_hang_cls(target_idx):
 
     # Giảm tổng số hàng đi 1
     st.session_state["so_hang_cls"] = current_total - 1
-def parse_and_render_trend_table(text_content):
-    """
-    Phân tích chuỗi kết quả CLS đa ngày và dựng thành bảng ma trận tiến trình:
-    - Bóc tách các mốc ngày (cột)
-    - Bóc tách chỉ số (hàng)
-    - So sánh giá trị số để tính xu hướng (Tăng/Giảm/Bằng)
-    """
-    if not text_content or "*" not in text_content:
-        return None
 
-    # 1. Tách các khối theo từng mốc ngày (bắt đầu bằng dấu *)
-    day_blocks = re.split(r'\n(?=\*\s*)', text_content.strip())
-    
-    dates = []
-    # Cấu trúc: { 'Tên chỉ số': { 'Ngày 1': (giá_trị_hiển_thị, giá_trị_số), 'Ngày 2': ... } }
-    param_data = {}
-
-    for block in day_blocks:
-        block = block.strip()
-        if not block.startswith("*"):
-            continue
-        
-        lines = block.split("\n")
-        # Lấy tiêu đề ngày (ví dụ: "Ngày 1 vào viện (18/09/2026)")
-        header_match = re.match(r'\*\s*([^:]+):?', lines[0])
-        if not header_match:
-            continue
-        date_label = header_match.group(1).strip()
-        dates.append(date_label)
-
-        # Đọc các chỉ số trong ngày đó
-        for line in lines[1:]:
-            line_clean = line.strip().lstrip("-*• ")
-            if not line_clean or ":" not in line_clean:
-                continue
-            parts = line_clean.split(":", 1)
-            name = parts[0].strip()
-            val_str = parts[1].strip()
-
-            # Trích xuất số thực đầu tiên để tính xu hướng
-            num_match = re.search(r'[-+]?\d*\.?\d+', val_str.replace(",", "."))
-            num_val = float(num_match.group()) if num_match else None
-
-            if name not in param_data:
-                param_data[name] = {}
-            param_data[name][date_label] = (val_str, num_val)
-
-    # Nếu chỉ có 1 mốc ngày hoặc không bóc tách được chỉ số thì không cần dựng bảng so sánh
-    if len(dates) < 2 or not param_data:
-        return None
-
-    # 2. Dựng bảng HTML Retro / Y2K đồng bộ với theme
-    html = """
-    <div style='overflow-x: auto; margin: 10px 0;'>
-    <table style='width: 100%; border-collapse: collapse; font-family: Tahoma, sans-serif; font-size: 0.85rem;'>
-        <thead>
-            <tr style='background-color: #0a246a; color: #ffffff;'>
-                <th style='padding: 6px 10px; border: 1px solid #404040; text-align: left;'>Thông số xét nghiệm</th>
-    """
-    for d in dates:
-        html += f"<th style='padding: 6px 10px; border: 1px solid #404040; text-align: center;'>{d}</th>"
-    html += "<th style='padding: 6px 10px; border: 1px solid #404040; text-align: center;'>Động học (Xu hướng)</th></tr></thead><tbody>"
-
-    for idx, (param, day_dict) in enumerate(param_data.items()):
-        bg_row = "#f9f9f6" if idx % 2 == 0 else "#ffffff"
-        html += f"<tr style='background-color: {bg_row};'>"
-        html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; font-weight: bold;'>{param}</td>"
-
-        first_num = None
-        last_num = None
-
-        for d in dates:
-            if d in day_dict:
-                val_text, num_val = day_dict[d]
-                html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center;'>{val_text}</td>"
-                if first_num is None and num_val is not None:
-                    first_num = num_val
-                if num_val is not None:
-                    last_num = num_val
-            else:
-                html += "<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center; color: #888;'>--</td>"
-
-        # Tính toán xu hướng động học giữa mốc đầu tiên và mốc gần nhất
-        trend_html = "<span style='color: #888;'>--</span>"
-        if first_num is not None and last_num is not None and len(dates) >= 2:
-            delta = last_num - first_num
-            percent_change = (delta / first_num * 100) if first_num != 0 else 0
-            
-            if delta > 0.05:
-                trend_html = f"<span style='color: #b80000; font-weight: bold;'>📈 Tăng (+{delta:.1f})</span>"
-            elif delta < -0.05:
-                trend_html = f"<span style='color: #007000; font-weight: bold;'>📉 Giảm ({delta:.1f})</span>"
-            else:
-                trend_html = "<span style='color: #555;'>➡️ Không đổi</span>"
-
-        html += f"<td style='padding: 6px 10px; border: 1px solid #d4d0c8; text-align: center;'>{trend_html}</td>"
-        html += "</tr>"
-
-    html += "</tbody></table></div>"
-    return html
 def ui_cls(num_dx, num_kq):
     st.markdown(f"<div class='sub-section-header'>{num_dx}. Đề xuất cận lâm sàng</div>", unsafe_allow_html=True)
     if st.button("🪄 Làm phép", type="primary", key="btn_ai_cls"):
@@ -2762,7 +2123,7 @@ def ui_cls(num_dx, num_kq):
             st.text_area(f"Biện giải cận lâm sàng {i + 1}:", key=f"cls_pg_{i}", height=130)
         st.divider()
 
-    # Nút bấm Thêm hàng (Nút Bớt hàng cuối vẫn giữ hoặc ẩn tùy ý, người dùng có thể xóa trực tiếp bằng nút ✖ trên từng hàng)
+    # Nút bấm Thêm hàng
     col_btn_them, col_btn_bot, _ = st.columns([2.5, 2, 5.5])
     with col_btn_them:
         if st.button("➕ Thêm hàng cận lâm sàng", use_container_width=True):
@@ -2780,6 +2141,7 @@ def ui_cdxd(num_xd, num_blxd):
     placeholder_xd = "Phẫu thuật [Tên PT] mổ [phiên/cấp cứu] ngày thứ [X] do [Bệnh lý] hiện tại [ổn định/biến chứng...]" if is_postop_mode(loai_benh_an) else "Chẩn đoán xác định..."
     st.text_area(f"{num_xd}. Chẩn đoán xác định:", key="chan_doan_xac_dinh", height=90, placeholder=placeholder_xd)
     st.text_area(f"{num_blxd}. Biện luận chẩn đoán xác định:", key="bien_luan_xac_dinh", height=110)
+
 def check_section_has_data(keys):
     """Kiểm tra xem ít nhất một trường trong danh sách có chứa dữ liệu hay không."""
     for k in keys:
@@ -2789,6 +2151,7 @@ def check_section_has_data(keys):
         if isinstance(val, str) and val.strip() and val.strip() not in ["0.0", "0", "None", "-"]:
             return True
     return False
+
 tab1, tab2, tab3 = st.tabs(["Nhập liệu hồ sơ", "Xuất tập tin", "Phản biện lâm sàng"])
 
 with tab1:
@@ -2834,7 +2197,6 @@ with tab1:
         with tab_import_pdf:
             emr_file = st.file_uploader("Chọn file PDF bệnh án điện tử:", type=["pdf"], key="emr_pdf_uploader")
             if emr_file and st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_emr"):
-                from pypdf import PdfReader
                 with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
                     try:
                         reader = PdfReader(emr_file)
@@ -3527,6 +2889,7 @@ with tab1:
         c_pl, c_tv = st.columns(2)
         with c_pl: st.text_area("XV. Tiên lượng:", key="tien_luong", height=250)
         with c_tv: st.text_area("XVI. Tư vấn:", key="tu_van", height=250)
+
 # Gom dữ liệu để xuất file
 data_benh_an = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
 data_benh_an["loai_benh_an"] = loai_benh_an
@@ -3578,65 +2941,41 @@ with tab2:
         )
 
     st.markdown("---")
-    col_dl_pdf, col_dl_docx = st.columns(2)
-    
-    with col_dl_pdf:
-        if st.button("📄 Tạo & Xem trước tập tin PDF", type="primary", use_container_width=True):
-            if not ho_ten_val: 
-                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh trước khi xuất tập tin!")
-            elif not os.path.exists("Roboto-Regular.ttf") or not os.path.exists("Roboto-Bold.ttf"): 
-                st.error("Chưa tìm thấy tập tin font 'Roboto-Regular.ttf' và 'Roboto-Bold.ttf' trong cùng thư mục với app.py!")
-            else:
-                with st.spinner("Đang kết xuất văn bản PDF..."):
-                    pdf_bytes = export_pdf(data_benh_an)
-                    st.session_state["pdf_bytes_preview"] = pdf_bytes
-                    ten_mau_file = {
-                        "Nhi khoa": "Nhi_khoa_",
-                        "Hậu phẫu": "Hau_phau_",
-                        "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
-                        "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
-                    }.get(loai_benh_an, "")
-                    st.session_state["ten_file_pdf"] = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
-                    st.session_state["active_preview"] = "pdf"
 
-        if st.session_state.get("pdf_bytes_preview"):
-            st.download_button("📥 Tải PDF về máy", data=st.session_state["pdf_bytes_preview"], file_name=st.session_state.get("ten_file_pdf", "benh_an.pdf"), mime="application/pdf", use_container_width=True)
-
-    with col_dl_docx:
-        if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="secondary", use_container_width=True):
-            if not ho_ten_val:
-                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
-            else:
-                with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
-                    docx_bytes = export_docx(data_benh_an)
-                    ten_mau_file = {
-                        "Nhi khoa": "Nhi_khoa_",
-                        "Hậu phẫu": "Hau_phau_",
-                        "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
-                        "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
-                    }.get(loai_benh_an, "")
-                    ten_file_docx = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
-                    st.session_state["docx_bytes_data"] = docx_bytes
-                    st.session_state["ten_file_docx"] = ten_file_docx
+    if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="primary", use_container_width=True):
+        if not ho_ten_val:
+            st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
+        else:
+            with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
+                docx_bytes = export_docx(data_benh_an)
+                ten_mau_file = {
+                    "Nhi khoa": "Nhi_khoa_",
+                    "Hậu phẫu": "Hau_phau_",
+                    "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
+                    "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
+                }.get(loai_benh_an, "")
+                ten_file_docx = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
+                st.session_state["docx_bytes_data"] = docx_bytes
+                st.session_state["ten_file_docx"] = ten_file_docx
+                
+                # Chuyển đổi DOCX sang HTML để hiển thị xem trước
+                try:
+                    res_html = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+                    st.session_state["docx_html_preview"] = res_html.value
+                except Exception as err:
+                    st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
                     
-                    # Chuyển đổi DOCX sang HTML để hiển thị xem trước
-                    try:
-                        res_html = mammoth.convert_to_html(io.BytesIO(docx_bytes))
-                        st.session_state["docx_html_preview"] = res_html.value
-                    except Exception as err:
-                        st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
-                        
-                    st.session_state["active_preview"] = "docx"
-                    st.success("Tạo tài liệu Word thành công!")
+                st.session_state["active_preview"] = "docx"
+                st.success("Tạo tài liệu Word thành công!")
 
-        if st.session_state.get("docx_bytes_data"):
-            st.download_button(
-                "📥 Tải Word (.docx) về máy",
-                data=st.session_state["docx_bytes_data"],
-                file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
+    if st.session_state.get("docx_bytes_data"):
+        st.download_button(
+            "📥 Tải Word (.docx) về máy",
+            data=st.session_state["docx_bytes_data"],
+            file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
 
     # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
     if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
@@ -3701,10 +3040,6 @@ with tab2:
         """
         st.markdown(styled_word_preview, unsafe_allow_html=True)
 
-    elif st.session_state.get("active_preview") == "pdf" and st.session_state.get("pdf_bytes_preview"):
-        st.markdown("---")
-        st.markdown("#### 📄 Bản xem trước PDF trực tiếp:")
-        pdf_viewer(input=st.session_state["pdf_bytes_preview"], width=750, height=850)
 # --- TAB 3: PHẢN BIỆN BỆNH ÁN ---
 with tab3:
     st.markdown("### Giảng viên lâm sàng phản biện ca bệnh")
