@@ -1599,18 +1599,18 @@ with st.sidebar:
                 st.rerun()
             except Exception as e: st.error(f"Không thể đọc file: {e}")
     st.markdown("---")
-    st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
-    current_data = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
-    for i in range(current_data.get("so_hang_cls", 3)):
-        current_data[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
-        current_data[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+    # st.caption("Hoặc lưu trữ dạng tập tin JSON tải về máy:")
+    # current_data = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
+    # for i in range(current_data.get("so_hang_cls", 3)):
+    #     current_data[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+    #     current_data[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
         
-    json_string = json.dumps(current_data, ensure_ascii=False, indent=2)
-    ten_benh_nhan = str(st.session_state.get("ho_ten", "chua_dat_ten")).strip().replace(" ", "_")
-    if not ten_benh_nhan: ten_benh_nhan = "chua_dat_ten"
+    # json_string = json.dumps(current_data, ensure_ascii=False, indent=2)
+    # ten_benh_nhan = str(st.session_state.get("ho_ten", "chua_dat_ten")).strip().replace(" ", "_")
+    # if not ten_benh_nhan: ten_benh_nhan = "chua_dat_ten"
 
-    draft_filename = f"Ban_nhap_{ten_benh_nhan}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
-    st.download_button("📥 Lưu bản nháp về máy (.json)", data=json_string, file_name=draft_filename, mime="application/json", use_container_width=True)
+    # draft_filename = f"Ban_nhap_{ten_benh_nhan}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+    # st.download_button("📥 Lưu bản nháp về máy (.json)", data=json_string, file_name=draft_filename, mime="application/json", use_container_width=True)
     st.markdown("**Gửi file Word (.docx) qua email:**")
     docx_email = st.text_input(
         "Địa chỉ email nhận file Word:",
