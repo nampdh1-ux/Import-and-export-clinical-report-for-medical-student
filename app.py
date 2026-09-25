@@ -1150,28 +1150,51 @@ def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
         tcMar.append(node)
     tcPr.append(tcMar)
 
+def set_cell_borders(cell, color="CBD5E1", sz="4", val="single"):
+    """Thiết lập viền tinh tế cho từng ô trong bảng Word."""
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcBorders = parse_xml(
+        f'<w:tcBorders {nsdecls("w")}>'
+        f'  <w:top w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:left w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:bottom w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:right w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'</w:tcBorders>'
+    )
+    tcPr.append(tcBorders)
+
+def prevent_row_split(row):
+    """Ngăn hàng của bảng bị ngắt đôi qua trang mới (cantSplit)."""
+    trPr = row._tr.get_or_add_trPr()
+    trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
+
+def set_repeat_header(row):
+    """Tự động lặp lại header ở đầu trang nếu bảng dài nhiều trang."""
+    trPr = row._tr.get_or_add_trPr()
+    trPr.append(parse_xml(f'<w:tblHeader {nsdecls("w")}/>'))
+
 def export_docx(data):
     doc = Document()
     
-    # Thiết lập lề trang 2cm tiêu chuẩn văn bản y khoa
+    # 1. Căn lề chuẩn A4 y khoa (Top/Bottom 2cm, Left/Right 2cm)
     for sec in doc.sections:
-        sec.top_margin = Inches(0.8)
-        sec.bottom_margin = Inches(0.8)
-        sec.left_margin = Inches(0.8)
-        sec.right_margin = Inches(0.8)
+        sec.top_margin = Inches(0.79)
+        sec.bottom_margin = Inches(0.79)
+        sec.left_margin = Inches(0.79)
+        sec.right_margin = Inches(0.79)
 
     loai_ba = data.get("loai_benh_an", "Nội khoa / Tiền phẫu")
 
-    # Hàm trợ giúp thêm đoạn văn bản có định dạng
+    # Các hàm hỗ trợ định dạng đoạn văn bản
     def add_sec_title(title):
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
+        p.paragraph_format.space_before = Pt(9)
         p.paragraph_format.space_after = Pt(3)
         p.paragraph_format.keep_with_next = True
         run = p.add_run(title)
         run.bold = True
         run.font.size = Pt(11.5)
-        run.font.color.rgb = RGBColor(10, 36, 106)  # Classic Navy Blue
+        run.font.color.rgb = RGBColor(10, 36, 106)  # Deep Clinical Blue
 
     def add_subsec_title(title):
         p = doc.add_paragraph()
@@ -1188,13 +1211,14 @@ def export_docx(data):
             p = doc.add_paragraph("Chưa ghi nhận thông tin.")
             p.runs[0].font.size = Pt(10)
             p.runs[0].font.italic = True
-            p.paragraph_format.space_after = Pt(3)
+            p.paragraph_format.space_after = Pt(2)
             return
         lines = [l.strip() for l in str(text).strip().split("\n") if l.strip()]
         for line in lines:
             p = doc.add_paragraph(style='List Bullet')
-            p.paragraph_format.space_before = Pt(1)
-            p.paragraph_format.space_after = Pt(2)
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after = Pt(1.5)
+            p.paragraph_format.line_spacing = 1.15
             clean_text = line.lstrip("-*• ")
             run = p.add_run(clean_text)
             run.font.size = Pt(10)
@@ -1207,7 +1231,8 @@ def export_docx(data):
             p.paragraph_format.space_after = Pt(3)
             return
         p = doc.add_paragraph()
-        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.space_after = Pt(3)
+        p.paragraph_format.line_spacing = 1.15
         run = p.add_run(str(text).strip())
         run.font.size = Pt(10)
         run.bold = bold
@@ -1217,6 +1242,7 @@ def export_docx(data):
     # --- TIÊU ĐỀ TRANG ---
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(0)
     p_title.paragraph_format.space_after = Pt(2)
     run_title = p_title.add_run(clinical_title(loai_ba))
     run_title.bold = True
@@ -1225,7 +1251,7 @@ def export_docx(data):
 
     p_time = doc.add_paragraph()
     p_time.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_time.paragraph_format.space_after = Pt(10)
+    p_time.paragraph_format.space_after = Pt(8)
     run_time = p_time.add_run(f"Thời gian lập hồ sơ: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     run_time.font.size = Pt(9)
     run_time.font.italic = True
@@ -1242,7 +1268,7 @@ def export_docx(data):
     ]
     for line in hc_lines:
         p = doc.add_paragraph(style='List Bullet')
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(1.5)
         run = p.add_run(line)
         run.font.size = Pt(10)
 
@@ -1273,6 +1299,7 @@ def export_docx(data):
     else:
         add_normal_text(data.get('benh_su', ''))
 
+    # TIỀN SỬ
     if is_pediatric_mode(loai_ba):
         add_sec_title("IV. TIỀN SỬ")
         pediatric_history = [
@@ -1317,7 +1344,7 @@ def export_docx(data):
 
     add_bullet_list(data.get('kham_toan_than', ''))
 
-    # Bảng sinh hiệu (Vital signs)
+    # BẢNG SINH HIỆU CHUẨN ĐẸP (Có viền & chống ngắt trang)
     mach_val = data.get('sh_mach') or "--"
     nhiet_val = data.get('sh_nhiet_do') or "--"
     ha_val = data.get('sh_ha') or "--"
@@ -1338,19 +1365,19 @@ def export_docx(data):
     ]
 
     for r_idx, row in enumerate(tbl_sh.rows):
+        prevent_row_split(row)
         for c_idx, cell in enumerate(row.cells):
             cell.text = sh_data[r_idx][c_idx]
             p = cell.paragraphs[0]
-            p.runs[0].font.size = Pt(9)
-            set_cell_margins(cell, top=60, bottom=60, left=100, right=100)
+            p.runs[0].font.size = Pt(9.5)
+            set_cell_margins(cell, top=70, bottom=70, left=100, right=100)
+            set_cell_borders(cell, color="CBD5E1", sz="4")
             if r_idx == 0:
-                set_cell_background(cell, "EAECEF")
+                set_cell_background(cell, "F1F5F9")
                 p.runs[0].bold = True
 
-    # Hợp nhất 2 ô cuối của hàng 2 cho phần hiển thị BMI
     tbl_sh.cell(1, 2).merge(tbl_sh.cell(1, 3))
-
-    doc.add_paragraph().paragraph_format.space_after = Pt(4)
+    doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
     if is_postop_mode(loai_ba):
         add_subsec_title("b. Vết mổ & Dẫn lưu:")
@@ -1397,9 +1424,10 @@ def export_docx(data):
         p_first = doc.add_paragraph(lines_tt[0])
         p_first.runs[0].font.size = Pt(10)
         p_first.paragraph_format.space_after = Pt(2)
+        p_first.paragraph_format.line_spacing = 1.15
         for line in lines_tt[1:]:
             p = doc.add_paragraph(style='List Bullet')
-            p.paragraph_format.space_after = Pt(2)
+            p.paragraph_format.space_after = Pt(1.5)
             run = p.add_run(line.lstrip("-*• "))
             run.font.size = Pt(10)
     else:
@@ -1407,7 +1435,7 @@ def export_docx(data):
 
     section_numbers = get_section_numbers(data)
 
-    # VII & VIII & IX. CHẨN ĐOÁN SƠ BỘ, PHÂN BIỆT & BIỆN LUẬN
+    # VII, VIII, IX. CHẨN ĐOÁN & BIỆN LUẬN SƠ BỘ
     add_sec_title(f"{section_numbers['chan_doan_so_bo']}. CHẨN ĐOÁN SƠ BỘ")
     add_normal_text(data.get('chan_doan_so_bo', ''))
 
@@ -1431,10 +1459,10 @@ def export_docx(data):
     add_subsec_title("3. Cận lâm sàng khác:")
     add_bullet_list(data.get('cls_dx_khac', ''))
 
-    # XI. CẬN LÂM SÀNG ĐÃ CÓ (BẢNG WORD KÈM BẢNG MA TRẬN TIẾN TRÌNH & ẢNH)
+    # XI. CẬN LÂM SÀNG ĐÃ CÓ (TỐI ƯU BẢNG & TRÁNH VỠ KHUNG)
     add_sec_title("XI. CẬN LÂM SÀNG ĐÃ CÓ")
     cls_rows = []
-    so_hang = data.get("so_hang_cls", 3)
+    so_hang = data.get("so_hang_cls", 1)
     for i in range(so_hang):
         kq = data.get(f"cls_kq_{i}", "").strip()
         pg = data.get(f"cls_pg_{i}", "").strip()
@@ -1447,90 +1475,83 @@ def export_docx(data):
     else:
         table_cls = doc.add_table(rows=1, cols=2)
         table_cls.alignment = WD_TABLE_ALIGNMENT.CENTER
-        hdr_cells = table_cls.rows[0].cells
+        table_cls.autofit = False
+
+        # Header Bảng
+        hdr_row = table_cls.rows[0]
+        set_repeat_header(hdr_row)
+        prevent_row_split(hdr_row)
+        
+        hdr_cells = hdr_row.cells
         hdr_cells[0].text = "KẾT QUẢ CẬN LÂM SÀNG"
         hdr_cells[1].text = "PHIÊN GIẢI / BIỆN GIẢI"
+        
         for c in hdr_cells:
-            set_cell_background(c, "E1EBF5")
+            set_cell_background(c, "E2E8F0")
+            set_cell_borders(c, color="94A3B8", sz="6")
             p = c.paragraphs[0]
             p.runs[0].bold = True
             p.runs[0].font.size = Pt(10)
-            set_cell_margins(c, top=100, bottom=100, left=150, right=150)
+            p.runs[0].font.color.rgb = RGBColor(15, 23, 42)
+            set_cell_margins(c, top=90, bottom=90, left=120, right=120)
 
-        temp_docx_imgs = []
-        try:
-            for kq, pg, img in cls_rows:
-                row_cells = table_cls.add_row().cells
-                set_cell_margins(row_cells[0], top=80, bottom=80, left=120, right=120)
-                set_cell_margins(row_cells[1], top=80, bottom=80, left=120, right=120)
-                
-                # Cột Kết quả: Kiểm tra có phải bảng đa ngày không
-                trend_data = parse_trend_data(kq) if kq else None
-                cell_left = row_cells[0]
-                
-                if trend_data:
-                    # Tiêu đề nhóm nếu có
-                    if trend_data.get("title"):
-                        p_t = cell_left.paragraphs[0]
-                        p_t.text = trend_data["title"].upper()
-                        p_t.runs[0].bold = True
-                        p_t.runs[0].font.size = Pt(9.5)
-                    else:
-                        cell_left.paragraphs[0].text = ""
+        for kq, pg, img in cls_rows:
+            row = table_cls.add_row()
+            prevent_row_split(row)
+            cell_left, cell_right = row.cells[0], row.cells[1]
+            
+            set_cell_margins(cell_left, top=80, bottom=80, left=120, right=120)
+            set_cell_margins(cell_right, top=80, bottom=80, left=120, right=120)
+            set_cell_borders(cell_left, color="CBD5E1", sz="4")
+            set_cell_borders(cell_right, color="CBD5E1", sz="4")
 
-                    # Tạo bảng con ma trận nhúng bên trong ô Word (BỎ CỘT XU HƯỚNG)
-                    nb_cols = len(trend_data["dates"]) + 1
-                    sub_tbl = cell_left.add_table(rows=len(trend_data["rows"]) + 1, cols=nb_cols)
-                    sub_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+            # Xử lý Cột Kết quả
+            trend_data = parse_trend_data(kq) if kq else None
+            p_kq = cell_left.paragraphs[0]
+            p_kq.paragraph_format.line_spacing = 1.15
+            p_kq.paragraph_format.space_after = Pt(2)
+
+            if trend_data:
+                # Định dạng phẳng danh sách có căn lề, loại bỏ nested table chống vỡ trang
+                title_txt = trend_data.get("title", "KẾT QUẢ ĐA NGÀY").upper()
+                r_title = p_kq.add_run(f"• {title_txt}\n")
+                r_title.bold = True
+                r_title.font.size = Pt(9.5)
+
+                for r_item in trend_data["rows"]:
+                    p_row = cell_left.add_paragraph()
+                    p_row.paragraph_format.space_after = Pt(1.5)
+                    p_row.paragraph_format.line_spacing = 1.15
+                    run_param = p_row.add_run(f"- {r_item['param']}: ")
+                    run_param.bold = True
+                    run_param.font.size = Pt(9)
                     
-                    # Header bảng con
-                    sub_hdr = sub_tbl.rows[0].cells
-                    sub_hdr[0].text = "Chỉ số"
-                    for d_idx, d_label in enumerate(trend_data["dates"]):
-                        sub_hdr[d_idx + 1].text = d_label.split("(")[0].strip()
-                        
-                    for c_h in sub_hdr:
-                        set_cell_background(c_h, "F1F5F9")
-                        c_h.paragraphs[0].runs[0].font.bold = True
-                        c_h.paragraphs[0].runs[0].font.size = Pt(8)
-                        set_cell_margins(c_h, top=40, bottom=40, left=60, right=60)
+                    val_parts = []
+                    for d_lbl, d_val in zip(trend_data["dates"], r_item["values"]):
+                        val_parts.append(f"{d_lbl.split('(')[0].strip()}: {d_val}")
+                    run_vals = p_row.add_run(" | ".join(val_parts))
+                    run_vals.font.size = Pt(9)
+            else:
+                p_kq.text = kq if kq else "-"
+                p_kq.runs[0].font.size = Pt(9.5)
 
-                    # Dữ liệu các dòng
-                    for r_idx, r_item in enumerate(trend_data["rows"]):
-                        row_cells_sub = sub_tbl.rows[r_idx + 1].cells
-                        
-                        row_cells_sub[0].text = r_item["param"]
-                        row_cells_sub[0].paragraphs[0].runs[0].font.bold = True
-                        row_cells_sub[0].paragraphs[0].runs[0].font.size = Pt(8)
-                        set_cell_margins(row_cells_sub[0], top=40, bottom=40, left=60, right=60)
-                        
-                        for v_i, v_val in enumerate(r_item["values"]):
-                            row_cells_sub[v_i + 1].text = str(v_val)
-                            row_cells_sub[v_i + 1].paragraphs[0].runs[0].font.size = Pt(8)
-                            set_cell_margins(row_cells_sub[v_i + 1], top=40, bottom=40, left=60, right=60)
-                else:
-                    p_kq = cell_left.paragraphs[0]
-                    p_kq.text = kq if kq else "-"
-                    p_kq.runs[0].font.size = Pt(9.5)
-                
-                if img:
-                    suffix = os.path.splitext(img.name)[1]
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as t_f:
-                        t_f.write(img.getbuffer())
-                        t_path = t_f.name
-                        temp_docx_imgs.append(t_path)
+            # Chèn ảnh trực tiếp qua RAM (BytesIO), không tạo tệp tạm
+            if img:
+                try:
+                    img_stream = io.BytesIO(img.getbuffer())
                     p_img = cell_left.add_paragraph()
-                    p_img.add_run().add_picture(t_path, width=Inches(2.4))
-                
-                # Cột Biện giải
-                p_pg = row_cells[1].paragraphs[0]
-                p_pg.text = pg if pg else "-"
-                p_pg.runs[0].font.size = Pt(9.5)
-        finally:
-            for p_path in temp_docx_imgs:
-                if os.path.exists(p_path):
-                    try: os.remove(p_path)
-                    except Exception: pass
+                    p_img.paragraph_format.space_before = Pt(4)
+                    p_img.add_run().add_picture(img_stream, width=Inches(2.5))
+                except Exception as e:
+                    p_err = cell_left.add_paragraph()
+                    p_err.add_run(f"(Không tải được ảnh: {e})").font.italic = True
+
+            # Xử lý Cột Biện giải
+            p_pg = cell_right.paragraphs[0]
+            p_pg.paragraph_format.line_spacing = 1.15
+            p_pg.paragraph_format.space_after = Pt(2)
+            p_pg.text = pg if pg else "-"
+            p_pg.runs[0].font.size = Pt(9.5)
 
     # XII. CHẨN ĐOÁN XÁC ĐỊNH
     add_sec_title(f"{section_numbers['chan_doan_xac_dinh']}. CHẨN ĐOÁN XÁC ĐỊNH")
@@ -1559,8 +1580,7 @@ def export_docx(data):
 
     tv_str = str(data.get("tu_van", "")).strip()
     if tv_str:
-        ten_de_muc_tv = f"{section_numbers['tu_van']}. TƯ VẤN"
-        add_sec_title(ten_de_muc_tv)
+        add_sec_title(f"{section_numbers['tu_van']}. TƯ VẤN")
         add_bullet_list(tv_str)
 
     docx_io = io.BytesIO()
