@@ -1,7 +1,3 @@
-import requests
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 import mammoth
 import base64
 import hashlib
@@ -1172,47 +1168,7 @@ def export_docx(data):
         run.bold = bold
         if red:
             run.font.color.rgb = RGBColor(180, 0, 0)
-def create_google_doc_from_docx(docx_bytes, doc_title, share_email=None):
-    """
-    Gửi dữ liệu DOCX qua Apps Script Webhook để tạo Google Doc.
-    Tự động chuẩn hóa dữ liệu đầu vào sang bytes hợp lệ.
-    """
-    webhook_url = st.secrets.get("GDRIVE_WEBHOOK_URL")
-    folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
 
-    if not webhook_url:
-        return False, "⚠️ Chưa cấu hình 'GDRIVE_WEBHOOK_URL' trong Secrets!"
-
-    # Chuẩn hóa ép kiểu đầu vào sang bytes
-    if hasattr(docx_bytes, "getvalue"):  # Trường hợp là io.BytesIO
-        raw_bytes = docx_bytes.getvalue()
-    elif isinstance(docx_bytes, bytes):
-        raw_bytes = docx_bytes
-    else:
-        return False, f"⚠️ Dữ liệu file không hợp lệ (kiểu: {type(docx_bytes)}). Vui lòng thử bấm tạo lại file Word!"
-
-    try:
-        payload = {
-            "title": doc_title,
-            "folder_id": folder_id,
-            "file_base64": base64.b64encode(raw_bytes).decode("utf-8")
-        }
-
-        response = requests.post(webhook_url, json=payload, timeout=45)
-        
-        if response.status_code != 200:
-            return False, f"Lỗi HTTP từ máy chủ Google: {response.status_code}"
-
-        result = response.json()
-        if result.get("status") == "success":
-            return True, result.get("url")
-        else:
-            return False, f"Lỗi Apps Script: {result.get('message')}"
-
-    except requests.exceptions.Timeout:
-        return False, "Quá thời gian chờ phản hồi từ Google (Timeout > 45s). Vui lòng thử lại!"
-    except Exception as e:
-        return False, f"Lỗi kết nối Webhook: {e}"
     # --- TIÊU ĐỀ TRANG ---
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -3152,83 +3108,47 @@ with tab2:
 
     st.markdown("---")
 
-    col_btn_docx, col_btn_gdoc = st.columns(2)
-
-    with col_btn_docx:
-        if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="primary", use_container_width=True):
-            if not ho_ten_val:
-                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
-            else:
-                with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
-                    docx_bytes = export_docx(data_benh_an)
-                    ten_mau_file = {
-                        "Nhi khoa": "Nhi_khoa_",
-                        "Hậu phẫu": "Hau_phau_",
-                        "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
-                        "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
-                    }.get(loai_benh_an, "")
-                    ten_file_docx = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
-                    st.session_state["docx_bytes_data"] = docx_bytes
-                    st.session_state["ten_file_docx"] = ten_file_docx
+    if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="primary", use_container_width=True):
+        if not ho_ten_val:
+            st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
+        else:
+            with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
+                docx_bytes = export_docx(data_benh_an)
+                ten_mau_file = {
+                    "Nhi khoa": "Nhi_khoa_",
+                    "Hậu phẫu": "Hau_phau_",
+                    "Sản phụ khoa / Tiền phẫu": "San_phu_khoa_Tien_phau_",
+                    "Sản phụ khoa / Hậu phẫu": "San_phu_khoa_Hau_phau_",
+                }.get(loai_benh_an, "")
+                ten_file_docx = f"Benh_an_{ten_mau_file}{ho_ten_val.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
+                st.session_state["docx_bytes_data"] = docx_bytes
+                st.session_state["ten_file_docx"] = ten_file_docx
+                
+                # Chuyển đổi DOCX sang HTML để hiển thị xem trước
+                try:
+                    res_html = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+                    st.session_state["docx_html_preview"] = res_html.value
+                except Exception as err:
+                    st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
                     
-                    try:
-                        res_html = mammoth.convert_to_html(io.BytesIO(docx_bytes))
-                        st.session_state["docx_html_preview"] = res_html.value
-                    except Exception as err:
-                        st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
-                        
-                    st.session_state["active_preview"] = "docx"
-                    st.success("Tạo tài liệu Word thành công!")
+                st.session_state["active_preview"] = "docx"
+                st.success("Tạo tài liệu Word thành công!")
 
-        if st.session_state.get("docx_bytes_data"):
-            st.download_button(
-                "📥 Tải Word (.docx) về máy",
-                data=st.session_state["docx_bytes_data"],
-                file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
-
-    with col_btn_gdoc:
-        btn_create_gdoc = st.button("🌐 Xuất thẳng sang Google Docs", type="secondary", use_container_width=True)
-        if btn_create_gdoc:
-            if not ho_ten_val:
-                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
-            else:
-                with st.spinner("Đang tạo tài liệu trên Google Docs..."):
-                    # Luôn gọi hàm export_docx để đảm bảo nhận về bytes mới nhất
-                    bytes_word = export_docx(data_benh_an)
-                    st.session_state["docx_bytes_data"] = bytes_word
-                    
-                    ten_file_tieu_de = f"Bệnh án {loai_benh_an} - {ho_ten_val} - {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-                    email_muc_tieu = st.session_state.get("logged_in_user")
-                    if not email_muc_tieu or "@" not in str(email_muc_tieu):
-                        email_muc_tieu = None
-
-                    thanh_cong, ket_qua_url = create_google_doc_from_docx(
-                        docx_bytes=bytes_word,
-                        doc_title=ten_file_tieu_de,
-                        share_email=email_muc_tieu
-                    )
-                    
-                    if thanh_cong:
-                        st.session_state["gdoc_link"] = ket_qua_url
-                        st.toast("✅ Đã tạo Google Docs thành công!", icon="🌐")
-                    else:
-                        st.error(ket_qua_url)
-
-        if st.session_state.get("gdoc_link"):
-            st.link_button(
-                "👉 Mở bệnh án trên Google Docs",
-                url=st.session_state["gdoc_link"],
-                use_container_width=True
-            )
+    if st.session_state.get("docx_bytes_data"):
+        st.download_button(
+            "📥 Tải Word (.docx) về máy",
+            data=st.session_state["docx_bytes_data"],
+            file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
 
     # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
     if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
         st.markdown("---")
         st.markdown("#### 📝 Bản xem trước tài liệu Word trực tiếp:")
         
+        # Bọc mã HTML trong container mô phỏng trang tài liệu A4
         styled_word_preview = f"""
         <div style="
             background-color: #525659;
@@ -3285,6 +3205,7 @@ with tab2:
         </div>
         """
         st.markdown(styled_word_preview, unsafe_allow_html=True)
+
 # ==============================================================================
 # CƠ CHẾ TỰ ĐỘNG LƯU NHÁP VÀO LOCALSTORAGE TRÌNH DUYỆT
 # ==============================================================================
