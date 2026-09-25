@@ -36,18 +36,13 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
 @st.cache_resource
-def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite", json_mode=False):
-    """Lấy model AI với API key chuyên biệt, hỗ trợ ép kiểu JSON chuẩn."""
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
+    """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
-    
-    config = {}
-    if json_mode:
-        config["response_mime_type"] = "application/json"
-        
-    return genai.GenerativeModel(model_name, generation_config=config)
+    return genai.GenerativeModel(model_name)
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
@@ -272,29 +267,20 @@ def check_password():
 if not check_password(): st.stop()
 
 # --- HÀM NÉN VÀ TỐI ƯU ẢNH PHIẾU XÉT NGHIỆM TRƯỚC KHI OCR ---
-from PIL import Image, ImageEnhance
-
-def optimize_lab_image(photo_file, max_dimension=1800, quality=90):
+def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
     try:
         photo_file.seek(0)
         img = Image.open(photo_file)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        
-        # 1. Điều chỉnh kích thước giữ nguyên tỷ lệ
+        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
         width, height = img.size
         if max(width, height) > max_dimension:
-            scale = max_dimension / max(width, height)
-            img = img.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
-        
-        # 2. Tăng độ tương phản để nét mực in mờ đậm lên
-        enhancer_contrast = ImageEnhance.Contrast(img)
-        img = enhancer_contrast.enhance(1.35)
-        
-        # 3. Làm nét ký tự số, dấu chấm phẩy, đơn vị đo
-        enhancer_sharpness = ImageEnhance.Sharpness(img)
-        img = enhancer_sharpness.enhance(1.4)
-        
+            if width > height:
+                new_width = max_dimension
+                new_height = int(height * (max_dimension / width))
+            else:
+                new_height = max_dimension
+                new_width = int(width * (max_dimension / height))
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=quality, optimize=True)
         buffer.seek(0)
@@ -521,79 +507,96 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     return str(ngay_cls_raw).strip()
 
 def auto_fill_from_emr_text(raw_text):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
     prompt = f"""
-    Bạn là một bác sĩ kiêm chuyên gia phân tích dữ liệu bệnh án điện tử (EMR).
-    Nhiệm vụ: Trích xuất toàn bộ dữ liệu từ văn bản thô dưới đây vào định dạng JSON y khoa chuẩn xác.
+    Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
 
     VĂN BẢN EMR THÔ:
     '''
     {raw_text}
     '''
 
-    QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
-    1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
-    2. Ngày làm xét nghiệm: Tìm kỹ ngày lấy mẫu hoặc ngày ký duyệt phiếu (VD: 12/10/2026).
-    3. Định dạng từng chỉ số số liệu (Quantitative Labs):
-       - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
-       - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
-    4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
-       - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
-    5. Phiên giải (phien_giai):
-       - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
+    HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU (RẤT QUAN TRỌNG):
+    - ĐỂ TRÁNH THIẾU SÓT: Hãy lướt tìm TOÀN BỘ các trang/đoạn có chứa từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "PHIẾU XÉT NGHIỆM", "CHỈ SỐ", "KẾT LUẬN". Mọi tờ kết quả phát hiện được đều phải bóc tách đủ.
+    - Trong mỗi phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM (ở dòng 'Thời gian lấy mẫu' hoặc ở cuối trang trước chữ ký bác sĩ, ví dụ: 'Ngày 12 tháng 10 năm 2026').
 
-    TRẢ VỀ DUY NHẤT CHUỖI JSON THEO CẤU TRÚC:
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Bắt buộc tách riêng biệt từng loại cận lâm sàng sau thành một đối tượng độc lập trong mảng `can_lam_sang`:
+    1. CÔNG THỨC MÁU (Huyết học)
+    2. HÓA SINH MÁU
+    3. ĐÔNG MÁU
+    4. KHÍ MÁU
+    5. ĐIỆN GIẢI ĐỒ
+    6. TỔNG PHÂN TÍCH NƯỚC TIỂU
+    7. SIÊU ÂM (Tách riêng ra từng hàng nếu có nhiều vùng: VD Siêu âm ổ bụng, Siêu âm tim, Siêu âm mạch máu...)
+    8. CT-SCANNER (VD: CT sọ não, CT ổ bụng...)
+    9. X-QUANG (VD: X-quang ngực thẳng, X-quang xương...)
+    10. MRI (Cộng hưởng từ)
+    11. ĐIỆN TÂM ĐỒ (ECG)
+    12. NỘI SOI (VD: Nội soi dạ dày, đại tràng...)
+    13. CÁC XÉT NGHIỆM KHÁC (Vi sinh, Giải phẫu bệnh, Miễn dịch...)
+
+    YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
-        "ho_ten": "Họ và tên bệnh nhân (In hoa chữ cái đầu)",
-        "tuoi": "Chỉ lấy số",
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
         "gioi_tinh": "Nam hoặc Nữ",
-        "khoa_phong": "Khoa điều trị",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
         "nghe_nghiep": "",
         "dia_chi": "",
-        "ngay_vao_vien": "dd/mm/yyyy hh:mm",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
         "ly_do_vao_vien": "Ngắn gọn",
-        "benh_su": "Văn xuôi liền mạch theo trình tự thời gian",
-        "ts_noi_khoa": "Tiền sử nội khoa",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, giống bệnh án, văn xuôi, không gạch đầu dòng",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
         "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
-        "sh_mach": "Chỉ số",
-        "sh_nhiet_do": "Chỉ số",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
         "sh_ha": "Huyết áp (VD: 120/80)",
-        "sh_nhip_tho": "Chỉ số",
-        "sh_can_nang": "Chỉ số",
-        "kham_vao_vien": "Mỗi triệu chứng xuống dòng bắt đầu bằng \\n- ",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
         "can_lam_sang": [
             {{
-                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG...)",
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC, CT, MRI, ECG...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây, không lược bớt.",
                 "cac_lan_xet_nghiem": [
                     {{
-                        "ngay_cls": "dd/mm/yyyy",
-                        "chi_so": "- Chỉ số 1: Giá trị đơn vị (Tham chiếu)\\n- Chỉ số 2: Giá trị đơn vị..."
+                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026)",
+                        "chi_so": "Với Xét nghiệm số liệu (Số 1-6), liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
                     }}
                 ],
-                "phien_giai": "Đánh giá cụ thể chỉ số tăng/giảm và ý nghĩa chẩn đoán"
+                "phien_giai": "Đánh giá các chỉ số bất thường hoặc ý nghĩa của hình ảnh đối với chẩn đoán hiện tại."
             }}
         ]
     }}
+
+    QUY TẮC:
+    1. Không tự bịa thông tin. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong markdown (```json).
     """
     try:
         response = model.generate_content(prompt)
-        parsed_data = json.loads(response.text.strip())
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
+
+        parsed_data = json.loads(res_text.strip())
         return True, parsed_data
     except Exception as e:
         return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
 
 def auto_fill_from_emr_images(image_files):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
     processed_images = []
     for photo in image_files:
         try:
-            img_optimized = optimize_lab_image(photo, max_dimension=1800, quality=90)
+            img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
             processed_images.append(img_optimized)
         except Exception:
             pass
@@ -602,20 +605,27 @@ def auto_fill_from_emr_images(image_files):
         return False, "❌ Không thể xử lý được các file ảnh đã tải lên."
 
     prompt_ocr = """
-    Bạn là bác sĩ chuyên khoa đọc hồ sơ bệnh án và phiếu cận lâm sàng qua ảnh scan/chụp.
-    Nhiệm vụ: Đọc kỹ TẤT CẢ các trang ảnh, trích xuất đầy đủ thông tin hành chính, lâm sàng và bóc tách từng phiếu cận lâm sàng thành tệp JSON.
+    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
+    ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - TÌM KIẾM CHỐNG BỎ SÓT: Quét toàn bộ các trang để tìm các từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "CHỈ SỐ", "KẾT LUẬN". Đảm bảo TẤT CẢ các tờ cận lâm sàng đều được bóc tách.
+    - Tìm ngày vào viện ở trang bìa/hành chính.
+    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
 
-    QUY TẮC BÓC TÁCH:
-    1. CHỐNG BỎ SÓT: Lướt qua từng trang để tìm các bảng kết quả huyết học, hóa sinh, nước tiểu, chẩn đoán hình ảnh. Mỗi loại xét nghiệm là 1 đối tượng độc lập trong danh sách `can_lam_sang`.
-    2. NGÀY XÉT NGHIỆM: Tìm ở dòng "Thời gian lấy mẫu" hoặc chân trang cạnh chữ ký bác sĩ (VD: 15/08/2026).
-    3. CÔNG THỨC MÁU / HÓA SINH / ĐÔNG MÁU / KHÍ MÁU:
-       - Liệt kê đủ: "- [Tên chỉ số]: [Kết quả] [Đơn vị] (Khoảng tham chiếu sinh lý)"
-    4. SIÊU ÂM / X-QUANG / CT / MRI / NỘI SOI:
-       - Liệt kê toàn bộ mô tả giải phẫu bệnh lý và kết luận.
-    5. PHIÊN GIẢI (phien_giai):
-       - Nêu rõ các chỉ số bất thường và định hướng bệnh lý.
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Tách riêng biệt từng loại xét nghiệm/hình ảnh thành các đối tượng độc lập trong mảng "can_lam_sang":
+    1. Công thức máu
+    2. Hóa sinh máu
+    3. Đông máu
+    4. Khí máu
+    5. Điện giải đồ
+    6. Siêu âm (Ghi rõ Siêu âm ổ bụng, Siêu âm tim...)
+    7. CT-Scanner
+    8. X-quang
+    9. MRI
+    10. Điện tâm đồ (ECG)
+    11. Nội soi
 
-    TRẢ VỀ DUY NHẤT CHUỖI JSON VỚI CẤU TRÚC:
+    Trả về đúng định dạng JSON:
     {
         "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
         "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
@@ -623,25 +633,32 @@ def auto_fill_from_emr_images(image_files):
         "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG...)",
+                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG)",
+                "ket_qua": "Liệt kê toàn bộ chỉ số xét nghiệm hoặc mô tả kết luận hình ảnh nếu không phân tích theo từng ngày",
                 "cac_lan_xet_nghiem": [
                     {
-                        "ngay_cls": "dd/mm/yyyy",
-                        "chi_so": "- Tên chỉ số: Giá trị đơn vị (Tham chiếu)\\n- ..."
+                        "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
+                        "chi_so": "Liệt kê các chỉ số kèm nồng độ, đơn vị và khoảng tham chiếu, mỗi chỉ số xuống dòng bằng \\n- "
                     }
                 ],
-                "phien_giai": "Đánh giá bất thường lâm sàng"
+                "phien_giai": "Nhận xét bất thường và ý nghĩa bệnh lý"
             }
         ]
     }
+    Chỉ trả về chuỗi JSON thuần túy, không có markdown.
     """
     try:
         contents = [prompt_ocr] + processed_images
         response = model.generate_content(contents)
-        parsed_data = json.loads(response.text.strip())
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
+
+        parsed_data = json.loads(res_text.strip())
         return True, parsed_data
     except Exception as e:
-        return False, f"❌ Lỗi xử lý ảnh EMR: {str(e)}"
+        return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
 
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
@@ -2191,7 +2208,7 @@ def ui_cls(num_dx, num_kq):
             btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
 
         if btn_ocr and lab_photos:
-            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite", json_mode=True)
+            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
             if not vision_model:
                 st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
             else:
@@ -2235,16 +2252,13 @@ def ui_cls(num_dx, num_kq):
                         resp = vision_model.generate_content([ocr_prompt, img_input])
                         raw_text = resp.text.strip()
                         
-                        # Nạp dữ liệu JSON an toàn tuyệt đối
-                        clean_json_str = raw_text.strip()
-                        if clean_json_str.startswith("```json"):
-                            clean_json_str = clean_json_str[7:]
-                        elif clean_json_str.startswith("```"):
-                            clean_json_str = clean_json_str[3:]
-                        if clean_json_str.endswith("```"):
-                            clean_json_str = clean_json_str[:-3]
+                        # Làm sạch chuỗi JSON nếu có code block markdown
+                        if "```json" in raw_text:
+                            raw_text = raw_text.split("```json")[1].split("```")[0]
+                        elif "```" in raw_text:
+                            raw_text = raw_text.split("```")[1].split("```")[0]
 
-                        lab_data = json.loads(clean_json_str.strip())
+                        lab_data = json.loads(raw_text.strip())
                         if isinstance(lab_data, dict):
                             # Dự phòng bắt nhiều biến thể tên trường của khóa ket_qua
                             raw_kq = (
