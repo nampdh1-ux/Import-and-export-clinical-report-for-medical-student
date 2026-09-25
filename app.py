@@ -1173,66 +1173,39 @@ def export_docx(data):
             run.font.color.rgb = RGBColor(180, 0, 0)
 def create_google_doc_from_docx(docx_bytes, doc_title, share_email=None):
     """
-    Tải luồng DOCX vào thư mục Drive chỉ định, tự chuyển sang Google Docs
-    và mở quyền truy cập để người click link sửa được ngay.
+    Gửi dữ liệu DOCX qua Apps Script Webhook để tạo Google Doc 
+    bằng chính tài khoản Google của bạn (tránh lỗi quota bot 403).
     """
-    if "gcp_service_account" not in st.secrets:
-        return False, "⚠️ Chưa tìm thấy cấu hình '[gcp_service_account]' trong Secrets!"
+    webhook_url = st.secrets.get("GDRIVE_WEBHOOK_URL")
+    folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
 
-    folder_id = st.secrets.get("GDRIVE_FOLDER_ID")
-    if not folder_id:
-        return False, "⚠️ Chưa cấu hình 'GDRIVE_FOLDER_ID' trong Secrets!"
+    if not webhook_url:
+        return False, "⚠️ Chưa cấu hình 'GDRIVE_WEBHOOK_URL' trong Secrets!"
 
     try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        scopes = ["https://www.googleapis.com/auth/drive"]
-        credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        service = build("drive", "v3", credentials=credentials)
-
-        # Đặt file vào trong Folder cá nhân để dùng Quota của Folder mẹ
-        file_metadata = {
-            "name": doc_title,
-            "mimeType": "application/vnd.google-apps.document",
-            "parents": [folder_id]
+        # Đóng gói dữ liệu dạng JSON gửi sang Apps Script
+        payload = {
+            "title": doc_title,
+            "folder_id": folder_id,
+            "file_base64": base64.b64encode(docx_bytes).decode("utf-8")
         }
 
-        media = MediaIoBaseUpload(
-            io.BytesIO(docx_bytes),
-            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            resumable=True
-        )
+        # Google Apps Script chuyển đổi tệp có thể mất 5-15 giây
+        response = requests.post(webhook_url, json=payload, timeout=45)
+        
+        if response.status_code != 200:
+            return False, f"Lỗi HTTP từ máy chủ Google: {response.status_code}"
 
-        uploaded_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, webViewLink",
-            supportsAllDrives=True
-        ).execute()
+        result = response.json()
+        if result.get("status") == "success":
+            return True, result.get("url")
+        else:
+            return False, f"Lỗi Apps Script: {result.get('message')}"
 
-        file_id = uploaded_file.get("id")
-        web_link = uploaded_file.get("webViewLink")
-
-        # Phân quyền: Cấp quyền Editor trực tiếp cho Gmail đăng nhập (nếu có)
-        if share_email and "@" in str(share_email):
-            service.permissions().create(
-                fileId=file_id,
-                body={"type": "user", "role": "editor", "emailAddress": share_email},
-                fields="id",
-                sendNotificationEmail=False,
-                supportsAllDrives=True
-            ).execute()
-
-        # Mở quyền chỉnh sửa chung cho người có link
-        service.permissions().create(
-            fileId=file_id,
-            body={"type": "anyone", "role": "editor"},
-            fields="id",
-            supportsAllDrives=True
-        ).execute()
-
-        return True, web_link
+    except requests.exceptions.Timeout:
+        return False, "Quá thời gian chờ phản hồi từ Google (Timeout > 45s). Vui lòng thử lại!"
     except Exception as e:
-        return False, f"Lỗi Google Drive API: {e}"
+        return False, f"Lỗi kết nối Webhook: {e}"
     # --- TIÊU ĐỀ TRANG ---
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
