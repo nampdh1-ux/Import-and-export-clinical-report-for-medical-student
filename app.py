@@ -560,8 +560,8 @@ def auto_fill_from_emr_text(raw_text):
         "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
         "can_lam_sang": [
             {{
-                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC...)",
-                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây.",
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC, CT, MRI, ECG...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây, không lược bớt.",
                 "cac_lan_xet_nghiem": [
                     {{
                         "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026)",
