@@ -538,8 +538,9 @@ def auto_fill_from_emr_text(raw_text):
     '''
 
     QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
+    - NGUYÊN TẮC QUÉT CHỐNG BỎ SÓT DỰA VÀO CHỮ KÝ: Trong hồ sơ bệnh án, mỗi phiếu kết quả xét nghiệm/cận lâm sàng đều kết thúc bằng cụm từ "Bác sĩ chuyên khoa" (hoặc "Kỹ thuật viên", "Bác sĩ điều trị", "Trưởng khoa") kèm theo dòng địa điểm thời gian "ngày... tháng... năm...". Cứ mỗi khi xuất hiện một chữ ký/Bác sĩ chuyên khoa tương ứng, bắt buộc phải bóc tách toàn bộ bảng chỉ số hoặc kết luận hình ảnh nằm phía trên chữ ký đó thành một phiếu riêng biệt.
     1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
-    2. Ngày làm xét nghiệm: Tìm kỹ ngày lấy mẫu hoặc ngày ký duyệt phiếu (VD: 12/10/2026).
+    2. Ngày làm xét nghiệm: Lấy chính xác từ dòng địa điểm, ngày tháng năm nằm ngay phía trên/bên cạnh chữ ký "Bác sĩ chuyên khoa" ở chân phiếu (VD: Hà Nội, ngày 12 tháng 10 năm 2026 -> 12/10/2026).
     3. Định dạng từng chỉ số số liệu (Quantitative Labs):
        - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
        - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
@@ -589,6 +590,70 @@ def auto_fill_from_emr_text(raw_text):
             }}
         ]
     }}
+    """
+    try:
+        response = model.generate_content(prompt)
+        parsed_data = json.loads(response.text.strip())
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
+
+def auto_fill_from_emr_images(image_files):
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    if not model:
+        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
+
+    combined_result = {
+        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
+        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
+        "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
+        "can_lam_sang": []
+    }
+
+    prompt_page_ocr = """
+    Bạn là bác sĩ chuyên khoa đọc hồ sơ bệnh án và kết quả xét nghiệm.
+    Nhiệm vụ: Đọc và bóc tách TOÀN BỘ các xét nghiệm có trên trang ảnh này, TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO.
+    
+    QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
+        - NGUYÊN TẮC QUÉT CHỐNG BỎ SÓT DỰA VÀO CHỮ KÝ: Quan sát chân trang/góc dưới phải để tìm dòng chữ ký "Bác sĩ chuyên khoa" (hoặc "Kỹ thuật viên", "Bác sĩ điều trị") và dòng địa điểm thời gian "ngày... tháng... năm...". Cứ mỗi khi thấy một chữ ký Bác sĩ chuyên khoa, bắt buộc phải trích xuất đầy đủ toàn bộ bảng chỉ số xét nghiệm hoặc mô tả/kết luận hình ảnh nằm phía trên chữ ký đó.
+        1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
+        2. Ngày làm xét nghiệm: Lấy chính xác từ dòng địa điểm, ngày tháng năm nằm ngay phía trên/bên cạnh chữ ký "Bác sĩ chuyên khoa" ở chân phiếu (VD: Hà Nội, ngày 12 tháng 10 năm 2026 -> 12/10/2026).
+        3. Định dạng từng chỉ số số liệu (Quantitative Labs):
+           - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
+           - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
+        4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
+           - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
+        5. Phiên giải (phien_giai):
+           - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
+        - BẮT BUỘC TRÍCH XUẤT 100% CÁC CHỈ SỐ: Không được tự ý tóm tắt, không được chỉ chọn lọc các chỉ số bất thường. Cả chỉ số bình thường lẫn bất thường đều phải được ghi đầy đủ từng dòng.
+        - PHÂN TÁCH TRIỆT ĐỂ TỪNG NHÓM: Bắt buộc tách riêng biệt thành từng khối trong mảng `can_lam_sang`:
+          + Huyết học / Công thức máu
+          + Hóa sinh máu (Ure, Creatinine, Men gan, Glucose, Bilirubin, Protein, Albumin...)
+          + Điện giải đồ (Na, K, Cl, Ca)
+          + Đông máu (PT, APTT, Fibrinogen, INR)
+          + Tổng phân tích nước tiểu (10 thông số)
+          + Khí máu động mạch
+          + Siêu âm (Mỗi vị trí siêu âm là 1 hàng riêng: Siêu âm bụng, Siêu âm tim...)
+          + X-quang / CT-Scanner / MRI / ECG / Nội soi...
+
+    TRẢ VỀ DUY NHẤT JSON:
+    {
+        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "ngay_vao_vien": "",
+        "ly_do_vao_vien": "", "benh_su": "", "kham_vao_vien": "",
+        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
+        "can_lam_sang": [
+            {
+                "ten_nhom": "Tên loại (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, NƯỚC TIỂU, SIÊU ÂM...)",
+                "cac_lan_xet_nghiem": [
+                    {
+                        "ngay_cls": "dd/mm/yyyy",
+                        "chi_so": "- Tên chỉ số 1: Kết quả [Đơn vị] (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
+                    }
+                ],
+                "phien_giai": "Đánh giá các chỉ số tăng/giảm bất thường và ý nghĩa"
+            }
+        ]
+    }
     """
     try:
         response = model.generate_content(prompt)
