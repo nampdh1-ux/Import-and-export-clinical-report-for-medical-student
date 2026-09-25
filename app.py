@@ -462,44 +462,6 @@ st.markdown("""
     }
     .toc-item { display: block; color: #31333F; text-decoration: none; padding: 6px 8px; border-radius: 4px; font-size: 0.9rem; }
     .toc-item:hover { background-color: #f0f2f6; color: #ff4b4b; }
-    /* Tinh chỉnh nút bấm thanh thoát, chiều cao vừa phải */
-    div.stButton > button {
-        border-radius: 6px !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        padding: 6px 14px !important;
-        border: 1px solid #c8d1dc !important;
-        height: auto !important;
-        min-height: 38px !important;
-    }
-    
-    /* Nút Tạo Word (Primary): Nền xanh Navy, chữ trắng sáng */
-    div.stButton > button[kind="primary"] {
-        background-color: #0A246A !important;
-        color: #ffffff !important;
-        border: 1px solid #0A246A !important;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background-color: #12389e !important;
-        color: #ffffff !important;
-    }
-
-    /* Nút Tải Word: Nền xanh lá chuẩn Office, chữ trắng sáng */
-    div.stDownloadButton > button {
-        border-radius: 6px !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        padding: 6px 14px !important;
-        background-color: #107c41 !important;
-        color: #ffffff !important;
-        border: 1px solid #107c41 !important;
-        height: auto !important;
-        min-height: 38px !important;
-    }
-    div.stDownloadButton > button:hover {
-        background-color: #0d6535 !important;
-        color: #ffffff !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -3220,17 +3182,11 @@ with tab2:
 
     st.markdown("---")
 
-    # Chia 2 nút thành 2 cột vừa vặn, không bị bè toàn màn hình
-    col_btn_gen, col_btn_dl, _ = st.columns([1.5, 1.3, 2.2])
-
-    with col_btn_gen:
-        btn_tao_word = st.button("📝 Tạo & Xem trước Word", type="primary", use_container_width=True)
-
-    if btn_tao_word:
+    if st.button("📝 Tạo & Xem trước tập tin Word (.docx)", type="primary", use_container_width=True):
         if not ho_ten_val:
             st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
         else:
-            with st.spinner("Đang kết xuất tài liệu Word..."):
+            with st.spinner("Đang kết xuất và chuyển đổi tài liệu Word..."):
                 docx_bytes = export_docx(data_benh_an)
                 ten_mau_file = {
                     "Nhi khoa": "Nhi_khoa_",
@@ -3250,18 +3206,16 @@ with tab2:
                     st.session_state["docx_html_preview"] = f"<p style='color:red;'>Lỗi hiển thị bản xem trước: {err}</p>"
                     
                 st.session_state["active_preview"] = "docx"
-                st.toast("✅ Đã tạo tài liệu Word thành công!", icon="🎉")
-                st.rerun()
+                st.success("Tạo tài liệu Word thành công!")
 
-    with col_btn_dl:
-        if st.session_state.get("docx_bytes_data"):
-            st.download_button(
-                "📥 Tải file Word (.docx)",
-                data=st.session_state["docx_bytes_data"],
-                file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
+    if st.session_state.get("docx_bytes_data"):
+        st.download_button(
+            "📥 Tải Word (.docx) về máy",
+            data=st.session_state["docx_bytes_data"],
+            file_name=st.session_state.get("ten_file_docx", "benh_an.docx"),
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
 
     # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
     if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
@@ -3364,7 +3318,6 @@ with tab2:
                         border-radius: 4px !important;
                         box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
                     }}
-                    
                 </style>
                 {st.session_state['docx_html_preview']}
             </div>
