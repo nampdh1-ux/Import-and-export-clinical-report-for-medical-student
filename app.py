@@ -3222,56 +3222,101 @@ with tab2:
         st.markdown("---")
         st.markdown("#### 📝 Bản xem trước tài liệu Word trực tiếp:")
         
-        # Bọc mã HTML trong container mô phỏng trang tài liệu A4
+        # Bọc mã HTML trong container mô phỏng trang giấy A4 Word thực tế
         styled_word_preview = f"""
         <div style="
             background-color: #525659;
-            padding: 25px 15px;
+            padding: 30px 15px;
             display: flex;
             justify-content: center;
-            border-radius: 4px;
+            border-radius: 6px;
         ">
             <div style="
                 background: #ffffff;
-                color: #24292e;
+                color: #1e293b;
                 width: 100%;
-                max-width: 800px;
-                min-height: 900px;
-                padding: 40px 50px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                font-size: 14px;
-                line-height: 1.6;
+                max-width: 820px;
+                min-height: 1050px;
+                padding: 50px 60px;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 13.5pt;
+                line-height: 1.35;
             ">
                 <style>
+                    /* Tiêu đề chính BỆNH ÁN */
+                    div > p:first-of-type {{
+                        text-align: center !important;
+                        font-weight: bold !important;
+                        font-size: 17pt !important;
+                        color: #0A246A !important;
+                        margin-bottom: 2px !important;
+                    }}
+                    /* Thời gian lập hồ sơ */
+                    div > p:nth-of-type(2) {{
+                        text-align: center !important;
+                        font-style: italic !important;
+                        font-size: 10.5pt !important;
+                        color: #64748b !important;
+                        margin-bottom: 18px !important;
+                    }}
+                    /* Các đề mục La Mã (I., II., III...) */
+                    p strong:first-child {{
+                        color: #0A246A !important;
+                        font-size: 13pt !important;
+                    }}
+                    /* Định dạng văn bản chung */
+                    p {{
+                        margin-top: 4px !important;
+                        margin-bottom: 6px !important;
+                        text-align: justify !important;
+                    }}
+                    /* Danh sách gạch đầu dòng */
+                    ul {{
+                        margin-top: 2px !important;
+                        margin-bottom: 6px !important;
+                        padding-left: 28px !important;
+                    }}
+                    li {{
+                        margin-bottom: 3px !important;
+                    }}
+                    /* Bảng chuẩn Word: Viền thanh, bo đệm đồng bộ */
                     table {{
                         width: 100% !important;
                         border-collapse: collapse !important;
                         margin: 12px 0 !important;
+                        border: 1px solid #94A3B8 !important;
+                        font-size: 11pt !important;
                     }}
                     th, td {{
-                        border: 1px solid #c8d1dc !important;
-                        padding: 6px 10px !important;
-                        vertical-align: top !important;
+                        border: 1px solid #CBD5E1 !important;
+                        padding: 7px 10px !important;
+                        vertical-align: middle !important;
                     }}
-                    th {{
-                        background-color: #e1ebf5 !important;
+                    /* Hàng tiêu đề của bảng */
+                    tr:first-child th, tr:first-child td {{
+                        background-color: #E1EBF5 !important;
                         font-weight: bold !important;
+                        color: #0A246A !important;
+                        border-bottom: 1.5px solid #94A3B8 !important;
                     }}
-                    ul, ol {{
-                        margin-top: 4px !important;
-                        margin-bottom: 6px !important;
-                        padding-left: 24px !important;
+                    /* Bảng con lồng bên trong (nếu có) */
+                    table table {{
+                        margin: 4px 0 !important;
+                        font-size: 9.5pt !important;
                     }}
-                    p {{
-                        margin-top: 3px !important;
-                        margin-bottom: 5px !important;
+                    table table tr:first-child td {{
+                        background-color: #F1F5F9 !important;
+                        color: #1e293b !important;
                     }}
+                    /* Ảnh kết quả cận lâm sàng */
                     img {{
-                        max-width: 100% !important;
+                        max-width: 240px !important;
                         height: auto !important;
-                        margin: 8px 0 !important;
-                        border: 1px solid #ddd !important;
+                        display: block !important;
+                        margin: 6px auto !important;
+                        border-radius: 4px !important;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
                     }}
                 </style>
                 {st.session_state['docx_html_preview']}
