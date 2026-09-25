@@ -589,14 +589,14 @@ def auto_fill_from_emr_images(image_files):
         "can_lam_sang": [
             {
                 "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG)",
-                "ket_qua": "Với CĐHA/Thăm dò chức năng (Siêu âm, XQ, CT, ECG, Nội soi...), ghi toàn bộ mô tả và kết luận vào đây.",
+                "ket_qua": "Liệt kê toàn bộ chỉ số xét nghiệm hoặc mô tả kết luận hình ảnh nếu không phân tích theo từng ngày",
                 "cac_lan_xet_nghiem": [
                     {
                         "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
-                        "chi_so": "Danh sách chỉ số kết quả"
+                        "chi_so": "Liệt kê các chỉ số kèm nồng độ, đơn vị và khoảng tham chiếu, mỗi chỉ số xuống dòng bằng \\n- "
                     }
                 ],
-                "phien_giai": "Biện giải bất thường và diễn tiến"
+                "phien_giai": "Nhận xét bất thường và ý nghĩa bệnh lý"
             }
         ]
     }
@@ -2473,11 +2473,42 @@ with tab1:
                                 except Exception: pass
 
                             cls_list = result.get("can_lam_sang", [])
+                            ngay_vv = st.session_state.get("ngay_vao_vien", "")
+
                             if cls_list and isinstance(cls_list, list):
-                                st.session_state["so_hang_cls"] = len(cls_list)
+                                st.session_state["so_hang_cls"] = max(1, len(cls_list))
                                 for i, cls_item in enumerate(cls_list):
-                                    st.session_state[f"cls_kq_{i}"] = str(cls_item.get("ket_qua", "")).strip()
-                                    st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "")).strip()
+                                    ten_nhom = (
+                                        cls_item.get("ten_nhom") 
+                                        or cls_item.get("loai_cls") 
+                                        or f"XÉT NGHIỆM {i+1}"
+                                    )
+                                    cac_lan = cls_item.get("cac_lan_xet_nghiem", [])
+                                    
+                                    # Trường hợp 1: AI gom theo từng lần/ngày xét nghiệm
+                                    if cac_lan and isinstance(cac_lan, list):
+                                        khoi_ket_qua = [f"{ten_nhom.upper()}:"]
+                                        for lan in cac_lan:
+                                            if isinstance(lan, dict):
+                                                ngay_raw = lan.get("ngay_cls", "")
+                                                ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
+                                                chi_so = str(lan.get("chi_so", "")).strip()
+                                                if ngay_display:
+                                                    khoi_ket_qua.append(f"\n* {ngay_display}:")
+                                                if chi_so:
+                                                    khoi_ket_qua.append(chi_so)
+                                        final_kq = "\n".join(khoi_ket_qua).strip()
+                                    else:
+                                        # Trường hợp 2: AI trả về trực tiếp chuỗi hoặc mảng
+                                        raw_kq = cls_item.get("ket_qua") or cls_item.get("chi_so") or ""
+                                        if isinstance(raw_kq, list):
+                                            final_kq = f"{ten_nhom.upper()}:\n" + "\n".join([f"- {str(line).lstrip('-*• ')}" for line in raw_kq])
+                                        else:
+                                            txt = str(raw_kq).strip()
+                                            final_kq = f"{ten_nhom.upper()}:\n{txt}" if txt and not txt.upper().startswith(ten_nhom.upper()) else txt
+
+                                    st.session_state[f"cls_kq_{i}"] = final_kq if final_kq else "-"
+                                    st.session_state[f"cls_pg_{i}"] = str(cls_item.get("phien_giai", "-")).strip()
 
                             st.toast(f"✅ Đã trích xuất xong từ {len(emr_photos)} ảnh!", icon="🎉")
                             st.rerun()
