@@ -1,6 +1,3 @@
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 import mammoth
 import base64
 import hashlib
@@ -1525,73 +1522,7 @@ def export_docx(data):
     doc.save(docx_io)
     docx_io.seek(0)
     return docx_io.getvalue()
-def create_google_doc_from_docx(docx_bytes, doc_title, share_email=None):
-    """
-    Tải luồng dữ liệu Word (DOCX) lên Google Drive và tự động convert sang Google Docs.
-    Cấp quyền truy cập (chỉnh sửa) cho tài khoản Gmail của người dùng.
-    """
-    if "gcp_service_account" not in st.secrets:
-        return False, "⚠️ Chưa tìm thấy cấu hình '[gcp_service_account]' trong Secrets!"
-        
-    try:
-        # 1. Khởi tạo xác thực với Google Drive qua Service Account
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        scopes = ["https://www.googleapis.com/auth/drive"]
-        credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        service = build("drive", "v3", credentials=credentials)
 
-        # 2. Khai báo Metadata: Yêu cầu Drive chuyển đổi sang Google Docs
-        file_metadata = {
-            "name": doc_title,
-            "mimeType": "application/vnd.google-apps.document"  # Ép định dạng về Google Docs
-        }
-
-        # 3. Chuẩn bị luồng file DOCX trong bộ nhớ RAM
-        media = MediaIoBaseUpload(
-            io.BytesIO(docx_bytes),
-            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            resumable=True
-        )
-
-        # 4. Thực thi upload và nhận lại đường link
-        uploaded_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, webViewLink"
-        ).execute()
-
-        file_id = uploaded_file.get("id")
-        web_link = uploaded_file.get("webViewLink")
-
-        # 5. Phân quyền truy cập
-        if share_email and "@" in str(share_email):
-            # Cấp quyền trực tiếp cho email đang đăng nhập (Quyền chỉnh sửa: editor)
-            user_permission = {
-                "type": "user",
-                "role": "editor",
-                "emailAddress": share_email
-            }
-            service.permissions().create(
-                fileId=file_id,
-                body=user_permission,
-                fields="id",
-                sendNotificationEmail=False
-            ).execute()
-        else:
-            # Dự phòng: Nếu không xác định được email, mở quyền xem bằng link
-            anyone_permission = {
-                "type": "anyone",
-                "role": "reader"
-            }
-            service.permissions().create(
-                fileId=file_id, 
-                body=anyone_permission
-            ).execute()
-
-        return True, web_link
-
-    except Exception as e:
-        return False, f"Lỗi Google Drive API: {e}"
 # ==============================================================================
 # SIDEBAR: QUẢN LÝ BẢN NHÁP & ĐĂNG XUẤT
 # ==============================================================================
@@ -3215,40 +3146,13 @@ with tab2:
             )
 
     with col_btn_gdoc:
-        btn_create_gdoc = st.button("🌐 Xuất ra Google Docs", type="secondary", use_container_width=True)
-        if btn_create_gdoc:
-            if not ho_ten_val:
-                st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
-            else:
-                with st.spinner("Đang khởi tạo tài liệu trên Google Docs..."):
-                    bytes_word = st.session_state.get("docx_bytes_data")
-                    if not bytes_word:
-                        bytes_word = export_docx(data_benh_an)
-                        st.session_state["docx_bytes_data"] = bytes_word
-                    
-                    ten_file_tieu_de = f"Bệnh án {loai_benh_an} - {ho_ten_val} - {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-                    email_muc_tieu = st.session_state.get("logged_in_user")
-                    if not email_muc_tieu or "@" not in str(email_muc_tieu):
-                        email_muc_tieu = None
-
-                    thanh_cong, ket_qua_url = create_google_doc_from_docx(
-                        docx_bytes=bytes_word,
-                        doc_title=ten_file_tieu_de,
-                        share_email=email_muc_tieu
-                    )
-                    
-                    if thanh_cong:
-                        st.session_state["gdoc_link"] = ket_qua_url
-                        st.toast("✅ Đã tạo Google Docs thành công!", icon="🌐")
-                    else:
-                        st.error(ket_qua_url)
-
-        if st.session_state.get("gdoc_link"):
-            st.link_button(
-                "👉 Mở bệnh án trên Google Docs",
-                url=st.session_state["gdoc_link"],
-                use_container_width=True
-            )
+        st.markdown("**Mở trực tuyến trên Google Docs:**")
+        st.link_button(
+            "🌐 Mở Google Docs (docs.new)",
+            url="https://docs.google.com/document/u/0/create",
+            use_container_width=True
+        )
+        st.caption("💡 **Cách dùng:** Nhấn nút **Tải Word (.docx)** ở bên trái $\rightarrow$ bấm nút trên để mở Google Docs $\rightarrow$ vào menu **Tệp > Mở > Tải lên (Upload)** file vừa tải về để chỉnh sửa trực tuyến.")
 
     # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
     if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
