@@ -613,10 +613,26 @@ def auto_fill_from_emr_images(image_files):
     Bạn là bác sĩ chuyên khoa đọc hồ sơ bệnh án và kết quả xét nghiệm.
     Nhiệm vụ: Đọc và bóc tách TOÀN BỘ các xét nghiệm có trên trang ảnh này, TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO.
     
-    QUY TẮC:
-    1. Liệt kê TẤT CẢ các chỉ số đo được kèm đơn vị và khoảng tham chiếu.
-    2. Nếu là trang chẩn đoán hình ảnh (Siêu âm, X-quang, CT, MRI, ECG): ghi rõ mô tả và kết luận.
-    3. Tìm ngày xét nghiệm ở cuối trang hoặc dòng 'thời gian lấy mẫu'.
+     QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
+        1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
+        2. Ngày làm xét nghiệm: Tìm kỹ ngày lấy mẫu hoặc ngày ký duyệt phiếu (VD: 12/10/2026).
+        3. Định dạng từng chỉ số số liệu (Quantitative Labs):
+           - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
+           - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
+        4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
+           - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
+        5. Phiên giải (phien_giai):
+           - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
+        - BẮT BUỘC TRÍCH XUẤT 100% CÁC CHỈ SỐ: Không được tự ý tóm tắt, không được chỉ chọn lọc các chỉ số bất thường. Cả chỉ số bình thường lẫn bất thường đều phải được ghi đầy đủ từng dòng.
+        - PHÂN TÁCH TRIỆT ĐỂ TỪNG NHÓM: Bắt buộc tách riêng biệt thành từng khối trong mảng `can_lam_sang`:
+          + Huyết học / Công thức máu
+          + Hóa sinh máu (Ure, Creatinine, Men gan, Glucose, Bilirubin, Protein, Albumin...)
+          + Điện giải đồ (Na, K, Cl, Ca)
+          + Đông máu (PT, APTT, Fibrinogen, INR)
+          + Tổng phân tích nước tiểu (10 thông số)
+          + Khí máu động mạch
+          + Siêu âm (Mỗi vị trí siêu âm là 1 hàng riêng: Siêu âm bụng, Siêu âm tim...)
+          + X-quang / CT-Scanner / MRI / ECG / Nội soi...
 
     TRẢ VỀ DUY NHẤT JSON:
     {
