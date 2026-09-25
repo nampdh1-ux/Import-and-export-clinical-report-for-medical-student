@@ -36,21 +36,13 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
 @st.cache_resource
-def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite", json_mode=False):
-    """Lấy model AI với cấu hình mở rộng token tối đa để không bị cắt bớt dữ liệu."""
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
+    """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
-    
-    config = {
-        "max_output_tokens": 8192,  # Cho phép xuất dữ liệu dài gấp 4 lần mặc định
-        "temperature": 0.1          # Giảm độ sáng tạo để tăng độ chính xác số liệu
-    }
-    if json_mode:
-        config["response_mime_type"] = "application/json"
-        
-    return genai.GenerativeModel(model_name, generation_config=config)
+    return genai.GenerativeModel(model_name)
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
@@ -275,29 +267,20 @@ def check_password():
 if not check_password(): st.stop()
 
 # --- HÀM NÉN VÀ TỐI ƯU ẢNH PHIẾU XÉT NGHIỆM TRƯỚC KHI OCR ---
-from PIL import Image, ImageEnhance
-
-def optimize_lab_image(photo_file, max_dimension=1800, quality=90):
+def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
     try:
         photo_file.seek(0)
         img = Image.open(photo_file)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        
-        # 1. Điều chỉnh kích thước giữ nguyên tỷ lệ
+        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
         width, height = img.size
         if max(width, height) > max_dimension:
-            scale = max_dimension / max(width, height)
-            img = img.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
-        
-        # 2. Tăng độ tương phản để nét mực in mờ đậm lên
-        enhancer_contrast = ImageEnhance.Contrast(img)
-        img = enhancer_contrast.enhance(1.35)
-        
-        # 3. Làm nét ký tự số, dấu chấm phẩy, đơn vị đo
-        enhancer_sharpness = ImageEnhance.Sharpness(img)
-        img = enhancer_sharpness.enhance(1.4)
-        
+            if width > height:
+                new_width = max_dimension
+                new_height = int(height * (max_dimension / width))
+            else:
+                new_height = max_dimension
+                new_width = int(width * (max_dimension / height))
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=quality, optimize=True)
         buffer.seek(0)
@@ -524,160 +507,158 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     return str(ngay_cls_raw).strip()
 
 def auto_fill_from_emr_text(raw_text):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
-    # BƯỚC 1: TRÍCH XUẤT HÀNH CHÍNH & BỆNH SỬ TỪ TOÀN BỘ VĂN BẢN
-    prompt_admin = f"""
-    Trích xuất thông tin hành chính, bệnh sử, sinh hiệu từ hồ sơ bệnh án dưới đây.
-    Chỉ trả về JSON:
+    prompt = f"""
+    Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
+
+    VĂN BẢN EMR THÔ:
+    '''
+    {raw_text}
+    '''
+
+    HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU (RẤT QUAN TRỌNG):
+    - ĐỂ TRÁNH THIẾU SÓT: Hãy lướt tìm TOÀN BỘ các trang/đoạn có chứa từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "PHIẾU XÉT NGHIỆM", "CHỈ SỐ", "KẾT LUẬN". Mọi tờ kết quả phát hiện được đều phải bóc tách đủ.
+    - Trong mỗi phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM (ở dòng 'Thời gian lấy mẫu' hoặc ở cuối trang trước chữ ký bác sĩ, ví dụ: 'Ngày 12 tháng 10 năm 2026').
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Bắt buộc tách riêng biệt từng loại cận lâm sàng sau thành một đối tượng độc lập trong mảng `can_lam_sang`:
+    1. CÔNG THỨC MÁU (Huyết học)
+    2. HÓA SINH MÁU
+    3. ĐÔNG MÁU
+    4. KHÍ MÁU
+    5. ĐIỆN GIẢI ĐỒ
+    6. TỔNG PHÂN TÍCH NƯỚC TIỂU
+    7. SIÊU ÂM (Tách riêng ra từng hàng nếu có nhiều vùng: VD Siêu âm ổ bụng, Siêu âm tim, Siêu âm mạch máu...)
+    8. CT-SCANNER (VD: CT sọ não, CT ổ bụng...)
+    9. X-QUANG (VD: X-quang ngực thẳng, X-quang xương...)
+    10. MRI (Cộng hưởng từ)
+    11. ĐIỆN TÂM ĐỒ (ECG)
+    12. NỘI SOI (VD: Nội soi dạ dày, đại tràng...)
+    13. CÁC XÉT NGHIỆM KHÁC (Vi sinh, Giải phẫu bệnh, Miễn dịch...)
+
+    YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
-        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-        "kham_vao_vien": "Mỗi triệu chứng xuống dòng bắt đầu bằng \\n- ",
-        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": ""
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
+        "gioi_tinh": "Nam hoặc Nữ",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
+        "nghe_nghiep": "",
+        "dia_chi": "",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
+        "ly_do_vao_vien": "Ngắn gọn",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, giống bệnh án, văn xuôi, không gạch đầu dòng",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
+        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
+        "sh_ha": "Huyết áp (VD: 120/80)",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
+        "can_lam_sang": [
+            {{
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC, CT, MRI, ECG...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây, không lược bớt.",
+                "cac_lan_xet_nghiem": [
+                    {{
+                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026)",
+                        "chi_so": "Với Xét nghiệm số liệu (Số 1-6), liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
+                    }}
+                ],
+                "phien_giai": "Đánh giá các chỉ số bất thường hoặc ý nghĩa của hình ảnh đối với chẩn đoán hiện tại."
+            }}
+        ]
     }}
-    Văn bản:
-    {raw_text[:4000]}
+
+    QUY TẮC:
+    1. Không tự bịa thông tin. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong markdown (```json).
     """
     try:
-        resp_admin = model.generate_content(prompt_admin)
-        clean_admin = resp_admin.text.strip().replace("```json", "").replace("```", "")
-        final_data = json.loads(clean_admin)
-        final_data["can_lam_sang"] = []
-    except Exception:
-        final_data = {
-            "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
-            "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-            "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
-            "can_lam_sang": []
-        }
+        response = model.generate_content(prompt)
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
 
-    # BƯỚC 2: PYTHON TỰ ĐỘNG CẮT HỒ SƠ THÀNH TỪNG PHIẾU DỰA VÀO CHỮ KÝ BÁC SĨ
-    # Mẫu tìm các mỏ neo chữ ký ở chân phiếu
-    split_pattern = r'(?i)(?:Hà Nội,|ngày\s*\d{1,2}\s*tháng\s*\d{1,2}\s*năm\s*\d{4}[\s\S]{0,100}?(?:BÁC SĨ CHUYÊN KHOA|BÁC SĨ ĐIỀU TRỊ|KỸ THUẬT VIÊN|TRƯỞNG KHOA))'
-    
-    # Cắt văn bản thành các block nhỏ kết thúc bằng chữ ký
-    raw_blocks = re.split(split_pattern, raw_text)
-    
-    # Lấy danh sách các chữ ký tương ứng
-    signatures = re.findall(split_pattern, raw_text)
-    
-    # Ghép lại thành các phiếu hoàn chỉnh
-    lab_chunks = []
-    for i in range(len(signatures)):
-        chunk_content = raw_blocks[i] + "\n" + signatures[i]
-        # Chỉ lấy những đoạn thực sự có chứa bảng kết quả xét nghiệm
-        if any(kw in chunk_content.upper() for kw in ["KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "KHOẢNG THAM CHIẾU", "SIÊU ÂM", "X-QUANG", "CT-SCANNER"]):
-            lab_chunks.append(chunk_content[-2500:]) # Lấy tối đa 2500 ký tự trước chữ ký
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
 
-    # Nếu không tìm thấy bằng regex, fallback về toàn bộ văn bản
-    if not lab_chunks:
-        lab_chunks = [raw_text]
-
-    # BƯỚC 3: XỬ LÝ ĐỘC LẬP TỪNG PHIẾU XÉT NGHIỆM (ĐẢM BẢO KHÔNG SÓT)
-    prompt_extract_single_chunk = """
-    Bạn là bác sĩ chuyên khoa xét nghiệm. Hãy trích xuất TOÀN BỘ các chỉ số có trong phiếu xét nghiệm này, không được bỏ sót dòng nào.
-    Trả về định dạng JSON:
-    [
-        {{
-            "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG...)",
-            "cac_lan_xet_nghiem": [
-                {{
-                    "ngay_cls": "Ngày ở dòng ngày tháng trên chữ ký Bác sĩ (dd/mm/yyyy)",
-                    "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
-                }}
-            ],
-            "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa bệnh lý"
-        }}
-    ]
-    Phiếu xét nghiệm:
-    {chunk}
-    """
-
-    for chunk in lab_chunks:
-        try:
-            resp_chunk = model.generate_content(prompt_extract_single_chunk.format(chunk=chunk))
-            clean_chunk = resp_chunk.text.strip().replace("```json", "").replace("```", "")
-            chunk_data = json.loads(clean_chunk)
-            if isinstance(chunk_data, list):
-                final_data["can_lam_sang"].extend(chunk_data)
-            elif isinstance(chunk_data, dict):
-                final_data["can_lam_sang"].append(chunk_data)
-        except Exception:
-            continue
-
-    return True, final_data
 def auto_fill_from_emr_images(image_files):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
-    combined_result = {
+    processed_images = []
+    for photo in image_files:
+        try:
+            img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
+            processed_images.append(img_optimized)
+        except Exception:
+            pass
+
+    if not processed_images:
+        return False, "❌ Không thể xử lý được các file ảnh đã tải lên."
+
+    prompt_ocr = """
+    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
+    ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - TÌM KIẾM CHỐNG BỎ SÓT: Quét toàn bộ các trang để tìm các từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "CHỈ SỐ", "KẾT LUẬN". Đảm bảo TẤT CẢ các tờ cận lâm sàng đều được bóc tách.
+    - Tìm ngày vào viện ở trang bìa/hành chính.
+    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Tách riêng biệt từng loại xét nghiệm/hình ảnh thành các đối tượng độc lập trong mảng "can_lam_sang":
+    1. Công thức máu
+    2. Hóa sinh máu
+    3. Đông máu
+    4. Khí máu
+    5. Điện giải đồ
+    6. Siêu âm (Ghi rõ Siêu âm ổ bụng, Siêu âm tim...)
+    7. CT-Scanner
+    8. X-quang
+    9. MRI
+    10. Điện tâm đồ (ECG)
+    11. Nội soi
+
+    Trả về đúng định dạng JSON:
+    {
         "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
         "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-        "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
-        "can_lam_sang": []
-    }
-
-    # Prompt bắt buộc AI đếm từng cụm chữ ký để tách thành từng phiếu riêng
-    prompt_page_ocr = """
-    Bạn là bác sĩ chuyên đọc hồ sơ bệnh án và phiếu cận lâm sàng qua ảnh chụp.
-    Nhiệm vụ: Quét TOÀN BỘ các chữ ký 'Bác sĩ chuyên khoa' / 'Kỹ thuật viên' và dòng ngày tháng trên ảnh này.
-    
-    QUY TẮC BẮT BUỘC:
-    1. Nếu trên ảnh có nhiều chữ ký khác nhau (ví dụ: phiếu Huyết học riêng, phiếu Sinh hóa riêng), bạn PHẢI TÁCH THÀNH CÁC ĐỐI TƯỢNG ĐỘC LẬP trong mảng `can_lam_sang`.
-    2. Trích xuất đủ 100% tất cả các dòng chỉ số nằm phía trên mỗi chữ ký. Tuyệt đối không tự ý tóm tắt, không bỏ sót bất kỳ dòng xét nghiệm nào.
-    3. Lấy chính xác ngày làm xét nghiệm từ dòng 'ngày... tháng... năm...' ngay trên chữ ký bác sĩ.
-
-    TRẢ VỀ DUY NHẤT JSON:
-    {
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "ngay_vao_vien": "",
-        "ly_do_vao_vien": "", "benh_su": "", "kham_vao_vien": "",
+        "kham_vao_vien": "Mỗi triệu chứng bắt đầu bằng \\n- ",
         "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ten_nhom": "Tên nhóm xét nghiệm phía trên chữ ký",
+                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG)",
+                "ket_qua": "Liệt kê toàn bộ chỉ số xét nghiệm hoặc mô tả kết luận hình ảnh nếu không phân tích theo từng ngày",
                 "cac_lan_xet_nghiem": [
                     {
-                        "ngay_cls": "Ngày tháng trên chữ ký (dd/mm/yyyy)",
-                        "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: Giá trị đơn vị..."
+                        "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
+                        "chi_so": "Liệt kê các chỉ số kèm nồng độ, đơn vị và khoảng tham chiếu, mỗi chỉ số xuống dòng bằng \\n- "
                     }
                 ],
-                "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa chẩn đoán"
+                "phien_giai": "Nhận xét bất thường và ý nghĩa bệnh lý"
             }
         ]
     }
+    Chỉ trả về chuỗi JSON thuần túy, không có markdown.
     """
+    try:
+        contents = [prompt_ocr] + processed_images
+        response = model.generate_content(contents)
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
 
-    for photo in image_files:
-        try:
-            img_optimized = optimize_lab_image(photo, max_dimension=1800, quality=90)
-            response = model.generate_content([prompt_page_ocr, img_optimized])
-            clean_res = response.text.strip().replace("```json", "").replace("```", "")
-            page_data = json.loads(clean_res)
-
-            # Gộp thông tin hành chính từ trang xuất hiện đầu tiên
-            for field in ["ho_ten", "tuoi", "gioi_tinh", "khoa_phong", "ngay_vao_vien", "ly_do_vao_vien", "benh_su", "kham_vao_vien"]:
-                if page_data.get(field) and not combined_result[field]:
-                    combined_result[field] = page_data[field]
-            
-            for sh_f in ["sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho", "sh_can_nang"]:
-                if page_data.get(sh_f) and not combined_result[sh_f]:
-                    combined_result[sh_f] = page_data[sh_f]
-
-            # Gom tất cả các phiếu xét nghiệm tìm được vào danh sách tổng
-            page_cls = page_data.get("can_lam_sang", [])
-            if isinstance(page_cls, list) and len(page_cls) > 0:
-                combined_result["can_lam_sang"].extend(page_cls)
-        except Exception:
-            continue
-
-    if not combined_result["can_lam_sang"] and not combined_result["ho_ten"]:
-        return False, "❌ Không thể trích xuất được dữ liệu từ các trang ảnh đã tải lên."
-
-    return True, combined_result
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
 
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
@@ -2227,7 +2208,7 @@ def ui_cls(num_dx, num_kq):
             btn_ocr = st.button("⚡ Phân tích tất cả ảnh", type="primary", use_container_width=True, key="btn_ocr_lab_batch")
 
         if btn_ocr and lab_photos:
-            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite", json_mode=True)
+            vision_model = get_feature_model("KEY_OCR", "gemini-3.1-flash-lite")
             if not vision_model:
                 st.error("⚠️ Hệ thống chưa được cấu hình API Key!")
             else:
@@ -2271,16 +2252,13 @@ def ui_cls(num_dx, num_kq):
                         resp = vision_model.generate_content([ocr_prompt, img_input])
                         raw_text = resp.text.strip()
                         
-                        # Nạp dữ liệu JSON an toàn tuyệt đối
-                        clean_json_str = raw_text.strip()
-                        if clean_json_str.startswith("```json"):
-                            clean_json_str = clean_json_str[7:]
-                        elif clean_json_str.startswith("```"):
-                            clean_json_str = clean_json_str[3:]
-                        if clean_json_str.endswith("```"):
-                            clean_json_str = clean_json_str[:-3]
+                        # Làm sạch chuỗi JSON nếu có code block markdown
+                        if "```json" in raw_text:
+                            raw_text = raw_text.split("```json")[1].split("```")[0]
+                        elif "```" in raw_text:
+                            raw_text = raw_text.split("```")[1].split("```")[0]
 
-                        lab_data = json.loads(clean_json_str.strip())
+                        lab_data = json.loads(raw_text.strip())
                         if isinstance(lab_data, dict):
                             # Dự phòng bắt nhiều biến thể tên trường của khóa ket_qua
                             raw_kq = (
