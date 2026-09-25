@@ -1,3 +1,4 @@
+import requests
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -1173,8 +1174,8 @@ def export_docx(data):
             run.font.color.rgb = RGBColor(180, 0, 0)
 def create_google_doc_from_docx(docx_bytes, doc_title, share_email=None):
     """
-    Gửi dữ liệu DOCX qua Apps Script Webhook để tạo Google Doc 
-    bằng chính tài khoản Google của bạn (tránh lỗi quota bot 403).
+    Gửi dữ liệu DOCX qua Apps Script Webhook để tạo Google Doc.
+    Tự động chuẩn hóa dữ liệu đầu vào sang bytes hợp lệ.
     """
     webhook_url = st.secrets.get("GDRIVE_WEBHOOK_URL")
     folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
@@ -1182,15 +1183,21 @@ def create_google_doc_from_docx(docx_bytes, doc_title, share_email=None):
     if not webhook_url:
         return False, "⚠️ Chưa cấu hình 'GDRIVE_WEBHOOK_URL' trong Secrets!"
 
+    # Chuẩn hóa ép kiểu đầu vào sang bytes
+    if hasattr(docx_bytes, "getvalue"):  # Trường hợp là io.BytesIO
+        raw_bytes = docx_bytes.getvalue()
+    elif isinstance(docx_bytes, bytes):
+        raw_bytes = docx_bytes
+    else:
+        return False, f"⚠️ Dữ liệu file không hợp lệ (kiểu: {type(docx_bytes)}). Vui lòng thử bấm tạo lại file Word!"
+
     try:
-        # Đóng gói dữ liệu dạng JSON gửi sang Apps Script
         payload = {
             "title": doc_title,
             "folder_id": folder_id,
-            "file_base64": base64.b64encode(docx_bytes).decode("utf-8")
+            "file_base64": base64.b64encode(raw_bytes).decode("utf-8")
         }
 
-        # Google Apps Script chuyển đổi tệp có thể mất 5-15 giây
         response = requests.post(webhook_url, json=payload, timeout=45)
         
         if response.status_code != 200:
@@ -3189,10 +3196,9 @@ with tab2:
                 st.error("Vui lòng điền tối thiểu Họ và tên người bệnh!")
             else:
                 with st.spinner("Đang tạo tài liệu trên Google Docs..."):
-                    bytes_word = st.session_state.get("docx_bytes_data")
-                    if not bytes_word:
-                        bytes_word = export_docx(data_benh_an)
-                        st.session_state["docx_bytes_data"] = bytes_word
+                    # Luôn gọi hàm export_docx để đảm bảo nhận về bytes mới nhất
+                    bytes_word = export_docx(data_benh_an)
+                    st.session_state["docx_bytes_data"] = bytes_word
                     
                     ten_file_tieu_de = f"Bệnh án {loai_benh_an} - {ho_ten_val} - {datetime.now().strftime('%d/%m/%Y %H:%M')}"
                     email_muc_tieu = st.session_state.get("logged_in_user")
