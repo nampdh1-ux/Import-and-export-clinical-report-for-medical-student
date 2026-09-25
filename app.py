@@ -35,6 +35,7 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # ==============================================================================
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
+@st.cache_resource
 def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
     """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
