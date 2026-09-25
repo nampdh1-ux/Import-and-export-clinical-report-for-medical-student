@@ -60,6 +60,8 @@ def send_otp_email(target_email, otp_code):
     if not (sender_mail and sender_pass):
         st.error("⚠️ Hệ thống chưa cấu hình SENDER_EMAIL hoặc SENDER_APP_PASSWORD trong Secrets!")
         return False
+    
+    server = None
     try:
         msg = MIMEMultipart()
         msg['From'] = sender_mail
@@ -71,17 +73,24 @@ def send_otp_email(target_email, otp_code):
         server.starttls()
         server.login(sender_mail, sender_pass)
         server.send_message(msg)
-        server.quit()
         return True
     except Exception as e:
         st.error(f"Lỗi kết nối gửi email xác thực: {e}")
         return False
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
 
 def send_login_notification(user_email):
     admin_mail = st.secrets.get("ADMIN_EMAIL")
     sender_mail = st.secrets.get("SENDER_EMAIL")
     sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
     if not (admin_mail and sender_mail and sender_pass): return
+    
+    server = None
     try:
         msg = MIMEMultipart()
         msg['From'] = sender_mail
@@ -94,9 +103,14 @@ def send_login_notification(user_email):
         server.starttls()
         server.login(sender_mail, sender_pass)
         server.send_message(msg)
-        server.quit()
     except Exception:
         pass
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
 
 def send_draft_email(target_email, draft_json, filename):
     sender_mail = st.secrets.get("SENDER_EMAIL")
@@ -301,9 +315,39 @@ FIELDS_TO_SAVE = [
 ]
 
 def load_draft_to_session(loaded_ls):
-    if "so_hang_cls" in loaded_ls: st.session_state["so_hang_cls"] = int(loaded_ls["so_hang_cls"])
+    # Tự động quét để tìm số lượng hàng cận lâm sàng (CLS) thực tế trong file
+    detected_cls_rows = 1
+    for k in loaded_ls.keys():
+        if k.startswith("cls_kq_"):
+            try:
+                idx = int(k.replace("cls_kq_", ""))
+                detected_cls_rows = max(detected_cls_rows, idx + 1)
+            except ValueError:
+                pass
+    st.session_state["so_hang_cls"] = int(loaded_ls.get("so_hang_cls", detected_cls_rows))
+
     for k in FIELDS_TO_SAVE:
         if k in loaded_ls: st.session_state[k] = loaded_ls[k]
+        
+    # Đảm bảo ô bs_trong_mo luôn có mẫu nếu bản nháp lưu chuỗi rỗng
+    mau_5_dong = (
+        "- Hình thức mổ: Mổ phiên / Mổ cấp cứu\n"
+        "- Phương pháp mổ: \n"
+        "- Phương pháp gây mê: \n"
+        "- Quá trình mổ: Không có biến chứng\n"
+        "- Chẩn đoán sau mổ: "
+    )
+    if not str(st.session_state.get("bs_trong_mo", "")).strip():
+        st.session_state["bs_trong_mo"] = mau_5_dong
+    try: st.session_state["tuoi"] = int(loaded_ls.get("tuoi", 45))
+    except (ValueError, TypeError): st.session_state["tuoi"] = 45
+    try: st.session_state["sh_can_nang"] = float(loaded_ls.get("sh_can_nang") or 0.0)
+    except (ValueError, TypeError): st.session_state["sh_can_nang"] = 0.0
+    try: st.session_state["sh_chieu_cao"] = float(loaded_ls.get("sh_chieu_cao") or 0.0)
+    except (ValueError, TypeError): st.session_state["sh_chieu_cao"] = 0.0
+    for i in range(st.session_state["so_hang_cls"]):
+        if f"cls_kq_{i}" in loaded_ls: st.session_state[f"cls_kq_{i}"] = loaded_ls[f"cls_kq_{i}"]
+        if f"cls_pg_{i}" in loaded_ls: st.session_state[f"cls_pg_{i}"] = loaded_ls[f"cls_pg_{i}"]
         
     # Đảm bảo ô bs_trong_mo luôn có mẫu nếu bản nháp lưu chuỗi rỗng
     mau_5_dong = (
@@ -1677,11 +1721,22 @@ with st.sidebar:
             st.error("Vui lòng nhập địa chỉ email hợp lệ.")
         else:
             with st.spinner("Đang gửi bản nháp qua email..."):
-                sent, error_message = send_draft_email(draft_email, json_string, draft_filename)
+                # Gom dữ liệu để tạo JSON động tại thời điểm bấm nút
+                draft_data = {k: st.session_state.get(k, "") for k in FIELDS_TO_SAVE}
+                for i in range(st.session_state.get("so_hang_cls", 1)):
+                    draft_data[f"cls_kq_{i}"] = st.session_state.get(f"cls_kq_{i}", "")
+                    draft_data[f"cls_pg_{i}"] = st.session_state.get(f"cls_pg_{i}", "")
+                
+                json_payload = json.dumps(draft_data, ensure_ascii=False, indent=2)
+                ten_bn = str(st.session_state.get("ho_ten", "chua_dat_ten")).strip().replace(" ", "_")
+                if not ten_bn: ten_bn = "chua_dat_ten"
+                draft_filename = f"Ban_nhap_{ten_bn}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+                
+                sent, error_message = send_draft_email(draft_email, json_payload, draft_filename)
             if sent:
                 st.success(f"Đã gửi bản nháp đến {draft_email}.")
             else:
-                st.error(error_message)    
+                st.error(error_message)  
 
     if st.session_state.get("password_correct") and not st.session_state.get("is_admin"):
         st.markdown("---")
@@ -1704,8 +1759,10 @@ loai_benh_an = st.selectbox(
 )
 initialize_postop_widgets(loai_benh_an)
 
-# Khai báo Dictionary lưu trữ ảnh toàn cục
-uploaded_imgs = {}
+# Khai báo Dictionary lưu trữ ảnh toàn cục (Đưa vào session_state để không bị mất khi rerun)
+if "uploaded_imgs" not in st.session_state:
+    st.session_state["uploaded_imgs"] = {}
+uploaded_imgs = st.session_state["uploaded_imgs"]
 
 
 # CÁC HÀM UI RỜI RẠC DÙNG CHUNG (Để hoán đổi vị trí)
