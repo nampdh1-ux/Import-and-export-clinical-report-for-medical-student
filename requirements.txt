@@ -9,3 +9,4 @@ mammoth
 pypdf
 google-api-python-client
 google-auth
+requests
