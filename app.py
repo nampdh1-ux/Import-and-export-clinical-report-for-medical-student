@@ -1251,7 +1251,7 @@ def export_docx(data):
         f"Khoa / Phòng: {data.get('khoa_phong', '')}",
         f"Địa chỉ: {data.get('dia_chi', '')}",
         f"Ngày giờ vào viện: {data.get('ngay_vao_vien', '')}",
-        f"Bác sĩ / Sinh viên thực hiện: {data.get('sinh_vien', '')}"
+        f"Sinh viên làm bệnh án: {data.get('sinh_vien', '')}"
     ]
     for line in hc_lines:
         p = doc.add_paragraph(style='List Bullet')
