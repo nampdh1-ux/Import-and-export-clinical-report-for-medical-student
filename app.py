@@ -1149,7 +1149,20 @@ def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
         node.set(qn('w:type'), 'dxa')
         tcMar.append(node)
     tcPr.append(tcMar)
-
+def set_table_borders(table, color="B0C4DE", sz="4", val="single"):
+    """Thiết lập viền bao quanh ngoài và các đường kẻ phân cách bên trong bảng Word."""
+    tblPr = table._tbl.tblPr
+    borders = parse_xml(
+        f'<w:tblBorders {nsdecls("w")}>'
+        f'  <w:top w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:left w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:bottom w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:right w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:insideH w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:insideV w:val="{val}" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'</w:tblBorders>'
+    )
+    tblPr.append(borders)
 def export_docx(data):
     doc = Document()
     
@@ -1331,6 +1344,7 @@ def export_docx(data):
     tbl_sh = doc.add_table(rows=2, cols=4)
     tbl_sh.alignment = WD_TABLE_ALIGNMENT.CENTER
     tbl_sh.autofit = False
+    set_table_borders(tbl_sh, color="B0C4DE", sz="4")
 
     sh_data = [
         [f"Mạch: {mach_val} ck/p", f"Nhiệt độ: {nhiet_val} °C", f"Huyết áp: {ha_val} mmHg", f"Nhịp thở: {nt_val} l/p"],
@@ -1447,6 +1461,7 @@ def export_docx(data):
     else:
         table_cls = doc.add_table(rows=1, cols=2)
         table_cls.alignment = WD_TABLE_ALIGNMENT.CENTER
+        set_table_borders(table_cls, color="A0AEC0", sz="4")
         hdr_cells = table_cls.rows[0].cells
         hdr_cells[0].text = "KẾT QUẢ CẬN LÂM SÀNG"
         hdr_cells[1].text = "PHIÊN GIẢI / BIỆN GIẢI"
@@ -1482,6 +1497,7 @@ def export_docx(data):
                     nb_cols = len(trend_data["dates"]) + 1
                     sub_tbl = cell_left.add_table(rows=len(trend_data["rows"]) + 1, cols=nb_cols)
                     sub_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+                    set_table_borders(sub_tbl, color="CBD5E1", sz="4")
                     
                     # Header bảng con
                     sub_hdr = sub_tbl.rows[0].cells
