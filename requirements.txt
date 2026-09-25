@@ -7,3 +7,5 @@ streamlit-pdf-viewer
 Pillow
 mammoth
 pypdf
+google-api-python-client
+google-auth
