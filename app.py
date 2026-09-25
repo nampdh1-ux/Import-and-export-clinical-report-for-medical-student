@@ -528,76 +528,87 @@ def auto_fill_from_emr_text(raw_text):
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
-    prompt = f"""
-    Bạn là một bác sĩ kiêm chuyên gia phân tích dữ liệu bệnh án điện tử (EMR).
-    Nhiệm vụ: Trích xuất toàn bộ dữ liệu từ văn bản thô dưới đây vào định dạng JSON y khoa chuẩn xác.
-
-    VĂN BẢN EMR THÔ:
-    '''
-    {raw_text}
-    '''
-
-    QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
-    - NGUYÊN TẮC QUÉT CHỐNG BỎ SÓT DỰA VÀO CHỮ KÝ: Trong hồ sơ bệnh án, mỗi phiếu kết quả xét nghiệm/cận lâm sàng đều kết thúc bằng cụm từ "Bác sĩ chuyên khoa" (hoặc "Kỹ thuật viên", "Bác sĩ điều trị", "Trưởng khoa") kèm theo dòng địa điểm thời gian "ngày... tháng... năm...". Cứ mỗi khi xuất hiện một chữ ký/Bác sĩ chuyên khoa tương ứng, bắt buộc phải bóc tách toàn bộ bảng chỉ số hoặc kết luận hình ảnh nằm phía trên chữ ký đó thành một phiếu riêng biệt.
-    1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
-    2. Ngày làm xét nghiệm: Lấy chính xác từ dòng địa điểm, ngày tháng năm nằm ngay phía trên/bên cạnh chữ ký "Bác sĩ chuyên khoa" ở chân phiếu (VD: Hà Nội, ngày 12 tháng 10 năm 2026 -> 12/10/2026).
-    3. Định dạng từng chỉ số số liệu (Quantitative Labs):
-       - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
-       - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
-    4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
-       - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
-    5. Phiên giải (phien_giai):
-       - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
-    - BẮT BUỘC TRÍCH XUẤT 100% CÁC CHỈ SỐ: Không được tự ý tóm tắt, không được chỉ chọn lọc các chỉ số bất thường. Cả chỉ số bình thường lẫn bất thường đều phải được ghi đầy đủ từng dòng.
-    - PHÂN TÁCH TRIỆT ĐỂ TỪNG NHÓM: Bắt buộc tách riêng biệt thành từng khối trong mảng `can_lam_sang`:
-      + Huyết học / Công thức máu
-      + Hóa sinh máu (Ure, Creatinine, Men gan, Glucose, Bilirubin, Protein, Albumin...)
-      + Điện giải đồ (Na, K, Cl, Ca)
-      + Đông máu (PT, APTT, Fibrinogen, INR)
-      + Tổng phân tích nước tiểu (10 thông số)
-      + Khí máu động mạch
-      + Siêu âm (Mỗi vị trí siêu âm là 1 hàng riêng: Siêu âm bụng, Siêu âm tim...)
-      + X-quang / CT-Scanner / MRI / ECG / Nội soi
-    TRẢ VỀ DUY NHẤT CHUỖI JSON THEO CẤU TRÚC:
+    # BƯỚC 1: TRÍCH XUẤT HÀNH CHÍNH & BỆNH SỬ TỪ TOÀN BỘ VĂN BẢN
+    prompt_admin = f"""
+    Trích xuất thông tin hành chính, bệnh sử, sinh hiệu từ hồ sơ bệnh án dưới đây.
+    Chỉ trả về JSON:
     {{
-        "ho_ten": "Họ và tên bệnh nhân (In hoa chữ cái đầu)",
-        "tuoi": "Chỉ lấy số",
-        "gioi_tinh": "Nam hoặc Nữ",
-        "khoa_phong": "Khoa điều trị",
-        "nghe_nghiep": "",
-        "dia_chi": "",
-        "ngay_vao_vien": "dd/mm/yyyy hh:mm",
-        "ly_do_vao_vien": "Ngắn gọn",
-        "benh_su": "Văn xuôi liền mạch theo trình tự thời gian",
-        "ts_noi_khoa": "Tiền sử nội khoa",
-        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
-        "sh_mach": "Chỉ số",
-        "sh_nhiet_do": "Chỉ số",
-        "sh_ha": "Huyết áp (VD: 120/80)",
-        "sh_nhip_tho": "Chỉ số",
-        "sh_can_nang": "Chỉ số",
+        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
+        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
         "kham_vao_vien": "Mỗi triệu chứng xuống dòng bắt đầu bằng \\n- ",
-        "can_lam_sang": [
-            {{
-                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG...)",
-                "cac_lan_xet_nghiem": [
-                    {{
-                        "ngay_cls": "dd/mm/yyyy",
-                        "chi_so": "- Chỉ số 1: Giá trị đơn vị (Tham chiếu)\\n- Chỉ số 2: Giá trị đơn vị..."
-                    }}
-                ],
-                "phien_giai": "Đánh giá cụ thể chỉ số tăng/giảm và ý nghĩa chẩn đoán"
-            }}
-        ]
+        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": ""
     }}
+    Văn bản:
+    {raw_text[:4000]}
     """
     try:
-        response = model.generate_content(prompt)
-        parsed_data = json.loads(response.text.strip())
-        return True, parsed_data
-    except Exception as e:
-        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
+        resp_admin = model.generate_content(prompt_admin)
+        clean_admin = resp_admin.text.strip().replace("```json", "").replace("```", "")
+        final_data = json.loads(clean_admin)
+        final_data["can_lam_sang"] = []
+    except Exception:
+        final_data = {
+            "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
+            "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
+            "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
+            "can_lam_sang": []
+        }
 
+    # BƯỚC 2: PYTHON TỰ ĐỘNG CẮT HỒ SƠ THÀNH TỪNG PHIẾU DỰA VÀO CHỮ KÝ BÁC SĨ
+    # Mẫu tìm các mỏ neo chữ ký ở chân phiếu
+    split_pattern = r'(?i)(?:Hà Nội,|ngày\s*\d{1,2}\s*tháng\s*\d{1,2}\s*năm\s*\d{4}[\s\S]{0,100}?(?:BÁC SĨ CHUYÊN KHOA|BÁC SĨ ĐIỀU TRỊ|KỸ THUẬT VIÊN|TRƯỞNG KHOA))'
+    
+    # Cắt văn bản thành các block nhỏ kết thúc bằng chữ ký
+    raw_blocks = re.split(split_pattern, raw_text)
+    
+    # Lấy danh sách các chữ ký tương ứng
+    signatures = re.findall(split_pattern, raw_text)
+    
+    # Ghép lại thành các phiếu hoàn chỉnh
+    lab_chunks = []
+    for i in range(len(signatures)):
+        chunk_content = raw_blocks[i] + "\n" + signatures[i]
+        # Chỉ lấy những đoạn thực sự có chứa bảng kết quả xét nghiệm
+        if any(kw in chunk_content.upper() for kw in ["KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "KHOẢNG THAM CHIẾU", "SIÊU ÂM", "X-QUANG", "CT-SCANNER"]):
+            lab_chunks.append(chunk_content[-2500:]) # Lấy tối đa 2500 ký tự trước chữ ký
+
+    # Nếu không tìm thấy bằng regex, fallback về toàn bộ văn bản
+    if not lab_chunks:
+        lab_chunks = [raw_text]
+
+    # BƯỚC 3: XỬ LÝ ĐỘC LẬP TỪNG PHIẾU XÉT NGHIỆM (ĐẢM BẢO KHÔNG SÓT)
+    prompt_extract_single_chunk = """
+    Bạn là bác sĩ chuyên khoa xét nghiệm. Hãy trích xuất TOÀN BỘ các chỉ số có trong phiếu xét nghiệm này, không được bỏ sót dòng nào.
+    Trả về định dạng JSON:
+    [
+        {{
+            "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG...)",
+            "cac_lan_xet_nghiem": [
+                {{
+                    "ngay_cls": "Ngày ở dòng ngày tháng trên chữ ký Bác sĩ (dd/mm/yyyy)",
+                    "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
+                }}
+            ],
+            "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa bệnh lý"
+        }}
+    ]
+    Phiếu xét nghiệm:
+    {chunk}
+    """
+
+    for chunk in lab_chunks:
+        try:
+            resp_chunk = model.generate_content(prompt_extract_single_chunk.format(chunk=chunk))
+            clean_chunk = resp_chunk.text.strip().replace("```json", "").replace("```", "")
+            chunk_data = json.loads(clean_chunk)
+            if isinstance(chunk_data, list):
+                final_data["can_lam_sang"].extend(chunk_data)
+            elif isinstance(chunk_data, dict):
+                final_data["can_lam_sang"].append(chunk_data)
+        except Exception:
+            continue
+
+    return True, final_data
 def auto_fill_from_emr_images(image_files):
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
     if not model:
@@ -610,31 +621,15 @@ def auto_fill_from_emr_images(image_files):
         "can_lam_sang": []
     }
 
+    # Prompt bắt buộc AI đếm từng cụm chữ ký để tách thành từng phiếu riêng
     prompt_page_ocr = """
-    Bạn là bác sĩ chuyên khoa đọc hồ sơ bệnh án và kết quả xét nghiệm.
-    Nhiệm vụ: Đọc và bóc tách TOÀN BỘ các xét nghiệm có trên trang ảnh này, TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO.
+    Bạn là bác sĩ chuyên đọc hồ sơ bệnh án và phiếu cận lâm sàng qua ảnh chụp.
+    Nhiệm vụ: Quét TOÀN BỘ các chữ ký 'Bác sĩ chuyên khoa' / 'Kỹ thuật viên' và dòng ngày tháng trên ảnh này.
     
-    QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
-        - NGUYÊN TẮC QUÉT CHỐNG BỎ SÓT DỰA VÀO CHỮ KÝ: Quan sát chân trang/góc dưới phải để tìm dòng chữ ký "Bác sĩ chuyên khoa" (hoặc "Kỹ thuật viên", "Bác sĩ điều trị") và dòng địa điểm thời gian "ngày... tháng... năm...". Cứ mỗi khi thấy một chữ ký Bác sĩ chuyên khoa, bắt buộc phải trích xuất đầy đủ toàn bộ bảng chỉ số xét nghiệm hoặc mô tả/kết luận hình ảnh nằm phía trên chữ ký đó.
-        1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
-        2. Ngày làm xét nghiệm: Lấy chính xác từ dòng địa điểm, ngày tháng năm nằm ngay phía trên/bên cạnh chữ ký "Bác sĩ chuyên khoa" ở chân phiếu (VD: Hà Nội, ngày 12 tháng 10 năm 2026 -> 12/10/2026).
-        3. Định dạng từng chỉ số số liệu (Quantitative Labs):
-           - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
-           - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
-        4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
-           - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
-        5. Phiên giải (phien_giai):
-           - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
-        - BẮT BUỘC TRÍCH XUẤT 100% CÁC CHỈ SỐ: Không được tự ý tóm tắt, không được chỉ chọn lọc các chỉ số bất thường. Cả chỉ số bình thường lẫn bất thường đều phải được ghi đầy đủ từng dòng.
-        - PHÂN TÁCH TRIỆT ĐỂ TỪNG NHÓM: Bắt buộc tách riêng biệt thành từng khối trong mảng `can_lam_sang`:
-          + Huyết học / Công thức máu
-          + Hóa sinh máu (Ure, Creatinine, Men gan, Glucose, Bilirubin, Protein, Albumin...)
-          + Điện giải đồ (Na, K, Cl, Ca)
-          + Đông máu (PT, APTT, Fibrinogen, INR)
-          + Tổng phân tích nước tiểu (10 thông số)
-          + Khí máu động mạch
-          + Siêu âm (Mỗi vị trí siêu âm là 1 hàng riêng: Siêu âm bụng, Siêu âm tim...)
-          + X-quang / CT-Scanner / MRI / ECG / Nội soi...
+    QUY TẮC BẮT BUỘC:
+    1. Nếu trên ảnh có nhiều chữ ký khác nhau (ví dụ: phiếu Huyết học riêng, phiếu Sinh hóa riêng), bạn PHẢI TÁCH THÀNH CÁC ĐỐI TƯỢNG ĐỘC LẬP trong mảng `can_lam_sang`.
+    2. Trích xuất đủ 100% tất cả các dòng chỉ số nằm phía trên mỗi chữ ký. Tuyệt đối không tự ý tóm tắt, không bỏ sót bất kỳ dòng xét nghiệm nào.
+    3. Lấy chính xác ngày làm xét nghiệm từ dòng 'ngày... tháng... năm...' ngay trên chữ ký bác sĩ.
 
     TRẢ VỀ DUY NHẤT JSON:
     {
@@ -643,89 +638,27 @@ def auto_fill_from_emr_images(image_files):
         "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ten_nhom": "Tên loại (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, NƯỚC TIỂU, SIÊU ÂM...)",
+                "ten_nhom": "Tên nhóm xét nghiệm phía trên chữ ký",
                 "cac_lan_xet_nghiem": [
                     {
-                        "ngay_cls": "dd/mm/yyyy",
-                        "chi_so": "- Tên chỉ số 1: Kết quả [Đơn vị] (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
+                        "ngay_cls": "Ngày tháng trên chữ ký (dd/mm/yyyy)",
+                        "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: Giá trị đơn vị..."
                     }
                 ],
-                "phien_giai": "Đánh giá các chỉ số tăng/giảm bất thường và ý nghĩa"
-            }
-        ]
-    }
-    """
-    try:
-        response = model.generate_content(prompt)
-        parsed_data = json.loads(response.text.strip())
-        return True, parsed_data
-    except Exception as e:
-        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
-
-def auto_fill_from_emr_images(image_files):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
-    if not model:
-        return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
-
-    combined_result = {
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
-        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-        "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
-        "can_lam_sang": []
-    }
-
-    prompt_page_ocr = """
-    Bạn là bác sĩ chuyên khoa đọc hồ sơ bệnh án và kết quả xét nghiệm.
-    Nhiệm vụ: Đọc và bóc tách TOÀN BỘ các xét nghiệm có trên trang ảnh này, TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO.
-    
-     QUY TẮC BÓC TÁCH CẬN LÂM SÀNG BẮT BUỘC:
-        1. Quét toàn bộ văn bản để không bỏ sót bất kỳ tờ phiếu nào chứa từ khóa "KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG", "CT-SCANNER".
-        2. Ngày làm xét nghiệm: Tìm kỹ ngày lấy mẫu hoặc ngày ký duyệt phiếu (VD: 12/10/2026).
-        3. Định dạng từng chỉ số số liệu (Quantitative Labs):
-           - Ghi rõ: "- [Tên chỉ số]: [Giá trị] [Đơn vị] (Khoảng tham chiếu)"
-           - Không làm tròn số gốc (VD: Creatinine 112.4 umol/L phải giữ nguyên 112.4).
-        4. Định dạng thăm dò hình ảnh (Qualitative Imaging):
-           - Mô tả đầy đủ vị trí, kích thước tổn thương và ghi rõ KẾT LUẬN.
-        5. Phiên giải (phien_giai):
-           - Tóm tắt các bất thường thành các hội chứng lâm sàng (VD: Hội chứng thiếu máu, Hội chứng nhiễm trùng, Rối loạn điện giải, Tổn thương nhu mô gan...).
-        - BẮT BUỘC TRÍCH XUẤT 100% CÁC CHỈ SỐ: Không được tự ý tóm tắt, không được chỉ chọn lọc các chỉ số bất thường. Cả chỉ số bình thường lẫn bất thường đều phải được ghi đầy đủ từng dòng.
-        - PHÂN TÁCH TRIỆT ĐỂ TỪNG NHÓM: Bắt buộc tách riêng biệt thành từng khối trong mảng `can_lam_sang`:
-          + Huyết học / Công thức máu
-          + Hóa sinh máu (Ure, Creatinine, Men gan, Glucose, Bilirubin, Protein, Albumin...)
-          + Điện giải đồ (Na, K, Cl, Ca)
-          + Đông máu (PT, APTT, Fibrinogen, INR)
-          + Tổng phân tích nước tiểu (10 thông số)
-          + Khí máu động mạch
-          + Siêu âm (Mỗi vị trí siêu âm là 1 hàng riêng: Siêu âm bụng, Siêu âm tim...)
-          + X-quang / CT-Scanner / MRI / ECG / Nội soi...
-
-    TRẢ VỀ DUY NHẤT JSON:
-    {
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "ngay_vao_vien": "",
-        "ly_do_vao_vien": "", "benh_su": "", "kham_vao_vien": "",
-        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
-        "can_lam_sang": [
-            {
-                "ten_nhom": "Tên loại (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, NƯỚC TIỂU, SIÊU ÂM...)",
-                "cac_lan_xet_nghiem": [
-                    {
-                        "ngay_cls": "dd/mm/yyyy",
-                        "chi_so": "- Tên chỉ số 1: Kết quả [Đơn vị] (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
-                    }
-                ],
-                "phien_giai": "Đánh giá các chỉ số tăng/giảm bất thường và ý nghĩa"
+                "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa chẩn đoán"
             }
         ]
     }
     """
 
-    for idx, photo in enumerate(image_files):
+    for photo in image_files:
         try:
             img_optimized = optimize_lab_image(photo, max_dimension=1800, quality=90)
             response = model.generate_content([prompt_page_ocr, img_optimized])
-            page_data = json.loads(response.text.strip())
+            clean_res = response.text.strip().replace("```json", "").replace("```", "")
+            page_data = json.loads(clean_res)
 
-            # Gộp thông tin hành chính từ trang nào có dữ liệu
+            # Gộp thông tin hành chính từ trang xuất hiện đầu tiên
             for field in ["ho_ten", "tuoi", "gioi_tinh", "khoa_phong", "ngay_vao_vien", "ly_do_vao_vien", "benh_su", "kham_vao_vien"]:
                 if page_data.get(field) and not combined_result[field]:
                     combined_result[field] = page_data[field]
@@ -734,15 +667,15 @@ def auto_fill_from_emr_images(image_files):
                 if page_data.get(sh_f) and not combined_result[sh_f]:
                     combined_result[sh_f] = page_data[sh_f]
 
-            # Gom toàn bộ xét nghiệm của từng trang vào danh sách chung
+            # Gom tất cả các phiếu xét nghiệm tìm được vào danh sách tổng
             page_cls = page_data.get("can_lam_sang", [])
-            if isinstance(page_cls, list):
+            if isinstance(page_cls, list) and len(page_cls) > 0:
                 combined_result["can_lam_sang"].extend(page_cls)
         except Exception:
             continue
 
     if not combined_result["can_lam_sang"] and not combined_result["ho_ten"]:
-        return False, "❌ Không thể trích xuất được dữ liệu từ các ảnh đã tải lên."
+        return False, "❌ Không thể trích xuất được dữ liệu từ các trang ảnh đã tải lên."
 
     return True, combined_result
 
