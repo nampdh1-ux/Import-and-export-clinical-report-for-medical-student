@@ -1,3 +1,4 @@
+from mistralai import Mistral
 import pandas as pd
 import mammoth
 import base64
@@ -506,7 +507,73 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     if m_cls:
         return f"Ngày {m_cls.group(1)}/{m_cls.group(2)}/{m_cls.group(3)}"
     return str(ngay_cls_raw).strip()
+def auto_fill_from_emr_mistral(raw_text):
+    """Sử dụng Mistral AI (Free Tier) để phân tích cấu trúc EMR từ văn bản PDF thô."""
+    mistral_key = st.secrets.get("MISTRAL_API_KEY")
+    if not mistral_key:
+        return False, "⚠️ Hệ thống chưa cấu hình MISTRAL_API_KEY trong Secrets!"
 
+    prompt = f"""
+    Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
+
+    VĂN BẢN EMR THÔ:
+    '''
+    {raw_text}
+    '''
+
+    HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU:
+    - Tìm toàn bộ kết quả cận lâm sàng, chỉ số xét nghiệm, ngày làm xét nghiệm (chân trang/thời gian lấy mẫu).
+    - Tách riêng biệt từng loại cận lâm sàng: Công thức máu, Hóa sinh máu, Đông máu, Nước tiểu, Siêu âm, X-quang, CT, MRI, ECG...
+
+    YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
+    {{
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
+        "gioi_tinh": "Nam hoặc Nữ",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
+        "nghe_nghiep": "",
+        "dia_chi": "",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
+        "ly_do_vao_vien": "Ngắn gọn",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, văn xuôi, không gạch đầu dòng",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
+        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
+        "sh_ha": "Huyết áp (VD: 120/80)",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng lúc vào viện. Mỗi ý bắt đầu bằng \\n- ",
+        "can_lam_sang": [
+            {{
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh, ghi mô tả tổn thương và kết luận.",
+                "cac_lan_xet_nghiem": [
+                    {{
+                        "ngay_cls": "Ngày trên phiếu (VD: 10/10/2026)",
+                        "chi_so": "Với xét nghiệm số liệu, liệt kê chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
+                    }}
+                ],
+                "phien_giai": "Đánh giá các chỉ số bất thường hoặc ý nghĩa bệnh lý."
+            }}
+        ]
+    }}
+    Chỉ trả về JSON thuần túy, không có văn bản giải thích.
+    """
+
+    try:
+        client = Mistral(api_key=mistral_key)
+        # Sử dụng mistral-small-latest hoặc open-mistral-nemo (Miễn phí hoàn toàn trên La Plateforme)
+        chat_response = client.chat.complete(
+            model="mistral-small-latest",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        res_text = chat_response.choices[0].message.content.strip()
+        parsed_data = json.loads(res_text)
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi Mistral AI: {str(e)}"
 def auto_fill_from_emr_text(raw_text):
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
@@ -2394,94 +2461,107 @@ with tab1:
         # --- TAB CON 1: XỬ LÝ FILE PDF BỆNH ÁN ĐIỆN TỬ ---
         with tab_import_pdf:
             emr_file = st.file_uploader("Chọn file PDF bệnh án điện tử:", type=["pdf"], key="emr_pdf_uploader")
-            if emr_file and st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_emr"):
-                with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
+            
+            # 1 nút duy nhất, tự động ưu tiên Mistral rồi fallback sang Gemini
+            btn_run_pdf = st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_auto")
+
+            if emr_file and btn_run_pdf:
+                with st.spinner("Đang đọc nội dung văn bản từ file PDF..."):
                     try:
                         reader = PdfReader(emr_file)
                         raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
                     except Exception as e:
                         st.error(f"Lỗi đọc file PDF: {e}")
                         raw_text = ""
-                
+
                 if len(raw_text) < 100:
                     st.warning("⚠️ Lượng chữ trích xuất quá ít (có thể là PDF dạng ảnh scan). Vui lòng chuyển sang tab 'Ảnh chụp / Scan bệnh án' bên cạnh để AI đọc trực tiếp.")
                 else:
-                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm, chờ xíu..."):
-                        success, result = auto_fill_from_emr_text(raw_text)
-                        if success:
-                            fields_mapping = [
-                                "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
-                                "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
-                                "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
-                                "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
-                            ]
-                            for f in fields_mapping:
-                                val = result.get(f)
-                                if val and str(val).strip() not in ["", "-"]:
-                                    text_val = str(val).strip()
-                                    if f == "kham_vao_vien":
-                                        if "\n" not in text_val:
-                                            sentences = re.split(r'(?<=[.;])\s+', text_val)
-                                            formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
-                                            text_val = "\n".join(formatted_lines)
-                                        else:
-                                            lines = text_val.split("\n")
-                                            formatted_lines = [
-                                                (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
-                                                for l in lines if l.strip()
-                                            ]
-                                            text_val = "\n".join(formatted_lines)
-                                    st.session_state[f] = text_val
+                    success = False
+                    result = None
+                    engine_used = "Mistral AI"
 
-                            if result.get("tuoi"):
-                                try:
-                                    m_tuoi = re.search(r'\d+', str(result["tuoi"]))
-                                    if m_tuoi: 
-                                        st.session_state["tuoi"] = int(m_tuoi.group())
-                                except Exception: 
-                                    pass
+                    # 1. Thử phân tích bằng Mistral AI trước
+                    with st.spinner("Đang phân tích cấu trúc bệnh án bằng Mistral AI..."):
+                        success, result = auto_fill_from_emr_mistral(raw_text)
 
-                            if result.get("sh_can_nang"):
-                                try:
-                                    clean_weight = str(result["sh_can_nang"]).replace(",", ".")
-                                    m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
-                                    if m_cn: 
-                                        st.session_state["sh_can_nang"] = float(m_cn.group())
-                                except Exception: 
-                                    pass
+                    # 2. Nếu Mistral thất bại (hết quota, lỗi mạng, lỗi key), tự động chuyển sang Gemini
+                    if not success:
+                        st.warning(f"⚠️ Mistral gặp sự cố: {result}. Đang tự động chuyển sang Gemini dự phòng...")
+                        engine_used = "Gemini"
+                        with st.spinner("Gemini đang tiếp nhận và phân tích cấu trúc..."):
+                            success, result = auto_fill_from_emr_text(raw_text)
 
-                            cls_list = result.get("can_lam_sang", [])
-                            ngay_vv = st.session_state.get("ngay_vao_vien", "")
-
-                            if cls_list and isinstance(cls_list, list):
-                                st.session_state["so_hang_cls"] = len(cls_list)
-                                
-                                for i, item in enumerate(cls_list):
-                                    ten_nhom = item.get("ten_nhom") or item.get("loai_cls") or f"XÉT NGHIỆM {i+1}"
-                                    cac_lan = item.get("cac_lan_xet_nghiem", [])
-                                    
-                                    # Nếu AI trả về theo mảng từng lần làm
-                                    if cac_lan and isinstance(cac_lan, list):
-                                        khoi_ket_qua = [f"{ten_nhom.upper()}:"]
-                                        for lan in cac_lan:
-                                            ngay_raw = lan.get("ngay_cls", "")
-                                            ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
-                                            chi_so = str(lan.get("chi_so", "")).strip()
-                                            
-                                            khoi_ket_qua.append(f"\n* {ngay_display}:")
-                                            khoi_ket_qua.append(chi_so)
-                                        
-                                        st.session_state[f"cls_kq_{i}"] = "\n".join(khoi_ket_qua).strip()
+                    # 3. Nạp dữ liệu vào form khi có kết quả thành công
+                    if success:
+                        fields_mapping = [
+                            "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
+                            "dia_chi", "ngay_vao_vien", "ly_do_vao_vien", 
+                            "benh_su", "ts_noi_khoa", "ts_ngoai_khoa",
+                            "kham_vao_vien", "sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho"
+                        ]
+                        for f in fields_mapping:
+                            val = result.get(f)
+                            if val and str(val).strip() not in ["", "-"]:
+                                text_val = str(val).strip()
+                                if f == "kham_vao_vien":
+                                    if "\n" not in text_val:
+                                        sentences = re.split(r'(?<=[.;])\s+', text_val)
+                                        formatted_lines = [f"- {s.strip().lstrip('-*• ')}" for s in sentences if s.strip()]
+                                        text_val = "\n".join(formatted_lines)
                                     else:
-                                        # Fallback nếu AI trả về chuỗi text trực tiếp trong 'ket_qua'
-                                        st.session_state[f"cls_kq_{i}"] = str(item.get("ket_qua", "")).strip()
+                                        lines = text_val.split("\n")
+                                        formatted_lines = [
+                                            (l.strip() if l.strip().startswith(("-", "*", "•")) else f"- {l.strip()}")
+                                            for l in lines if l.strip()
+                                        ]
+                                        text_val = "\n".join(formatted_lines)
+                                st.session_state[f] = text_val
 
-                                    st.session_state[f"cls_pg_{i}"] = str(item.get("phien_giai", "-")).strip()
+                        if result.get("tuoi"):
+                            try:
+                                m_tuoi = re.search(r'\d+', str(result["tuoi"]))
+                                if m_tuoi: 
+                                    st.session_state["tuoi"] = int(m_tuoi.group())
+                            except Exception: 
+                                pass
 
-                            st.toast("✅ Đã trích xuất xong bệnh án và đồng bộ ngày xét nghiệm!", icon="🎉")
-                            st.rerun()  
-                        else:
-                            st.error(result)
+                        if result.get("sh_can_nang"):
+                            try:
+                                clean_weight = str(result["sh_can_nang"]).replace(",", ".")
+                                m_cn = re.search(r'\d+(\.\d+)?', clean_weight)
+                                if m_cn: 
+                                    st.session_state["sh_can_nang"] = float(m_cn.group())
+                            except Exception: 
+                                pass
+
+                        cls_list = result.get("can_lam_sang", [])
+                        ngay_vv = st.session_state.get("ngay_vao_vien", "")
+
+                        if cls_list and isinstance(cls_list, list):
+                            st.session_state["so_hang_cls"] = max(1, len(cls_list))
+                            for i, item in enumerate(cls_list):
+                                ten_nhom = item.get("ten_nhom") or item.get("loai_cls") or f"XÉT NGHIỆM {i+1}"
+                                cac_lan = item.get("cac_lan_xet_nghiem", [])
+                                
+                                if cac_lan and isinstance(cac_lan, list):
+                                    khoi_ket_qua = [f"{ten_nhom.upper()}:"]
+                                    for lan in cac_lan:
+                                        ngay_raw = lan.get("ngay_cls", "")
+                                        ngay_display = tinh_ngay_thu_nhap_vien(ngay_raw, ngay_vv)
+                                        chi_so = str(lan.get("chi_so", "")).strip()
+                                        khoi_ket_qua.append(f"\n* {ngay_display}:")
+                                        khoi_ket_qua.append(chi_so)
+                                    st.session_state[f"cls_kq_{i}"] = "\n".join(khoi_ket_qua).strip()
+                                else:
+                                    st.session_state[f"cls_kq_{i}"] = str(item.get("ket_qua", "")).strip()
+
+                                st.session_state[f"cls_pg_{i}"] = str(item.get("phien_giai", "-")).strip()
+
+                        st.toast(f"✅ Đã trích xuất bệnh án thành công (động cơ: {engine_used})!", icon="🎉")
+                        st.rerun()  
+                    else:
+                        st.error(f"❌ Cả Mistral và Gemini đều không thể xử lý: {result}")
 
         # --- TAB CON 2: XỬ LÝ ẢNH CHỤP / TÀI LIỆU SCAN (CHỌN NHIỀU ẢNH CÙNG LÚC) ---
         with tab_import_img:
