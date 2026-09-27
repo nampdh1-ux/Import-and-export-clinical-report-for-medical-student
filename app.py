@@ -1,7 +1,3 @@
-import concurrent.futures
-import pdfplumber
-import pandas as pd
-from PIL import Image, ImageEnhance
 import mammoth
 import base64
 import hashlib
@@ -40,21 +36,13 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
 @st.cache_resource
-def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite", json_mode=False):
-    """Lấy model AI với API key chuyên biệt, hỗ trợ ép kiểu JSON chuẩn."""
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
+    """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
-    
-    config = {
-        "max_output_tokens": 8192,
-        "temperature": 0.1
-    }
-    if json_mode:
-        config["response_mime_type"] = "application/json"
-        
-    return genai.GenerativeModel(model_name, generation_config=config)
+    return genai.GenerativeModel(model_name)
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
@@ -518,228 +506,159 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
         return f"Ngày {m_cls.group(1)}/{m_cls.group(2)}/{m_cls.group(3)}"
     return str(ngay_cls_raw).strip()
 
-# --- HÀM BÓC TÁCH NHANH SINH HIỆU BẰNG REGEX (TIẾT KIỆM TOKEN) ---
-def regex_extract_vitals(text):
-    vitals = {}
-    m_ha = re.search(r"(?:Huyết áp|HA)[:\s]*(\d{2,3}\s*/\s*\d{2,3})", text, re.IGNORECASE)
-    vitals["sh_ha"] = m_ha.group(1).replace(" ", "") if m_ha else ""
-    
-    m_mach = re.search(r"(?:Mạch)[:\s]*(\d{2,3})", text, re.IGNORECASE)
-    vitals["sh_mach"] = m_mach.group(1) if m_mach else ""
-    
-    m_nd = re.search(r"(?:Nhiệt độ|T°?)[:\s]*(\d{2}(?:[.,]\d)?)", text, re.IGNORECASE)
-    vitals["sh_nhiet_do"] = m_nd.group(1).replace(",", ".") if m_nd else ""
-    
-    m_nt = re.search(r"(?:Nhịp thở)[:\s]*(\d{1,2})", text, re.IGNORECASE)
-    vitals["sh_nhip_tho"] = m_nt.group(1) if m_nt else ""
-    return vitals
-
-# --- BỘ PHÂN ĐOẠN DỰ PHÒNG 3 TẦNG (MULTI-TIER CHUNKING) ---
-def split_emr_text_robust(full_text):
-    # Tầng 1: Cắt theo chữ ký Bác sĩ chuyên khoa / Kỹ thuật viên
-    split_pattern = r'(?i)(?:Hà Nội,|ngày\s*\d{1,2}\s*tháng\s*\d{1,2}\s*năm\s*\d{4}[\s\S]{0,120}?(?:BÁC SĨ CHUYÊN KHOA|BSCK|KỸ THUẬT VIÊN|BÁC SĨ ĐIỀU TRỊ|TRƯỞNG KHOA))'
-    raw_blocks = re.split(split_pattern, full_text)
-    signatures = re.findall(split_pattern, full_text)
-
-    chunks = []
-    if signatures and len(signatures) >= 1:
-        for i in range(len(signatures)):
-            c = raw_blocks[i] + "\n" + signatures[i]
-            if any(kw in c.upper() for kw in ["KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "THAM CHIẾU", "SIÊU ÂM", "X-QUANG", "CT-SCANNER", "NƯỚC TIỂU"]):
-                chunks.append(c[-3000:])
-    
-    # Tầng 2: Cắt theo ranh giới trang PDF nếu không thấy chữ ký
-    if not chunks:
-        pages = full_text.split("\f")
-        for p in pages:
-            if any(kw in p.upper() for kw in ["KẾT QUẢ", "XÉT NGHIỆM", "CHỈ SỐ", "SIÊU ÂM", "X-QUANG"]):
-                chunks.append(p)
-                
-    # Tầng 3: Fallback giữ nguyên
-    return chunks if chunks else [full_text]
-
-# --- GOM CỤM THÔNG MINH (CHỐNG RATE LIMIT 429) ---
-def batch_text_chunks(chunks, max_chars=4500):
-    batches = []
-    curr = []
-    curr_len = 0
-    for c in chunks:
-        if curr_len + len(c) > max_chars and curr:
-            batches.append("\n=== [PHIẾU TIẾP THEO] ===\n".join(curr))
-            curr = [c]
-            curr_len = len(c)
-        else:
-            curr.append(c)
-            curr_len += len(c)
-    if curr:
-        batches.append("\n=== [PHIẾU TIẾP THEO] ===\n".join(curr))
-    return batches
-
-def process_single_chunk_ai(chunk_text, model, prompt_template):
-    try:
-        resp = model.generate_content(prompt_template.format(chunk=chunk_text))
-        clean_text = resp.text.strip().replace("```json", "").replace("```", "")
-        data = json.loads(clean_text)
-        return data if isinstance(data, list) else [data]
-    except Exception:
-        return []
-
 def auto_fill_from_emr_text(raw_text):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
-    # 1. Trích xuất nhanh sinh hiệu bằng Regex nội bộ
-    vitals = regex_extract_vitals(raw_text)
+    prompt = f"""
+    Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
 
-    # 2. Lấy Hành chính & Bệnh sử ở đoạn đầu
-    prompt_admin = f"""
-    Bạn là bác sĩ. Trích xuất thông tin hành chính, bệnh sử từ văn bản dưới đây.
-    Chỉ trả về JSON thuần túy:
+    VĂN BẢN EMR THÔ:
+    '''
+    {raw_text}
+    '''
+
+    HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU (RẤT QUAN TRỌNG):
+    - ĐỂ TRÁNH THIẾU SÓT: Hãy lướt tìm TOÀN BỘ các trang/đoạn có chứa từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "PHIẾU XÉT NGHIỆM", "CHỈ SỐ", "KẾT LUẬN". Mọi tờ kết quả phát hiện được đều phải bóc tách đủ.
+    - Trong mỗi phiếu xét nghiệm, hãy tìm kỹ NGÀY THỰC HIỆN XÉT NGHIỆM (ở dòng 'Thời gian lấy mẫu' hoặc ở cuối trang trước chữ ký bác sĩ, ví dụ: 'Ngày 12 tháng 10 năm 2026').
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Bắt buộc tách riêng biệt từng loại cận lâm sàng sau thành một đối tượng độc lập trong mảng `can_lam_sang`:
+    1. CÔNG THỨC MÁU (Huyết học)
+    2. HÓA SINH MÁU
+    3. ĐÔNG MÁU
+    4. KHÍ MÁU
+    5. ĐIỆN GIẢI ĐỒ
+    6. TỔNG PHÂN TÍCH NƯỚC TIỂU
+    7. SIÊU ÂM (Tách riêng ra từng hàng nếu có nhiều vùng: VD Siêu âm ổ bụng, Siêu âm tim, Siêu âm mạch máu...)
+    8. CT-SCANNER (VD: CT sọ não, CT ổ bụng...)
+    9. X-QUANG (VD: X-quang ngực thẳng, X-quang xương...)
+    10. MRI (Cộng hưởng từ)
+    11. ĐIỆN TÂM ĐỒ (ECG)
+    12. NỘI SOI (VD: Nội soi dạ dày, đại tràng...)
+    13. CÁC XÉT NGHIỆM KHÁC (Vi sinh, Giải phẫu bệnh, Miễn dịch...)
+
+    YÊU CẦU CẤU TRÚC JSON ĐẦU RA BẮT BUỘC:
     {{
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
-        "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-        "kham_vao_vien": "Mỗi triệu chứng xuống dòng bắt đầu bằng \\n- ",
-        "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": ""
+        "ho_ten": "Tên bệnh nhân (viết hoa chữ cái đầu)",
+        "tuoi": "Chỉ lấy con số",
+        "gioi_tinh": "Nam hoặc Nữ",
+        "khoa_phong": "Tên khoa đang nằm điều trị",
+        "nghe_nghiep": "",
+        "dia_chi": "",
+        "ngay_vao_vien": "Định dạng dd/mm/yyyy hh:mm nếu có",
+        "ly_do_vao_vien": "Ngắn gọn",
+        "benh_su": "Diễn đạt lại bệnh sử một cách trôi chảy, giống bệnh án, văn xuôi, không gạch đầu dòng",
+        "ts_noi_khoa": "Tiền sử bệnh lý nội khoa",
+        "ts_ngoai_khoa": "Tiền sử phẫu thuật, dị ứng",
+        "sh_mach": "Chỉ lấy con số (VD: 80)",
+        "sh_nhiet_do": "Chỉ lấy con số (VD: 37.0)",
+        "sh_ha": "Huyết áp (VD: 120/80)",
+        "sh_nhip_tho": "Chỉ lấy con số (VD: 20)",
+        "sh_can_nang": "Chỉ lấy con số (VD: 55.5)",
+        "kham_vao_vien": "Trích xuất toàn bộ phần thăm khám lâm sàng (toàn thân, các cơ quan). Mỗi ý bắt đầu bằng dấu gạch ngang và xuống dòng (\\n- )",
+        "can_lam_sang": [
+            {{
+                "ten_nhom": "Tên loại (Ví dụ: CÔNG THỨC MÁU, HÓA SINH MÁU, ĐÔNG MÁU, SIÊU ÂM Ổ BỤNG, X-QUANG NGỰC, CT, MRI, ECG...)",
+                "ket_qua": "Với Chẩn đoán hình ảnh/Thăm dò chức năng (Số 7-12), ghi toàn bộ mô tả tổn thương và kết luận vào đây, không lược bớt.",
+                "cac_lan_xet_nghiem": [
+                    {{
+                        "ngay_cls": "Ngày tìm thấy trên phiếu/chân trang (VD: 10/10/2026)",
+                        "chi_so": "Với Xét nghiệm số liệu (Số 1-6), liệt kê các chỉ số kèm đơn vị, mỗi chỉ số xuống dòng bằng \\n- "
+                    }}
+                ],
+                "phien_giai": "Đánh giá các chỉ số bất thường hoặc ý nghĩa của hình ảnh đối với chẩn đoán hiện tại."
+            }}
+        ]
     }}
-    Văn bản:
-    '''
-    {raw_text[:3500]}
-    '''
+
+    QUY TẮC:
+    1. Không tự bịa thông tin. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong markdown (```json).
     """
     try:
-        resp_admin = model.generate_content(prompt_admin)
-        clean_admin = resp_admin.text.strip().replace("```json", "").replace("```", "")
-        final_data = json.loads(clean_admin)
-    except Exception:
-        final_data = {
-            "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
-            "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-            "kham_vao_vien": ""
-        }
+        response = model.generate_content(prompt)
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
 
-    # Bù các trường sinh hiệu từ Regex nếu AI bị thiếu
-    for k, v in vitals.items():
-        if v and not final_data.get(k):
-            final_data[k] = v
-            
-    final_data["can_lam_sang"] = []
-
-    # 3. Phân đoạn và gom batch thông minh
-    chunks = split_emr_text_robust(raw_text)
-    batches = batch_text_chunks(chunks)
-
-    # 4. Quét đồng thời các batch bằng đa luồng ThreadPoolExecutor
-    prompt_chunk_template = """
-    Bạn là bác sĩ xét nghiệm. Hãy bóc tách TOÀN BỘ các xét nghiệm có trong đoạn phiếu dưới đây, KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO:
-    - Bắt buộc ghi đủ 100% các chỉ số (kèm đơn vị và khoảng tham chiếu).
-    - Tìm ngày xét nghiệm tại dòng ngày tháng ngay trên chữ ký Bác sĩ chuyên khoa.
-    
-    Trả về mảng JSON:
-    [
-        {{
-            "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG...)",
-            "cac_lan_xet_nghiem": [
-                {{
-                    "ngay_cls": "Ngày trên chữ ký Bác sĩ (dd/mm/yyyy)",
-                    "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Tham chiếu)\\n- Tên chỉ số 2: ..."
-                }}
-            ],
-            "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa chẩn đoán"
-        }}
-    ]
-    Đoạn phiếu:
-    {chunk}
-    """
-
-    all_cls_results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, max(1, len(batches)))) as executor:
-        futures = [
-            executor.submit(process_single_chunk_ai, b, model, prompt_chunk_template)
-            for b in batches
-        ]
-        for f in concurrent.futures.as_completed(futures):
-            res_items = f.result()
-            if res_items:
-                all_cls_results.extend(res_items)
-
-    final_data["can_lam_sang"] = all_cls_results
-    return True, final_data
-
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
 
 def auto_fill_from_emr_images(image_files):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite", json_mode=True)
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
-    combined_result = {
+    processed_images = []
+    for photo in image_files:
+        try:
+            img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
+            processed_images.append(img_optimized)
+        except Exception:
+            pass
+
+    if not processed_images:
+        return False, "❌ Không thể xử lý được các file ảnh đã tải lên."
+
+    prompt_ocr = """
+    Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
+    ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - TÌM KIẾM CHỐNG BỎ SÓT: Quét toàn bộ các trang để tìm các từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "CHỈ SỐ", "KẾT LUẬN". Đảm bảo TẤT CẢ các tờ cận lâm sàng đều được bóc tách.
+    - Tìm ngày vào viện ở trang bìa/hành chính.
+    - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
+
+    QUY TẮC PHÂN LOẠI CẬN LÂM SÀNG (MỖI LOẠI LÀ 1 NHÓM/HÀNG RIÊNG BIỆT):
+    Tách riêng biệt từng loại xét nghiệm/hình ảnh thành các đối tượng độc lập trong mảng "can_lam_sang":
+    1. Công thức máu
+    2. Hóa sinh máu
+    3. Đông máu
+    4. Khí máu
+    5. Điện giải đồ
+    6. Siêu âm (Ghi rõ Siêu âm ổ bụng, Siêu âm tim...)
+    7. CT-Scanner
+    8. X-quang
+    9. MRI
+    10. Điện tâm đồ (ECG)
+    11. Nội soi
+
+    Trả về đúng định dạng JSON:
+    {
         "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "nghe_nghiep": "", "dia_chi": "",
         "ngay_vao_vien": "", "ly_do_vao_vien": "", "benh_su": "", "ts_noi_khoa": "", "ts_ngoai_khoa": "",
-        "kham_vao_vien": "", "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
-        "can_lam_sang": []
-    }
-
-    prompt_page_ocr = """
-    Bạn là bác sĩ chuyên đọc hồ sơ bệnh án qua ảnh chụp.
-    Nhiệm vụ: Quét TOÀN BỘ các chữ ký 'Bác sĩ chuyên khoa' / 'Kỹ thuật viên' và dòng ngày tháng trên ảnh này.
-    
-    QUY TẮC BẮT BUỘC:
-    1. Nếu trên ảnh có nhiều chữ ký khác nhau (ví dụ: phiếu Huyết học riêng, phiếu Sinh hóa riêng), bạn PHẢI TÁCH THÀNH CÁC ĐỐI TƯỢNG ĐỘC LẬP trong mảng `can_lam_sang`.
-    2. Trích xuất đủ 100% tất cả các dòng chỉ số nằm phía trên mỗi chữ ký. Không bỏ sót bất kỳ dòng xét nghiệm nào.
-    3. Lấy chính xác ngày làm xét nghiệm từ dòng ngày tháng ngay trên chữ ký bác sĩ.
-
-    TRẢ VỀ DUY NHẤT JSON:
-    {
-        "ho_ten": "", "tuoi": "", "gioi_tinh": "", "khoa_phong": "", "ngay_vao_vien": "",
-        "ly_do_vao_vien": "", "benh_su": "", "kham_vao_vien": "",
+        "kham_vao_vien": "Mỗi triệu chứng bắt đầu bằng \\n- ",
         "sh_mach": "", "sh_nhiet_do": "", "sh_ha": "", "sh_nhip_tho": "", "sh_can_nang": "",
         "can_lam_sang": [
             {
-                "ten_nhom": "Tên nhóm xét nghiệm phía trên chữ ký",
+                "ten_nhom": "Tên loại CLS (VD: CÔNG THỨC MÁU, HÓA SINH MÁU, SIÊU ÂM Ổ BỤNG)",
+                "ket_qua": "Liệt kê toàn bộ chỉ số xét nghiệm hoặc mô tả kết luận hình ảnh nếu không phân tích theo từng ngày",
                 "cac_lan_xet_nghiem": [
                     {
-                        "ngay_cls": "Ngày tháng trên chữ ký (dd/mm/yyyy)",
-                        "chi_so": "- Tên chỉ số 1: Giá trị đơn vị (Khoảng tham chiếu)\\n- Tên chỉ số 2: ..."
+                        "ngay_cls": "Ngày ở cuối phiếu hoặc thời gian lấy mẫu",
+                        "chi_so": "Liệt kê các chỉ số kèm nồng độ, đơn vị và khoảng tham chiếu, mỗi chỉ số xuống dòng bằng \\n- "
                     }
                 ],
-                "phien_giai": "Đánh giá các chỉ số bất thường và ý nghĩa chẩn đoán"
+                "phien_giai": "Nhận xét bất thường và ý nghĩa bệnh lý"
             }
         ]
     }
+    Chỉ trả về chuỗi JSON thuần túy, không có markdown.
     """
+    try:
+        contents = [prompt_ocr] + processed_images
+        response = model.generate_content(contents)
+        res_text = response.text.strip()
+        if res_text.startswith("```json"): res_text = res_text[7:]
+        elif res_text.startswith("```"): res_text = res_text[3:]
+        if res_text.endswith("```"): res_text = res_text[:-3]
 
-    def process_single_image(photo):
-        try:
-            img_optimized = optimize_lab_image(photo, max_dimension=1800, quality=90)
-            response = model.generate_content([prompt_page_ocr, img_optimized])
-            clean_res = response.text.strip().replace("```json", "").replace("```", "")
-            return json.loads(clean_res)
-        except Exception:
-            return None
-
-    # Quét đồng thời các ảnh qua ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, max(1, len(image_files)))) as executor:
-        results = list(executor.map(process_single_image, image_files))
-
-    for page_data in results:
-        if not page_data:
-            continue
-        for field in ["ho_ten", "tuoi", "gioi_tinh", "khoa_phong", "ngay_vao_vien", "ly_do_vao_vien", "benh_su", "kham_vao_vien"]:
-            if page_data.get(field) and not combined_result[field]:
-                combined_result[field] = page_data[field]
-        
-        for sh_f in ["sh_mach", "sh_nhiet_do", "sh_ha", "sh_nhip_tho", "sh_can_nang"]:
-            if page_data.get(sh_f) and not combined_result[sh_f]:
-                combined_result[sh_f] = page_data[sh_f]
-
-        page_cls = page_data.get("can_lam_sang", [])
-        if isinstance(page_cls, list):
-            combined_result["can_lam_sang"].extend(page_cls)
-
-    if not combined_result["can_lam_sang"] and not combined_result["ho_ten"]:
-        return False, "❌ Không thể trích xuất được dữ liệu từ các trang ảnh đã tải lên."
-
-    return True, combined_result
+        parsed_data = json.loads(res_text.strip())
+        return True, parsed_data
+    except Exception as e:
+        return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
 
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
@@ -1214,49 +1133,7 @@ def render_trend_table_streamlit(trend_data):
 
     html += "</tbody></table></div>"
     return html
-def generate_cls_dataframe():
-    """
-    Chuyển đổi dữ liệu các hàng cận lâm sàng trong session_state thành DataFrame có cấu trúc.
-    Hỗ trợ cả kết quả đơn lẻ lẫn chuỗi bảng theo dõi đa ngày (Trend).
-    """
-    rows_data = []
-    so_hang = int(st.session_state.get("so_hang_cls", 1))
 
-    for i in range(so_hang):
-        kq_raw = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
-        pg_raw = str(st.session_state.get(f"cls_pg_{i}", "")).strip()
-        
-        if not kq_raw and not pg_raw:
-            continue
-
-        trend = parse_trend_data(kq_raw)
-        if trend:
-            # Dạng bảng đa ngày: Tách mỗi chỉ số thành 1 dòng, các mốc ngày làm từng cột
-            group_name = trend.get("title") or f"XÉT NGHIỆM {i+1}"
-            dates = trend["dates"]
-            for r in trend["rows"]:
-                row_dict = {
-                    "Nhóm xét nghiệm": group_name,
-                    "Chỉ số": r["param"],
-                    "Biện giải / Đánh giá": pg_raw
-                }
-                for d_lbl, v in zip(dates, r["values"]):
-                    row_dict[d_lbl] = v
-                rows_data.append(row_dict)
-        else:
-            # Dạng văn bản thường hoặc chẩn đoán hình ảnh
-            lines = [l.strip().lstrip("-*• ") for l in kq_raw.split("\n") if l.strip()]
-            group_title = lines[0].rstrip(":") if lines and ":" in lines[0] else f"XÉT NGHIỆM {i+1}"
-            content_desc = "\n".join(lines[1:]) if len(lines) > 1 else kq_raw
-            
-            rows_data.append({
-                "Nhóm xét nghiệm": group_title,
-                "Chỉ số": "Kết quả / Mô tả",
-                "Kết quả": content_desc,
-                "Biện giải / Đánh giá": pg_raw
-            })
-
-    return pd.DataFrame(rows_data) if rows_data else pd.DataFrame()
 def set_cell_background(cell, fill_hex):
     """Tô màu nền cho ô trong bảng docx."""
     shading_elm = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
@@ -2529,25 +2406,19 @@ with tab1:
         with tab_import_pdf:
             emr_file = st.file_uploader("Chọn file PDF bệnh án điện tử:", type=["pdf"], key="emr_pdf_uploader")
             if emr_file and st.button("⚡ Phân tích & Tự điền từ PDF", type="primary", use_container_width=True, key="btn_run_pdf_emr"):
-                with st.spinner("Đang phân tích cấu trúc bảng biểu từ file PDF bằng pdfplumber..."):
+                with st.spinner("Đang đọc và giải mã văn bản từ file PDF..."):
                     try:
-                        emr_file.seek(0)
-                        pages_text = []
-                        with pdfplumber.open(emr_file) as pdf:
-                            for page in pdf.pages:
-                                pages_text.append(page.extract_text(layout=True) or "")
-                                page.flush_cache()  # Giải phóng RAM ngay sau khi đọc từng trang
-                        raw_text = "\n\f\n".join(pages_text)
+                        reader = PdfReader(emr_file)
+                        raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
                     except Exception as e:
                         st.error(f"Lỗi đọc file PDF: {e}")
                         raw_text = ""
                 
-                if len(raw_text.strip()) < 80:
+                if len(raw_text) < 100:
                     st.warning("⚠️ Lượng chữ trích xuất quá ít (có thể là PDF dạng ảnh scan). Vui lòng chuyển sang tab 'Ảnh chụp / Scan bệnh án' bên cạnh để AI đọc trực tiếp.")
                 else:
-                    with st.spinner("Đang bóc tách đồng thời các phiếu xét nghiệm bằng đa luồng..."):
+                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm, chờ xíu..."):
                         success, result = auto_fill_from_emr_text(raw_text)
-                        # (Giữ nguyên toàn bộ logic gán session_state ở phía sau của bạn)
                         if success:
                             fields_mapping = [
                                 "ho_ten", "gioi_tinh", "khoa_phong", "nghe_nghiep", 
@@ -3345,36 +3216,7 @@ with tab2:
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
-    # --- BẢNG TỔNG HỢP CẬN LÂM SÀNG DẠNG EXCEL (HỌC TỪ APP LOGISTICS) ---
-        st.markdown("---")
-        st.markdown("#### 📊 Bảng tổng hợp Cận lâm sàng (Excel View):")
-        
-        df_cls = generate_cls_dataframe()
-        if not df_cls.empty:
-            # 1. Hiển thị bảng tương tác có lọc và sắp xếp
-            st.dataframe(df_cls, use_container_width=True)
 
-            # 2. Tạo buffer Excel in-memory không lưu file rác vào ổ đĩa
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                df_cls.to_excel(writer, index=False, sheet_name='Can_Lam_Sang')
-            excel_buffer.seek(0)
-
-            ten_bn_safe = str(st.session_state.get("ho_ten", "Benh_nhan")).strip().replace(" ", "_")
-            if not ten_bn_safe:
-                ten_bn_safe = "Benh_nhan"
-            ten_file_excel = f"CLS_{ten_bn_safe}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-
-            # 3. Nút tải file Excel
-            st.download_button(
-                label="⬇️ Tải bảng Cận lâm sàng (.xlsx)",
-                data=excel_buffer,
-                file_name=ten_file_excel,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        else:
-            st.info("Chưa có dữ liệu cận lâm sàng để lập bảng Excel.")
     # --- KHU VỰC HIỂN THỊ XEM TRƯỚC (PREVIEW) ---
     if st.session_state.get("active_preview") == "docx" and st.session_state.get("docx_html_preview"):
         st.markdown("---")
