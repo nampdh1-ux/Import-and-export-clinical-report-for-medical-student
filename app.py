@@ -44,6 +44,7 @@ def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
         return None
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
+
 def safe_generate_with_fallback(primary_model_name, fallback_model_name, feature_key, contents):
     """
     Thực thi generate_content với model chính.
@@ -70,6 +71,7 @@ def safe_generate_with_fallback(primary_model_name, fallback_model_name, feature
             except Exception as fallback_err:
                 return False, f"Cả 2 model đều gặp lỗi: {str(fallback_err)}"
         return False, err_msg
+
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
 # ==============================================================================
@@ -174,6 +176,7 @@ def send_draft_email(target_email, draft_json, filename):
                 server.quit()
             except Exception:
                 pass
+
 def send_docx_email(target_email, docx_bytes, filename):
     sender_mail = st.secrets.get("SENDER_EMAIL")
     sender_pass = st.secrets.get("SENDER_APP_PASSWORD")
@@ -212,6 +215,7 @@ def send_docx_email(target_email, docx_bytes, filename):
                 server.quit()
             except Exception:
                 pass
+
 def check_password():
     admin_token_secret = str(st.secrets.get("ADMIN_BYPASS_TOKEN", "")).strip()
     url_admin_key = str(st.query_params.get("nam", "")).strip()
@@ -293,7 +297,7 @@ def check_password():
 if not check_password(): st.stop()
 
 # --- HÀM NÉN VÀ TỐI ƯU ẢNH PHIẾU XÉT NGHIỆM TRƯỚC KHI OCR ---
-def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
+def optimize_lab_image(photo_file, max_dimension=1024, quality=80):
     try:
         photo_file.seek(0)
         img = Image.open(photo_file)
@@ -314,6 +318,84 @@ def optimize_lab_image(photo_file, max_dimension=1600, quality=85):
     except Exception:
         photo_file.seek(0)
         return Image.open(photo_file)
+
+def sanitize_emr_text(text):
+    """
+    Lược bỏ triệt để các tờ điều trị, diễn biến bệnh, y lệnh, hồ sơ chăm sóc
+    và các thông tin rác hệ thống (tiêu đề in, tài khoản PACS...).
+    """
+    if not text:
+        return ""
+
+    lines = text.splitlines()
+    filtered_lines = []
+    skip_block = False
+
+    # Các từ khóa bắt đầu khối nội dung cần loại bỏ
+    skip_patterns = [
+        r"TỜ\s+ĐIỀU\s+TRỊ(?:\s+số\s+\d+)?",
+        r"PHIẾU\s+ĐIỀU\s+TRỊ",
+        r"DIỄN\s+(BIẾN|TIẾN)\s+BỆNH",
+        r"Y\s+LỆNH",
+        r"HỒ\s+SƠ\s+CHĂM\s+SÓC\s+BỆNH\s+NHÂN\s+CỦA\s+ĐIỀU\s+DƯỠNG",
+        r"PHIẾU\s+CHĂM\s+SÓC",
+        r"Chăm\s+sóc\s+cấp\s+[I|II|III]",
+        r"Chế\s+độ\s+ăn:\s*[A-Z0-9]+"
+    ]
+
+    # Các mốc tiêu đề quan trọng cần giữ lại (hủy trạng thái bỏ qua nếu gặp)
+    preserve_patterns = [
+        r"A\s*-\s*BỆNH\s+ÁN",
+        r"BỆNH\s+ÁN\s+NĂM",
+        r"PHIẾU\s+KHÁM\s+BỆNH\s+VÀO\s+VIỆN",
+        r"TRÍCH\s+BIÊN\s+BẢN\s+HỘI\s+CHẨN",
+        r"PHIẾU\s+KẾT\s+QUẢ\s+XÉT\s+NGHIỆM",
+        r"PHIẾU\s+KẾT\s+QUẢ\s+KHÁM\s+CHUYÊN\s+KHOA",
+        r"KẾT\s+QUẢ\s+CHẨN\s+ĐOÁN\s+HÌNH\s+ẢNH",
+        r"PHIẾU\s+KHÁM\s+SIÊU\s+ÂM",
+        r"ĐIỆN\s+TIM\s+THƯỜNG",
+        r"HÓA\s+SINH",
+        r"HUYẾT\s+HỌC",
+        r"ĐÔNG\s+MÁU",
+        r"KHÍ\s+MÁU",
+        r"MIỄN\s+DỊCH"
+    ]
+
+    re_skip = re.compile("|".join(skip_patterns), re.IGNORECASE)
+    re_preserve = re.compile("|".join(preserve_patterns), re.IGNORECASE)
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if re_preserve.search(stripped):
+            skip_block = False
+        elif re_skip.search(stripped):
+            skip_block = True
+            continue
+
+        if not skip_block:
+            filtered_lines.append(stripped)
+
+    cleaned_text = "\n".join(filtered_lines)
+
+    # Lọc bỏ các dòng thông tin rác hệ thống EMR lặp đi lặp lại
+    boilerplate_patterns = [
+        r"ISOFH\s*-\s*Người\s+in:.*?ngày\s+in:.*",
+        r"Vui\s+lòng\s+truy\s+cập\s+địa\s+chỉ\s+http://pacs\.hmuh\.vn/.*",
+        r"Tài\s+khoản:.*?Mật\s+khẩu:.*",
+        r"Trong\s+trường\s+hợp\s+người\s+bệnh\s+không\s+truy\s+cập\s+được.*",
+        r"Trang\s+\d+/\d+",
+        r"Ký\s+số\s+bởi:.*",
+        r"Ngày\s+hiệu\s+lực:\s*\d{1,2}/\d{1,2}/\d{4}",
+        r"Phiên\s+bản\s+số:\s*[\d\.]+"
+    ]
+    for bp in boilerplate_patterns:
+        cleaned_text = re.sub(bp, "", cleaned_text, flags=re.IGNORECASE)
+
+    cleaned_text = re.sub(r'\n\s*\n+', '\n\n', cleaned_text)
+    return cleaned_text.strip()
 
 # ==============================================================================
 # DANH MỤC TRƯỜNG DỮ LIỆU & NẠP BẢN NHÁP TỰ ĐỘNG
@@ -533,6 +615,7 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     return str(ngay_cls_raw).strip()
 
 def auto_fill_from_emr_text(raw_text):
+    clean_text = sanitize_emr_text(raw_text)
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.6-flash")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
@@ -540,9 +623,9 @@ def auto_fill_from_emr_text(raw_text):
     prompt = f"""
     Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
 
-    VĂN BẢN EMR THÔ:
+    VĂN BẢN EMR ĐÃ ĐƯỢC LÀM SẠCH:
     '''
-    {raw_text}
+    {clean_text}
     '''
 
     HƯỚNG DẪN QUÉT CHỐNG BỎ SÓT DỮ LIỆU (RẤT QUAN TRỌNG):
@@ -631,7 +714,7 @@ def auto_fill_from_emr_images(image_files):
     processed_images = []
     for photo in image_files:
         try:
-            img_optimized = optimize_lab_image(photo, max_dimension=1600, quality=80)
+            img_optimized = optimize_lab_image(photo, max_dimension=1024, quality=80)
             processed_images.append(img_optimized)
         except Exception:
             pass
@@ -642,6 +725,8 @@ def auto_fill_from_emr_images(image_files):
     prompt_ocr = """
     Bạn là một bác sĩ kiêm chuyên gia đọc hồ sơ bệnh án y khoa qua ảnh chụp/scan.
     ĐỌC KỸ TẤT CẢ CÁC TRANG ẢNH và chú ý:
+    - BỎ QUA HOÀN TOÀN: Các trang có tiêu đề "TỜ ĐIỀU TRỊ", "DIỄN BIẾN BỆNH", "DIỄN TIẾN BỆNH", "Y LỆNH", "HỒ SƠ CHĂM SÓC BỆNH NHÂN CỦA ĐIỀU DƯỠNG". Tuyệt đối không trích xuất thông tin thuốc hoặc diễn biến ghi chép hàng ngày từ các trang này để tiết kiệm dữ liệu.
+    - TẬP TRUNG VÀO: Trang hành chính / bệnh án vào viện và TOÀN BỘ các phiếu CẬN LÂM SÀNG (Công thức máu, Hóa sinh, Khí máu, Đông máu, Siêu âm, X-quang, MRI, Điện tim...).
     - TÌM KIẾM CHỐNG BỎ SÓT: Quét toàn bộ các trang để tìm các từ khóa "KẾT QUẢ", "XÁC NHẬN KẾT QUẢ", "CHỈ SỐ", "KẾT LUẬN". Đảm bảo TẤT CẢ các tờ cận lâm sàng đều được bóc tách.
     - Tìm ngày vào viện ở trang bìa/hành chính.
     - Trong mỗi phiếu xét nghiệm, BẮT BUỘC QUÉT Ở CUỐI TRANG (trước/cạnh chữ ký bác sĩ) hoặc ở dòng 'Thời gian nhận mẫu/thực hiện' để lấy NGÀY LÀM XÉT NGHIỆM.
@@ -1622,7 +1707,7 @@ def export_docx(data):
 # ==============================================================================
 with st.sidebar:
     st.markdown("<div class='sidebar-header-amboss'>Quản lý bản nháp và gửi mail</div>", unsafe_allow_html=True)
-    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")    
+    st.caption("🟢 **Tự động lưu:** Dữ liệu được ghi nhớ tự động vào trình duyệt mỗi khi nhập liệu.")   
     # if st.button("🔄 Nạp lại bản nháp từ trình duyệt", type="primary", use_container_width=True):
     #     saved_raw = local_storage.getItem(STORAGE_KEY)
     #     if saved_raw:
