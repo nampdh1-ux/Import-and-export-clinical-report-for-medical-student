@@ -1,4 +1,4 @@
-import requests
+from mistralai import Mistral
 import pandas as pd
 import mammoth
 import base64
@@ -508,10 +508,10 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
         return f"Ngày {m_cls.group(1)}/{m_cls.group(2)}/{m_cls.group(3)}"
     return str(ngay_cls_raw).strip()
 def auto_fill_from_emr_mistral(raw_text):
-    """Gọi trực tiếp REST API của Mistral AI qua requests, không cần SDK mistralai."""
+    """Sử dụng Mistral AI (Free Tier) để phân tích cấu trúc EMR từ văn bản PDF thô."""
     mistral_key = st.secrets.get("MISTRAL_API_KEY")
     if not mistral_key:
-        return False, "Hệ thống chưa cấu hình MISTRAL_API_KEY trong Secrets!"
+        return False, "⚠️ Hệ thống chưa cấu hình MISTRAL_API_KEY trong Secrets!"
 
     prompt = f"""
     Bạn là một trợ lý y khoa AI chuyên nghiệp. Nhiệm vụ của bạn là trích xuất dữ liệu từ văn bản bệnh án điện tử (EMR) thô dưới đây và định dạng lại thành một tệp JSON với cấu trúc chính xác.
@@ -558,31 +558,22 @@ def auto_fill_from_emr_mistral(raw_text):
             }}
         ]
     }}
-    Chỉ trả về chuỗi JSON thuần túy, không kèm giải thích bên ngoài.
+    Chỉ trả về JSON thuần túy, không có văn bản giải thích.
     """
 
-    url = "https://api.mistral.ai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {mistral_key.strip()}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "mistral-small-latest",
-        "messages": [{"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"}
-    }
-
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
-        if response.status_code != 200:
-            return False, f"Lỗi HTTP {response.status_code}: {response.text}"
-
-        data = response.json()
-        res_text = data["choices"][0]["message"]["content"].strip()
+        client = Mistral(api_key=mistral_key)
+        # Sử dụng mistral-small-latest hoặc open-mistral-nemo (Miễn phí hoàn toàn trên La Plateforme)
+        chat_response = client.chat.complete(
+            model="mistral-small-latest",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        res_text = chat_response.choices[0].message.content.strip()
         parsed_data = json.loads(res_text)
         return True, parsed_data
     except Exception as e:
-        return False, f"Lỗi kết nối Mistral: {str(e)}"
+        return False, f"❌ Lỗi Mistral AI: {str(e)}"
 def auto_fill_from_emr_text(raw_text):
     model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
     if not model:
