@@ -40,13 +40,21 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
 @st.cache_resource
-def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
-    """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite", json_mode=False):
+    """Lấy model AI với API key chuyên biệt, hỗ trợ ép kiểu JSON chuẩn."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel(model_name)
+    
+    config = {
+        "max_output_tokens": 8192,
+        "temperature": 0.1
+    }
+    if json_mode:
+        config["response_mime_type"] = "application/json"
+        
+    return genai.GenerativeModel(model_name, generation_config=config)
 
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
