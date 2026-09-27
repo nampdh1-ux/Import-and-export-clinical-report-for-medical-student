@@ -10,4 +10,4 @@ pypdf
 pdfplumber
 pandas
 openpyxl
-mistralai>=1.0.0
+mistralai
