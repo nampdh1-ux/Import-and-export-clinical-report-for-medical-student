@@ -37,14 +37,39 @@ st.set_page_config(page_title="Bệnh án Lâm sàng", layout="wide")
 # HÀM ĐIỀU PHỐI API KEY (CHỐNG RATE LIMIT)
 # ==============================================================================
 @st.cache_resource
-def get_feature_model(feature_key_name, model_name="gemini-3.5-flash-lite"):
+def get_feature_model(feature_key_name, model_name="gemini-3.1-flash-lite"):
     """Lấy model AI với API key chuyên biệt cho từng tác vụ."""
     api_key = st.secrets.get(feature_key_name) or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
+def safe_generate_with_fallback(primary_model_name, fallback_model_name, feature_key, contents):
+    """
+    Thực thi generate_content với model chính.
+    Nếu dính mã lỗi 429 hoặc ResourceExhausted, tự động gọi model dự phòng.
+    """
+    primary_model = get_feature_model(feature_key, primary_model_name)
+    if not primary_model:
+        return False, f"Chưa cấu hình API Key cho tính năng {feature_key}"
 
+    try:
+        response = primary_model.generate_content(contents)
+        return True, response.text.strip()
+    except Exception as e:
+        err_msg = str(e)
+        # Bắt mã lỗi 429 hoặc lỗi quá tải hạn mức
+        if "429" in err_msg or "ResourceExhausted" in err_msg or "Quota exceeded" in err_msg:
+            fallback_model = get_feature_model(feature_key, fallback_model_name)
+            if not fallback_model:
+                return False, f"Model chính quá hạn mức (429) và không thể tải model fallback: {err_msg}"
+            try:
+                # Đổi sang model dự phòng
+                fallback_resp = fallback_model.generate_content(contents)
+                return True, fallback_resp.text.strip()
+            except Exception as fallback_err:
+                return False, f"Cả 2 model đều gặp lỗi: {str(fallback_err)}"
+        return False, err_msg
 # ==============================================================================
 # BẢO MẬT & XÁC THỰC DANH TÍNH (OTP + GMAIL + THIẾT BỊ)
 # ==============================================================================
@@ -508,7 +533,7 @@ def tinh_ngay_thu_nhap_vien(ngay_cls_raw, ngay_vv_raw):
     return str(ngay_cls_raw).strip()
 
 def auto_fill_from_emr_text(raw_text):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.6-flash")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
@@ -577,9 +602,18 @@ def auto_fill_from_emr_text(raw_text):
     QUY TẮC:
     1. Không tự bịa thông tin. Trả về CHỈ DUY NHẤT mã JSON hợp lệ, không bọc trong markdown (```json).
     """
+    # Gọi hàm an toàn với fallback
+    success, res_text = safe_generate_with_fallback(
+        primary_model_name="gemini-3.6-flash",
+        fallback_model_name="gemini-3.1-flash-lite",
+        feature_key="KEY_PDF_EXTRACT",
+        contents=[prompt]
+    )
+
+    if not success:
+        return False, f"Lỗi trích xuất EMR: {res_text}"
+
     try:
-        response = model.generate_content(prompt)
-        res_text = response.text.strip()
         if res_text.startswith("```json"): res_text = res_text[7:]
         elif res_text.startswith("```"): res_text = res_text[3:]
         if res_text.endswith("```"): res_text = res_text[:-3]
@@ -587,10 +621,10 @@ def auto_fill_from_emr_text(raw_text):
         parsed_data = json.loads(res_text.strip())
         return True, parsed_data
     except Exception as e:
-        return False, f"❌ Lỗi trích xuất EMR: {str(e)}"
+        return False, f"Lỗi đọc định dạng JSON EMR: {str(e)}"
 
 def auto_fill_from_emr_images(image_files):
-    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.1-flash-lite")
+    model = get_feature_model("KEY_PDF_EXTRACT", "gemini-3.6-flash")
     if not model:
         return False, "⚠️ Hệ thống chưa cấu hình KEY_PDF_EXTRACT hoặc GEMINI_API_KEY trong Secrets."
 
@@ -648,10 +682,20 @@ def auto_fill_from_emr_images(image_files):
     }
     Chỉ trả về chuỗi JSON thuần túy, không có markdown.
     """
+    contents = [prompt_ocr] + processed_images
+
+    # Gọi với fallback
+    success, res_text = safe_generate_with_fallback(
+        primary_model_name="gemini-3.6-flash",
+        fallback_model_name="gemini-3.1-flash-lite",
+        feature_key="KEY_PDF_EXTRACT",
+        contents=contents
+    )
+
+    if not success:
+        return False, f"Lỗi xử lý ảnh hồ sơ: {res_text}"
+
     try:
-        contents = [prompt_ocr] + processed_images
-        response = model.generate_content(contents)
-        res_text = response.text.strip()
         if res_text.startswith("```json"): res_text = res_text[7:]
         elif res_text.startswith("```"): res_text = res_text[3:]
         if res_text.endswith("```"): res_text = res_text[:-3]
@@ -659,7 +703,7 @@ def auto_fill_from_emr_images(image_files):
         parsed_data = json.loads(res_text.strip())
         return True, parsed_data
     except Exception as e:
-        return False, f"❌ Lỗi xử lý ảnh: {str(e)}"
+        return False, f"Lỗi đọc JSON ảnh hồ sơ: {str(e)}"
 
 def get_benh_su_text_for_ai():
     if is_postop_mode(st.session_state.get("loai_benh_an", "")):
