@@ -1090,49 +1090,37 @@ def parse_trend_data(text_content):
     }
 
 def render_trend_table_streamlit(trend_data):
-    """Render bảng HTML bảng tiến trình theo phong cách bo tròn mặc định Streamlit, đồng bộ màu Custom."""
+    """
+    Chuyển đổi dữ liệu chuỗi ngày thành bảng DataFrame tương tác dạng Excel.
+    Hiển thị trực tiếp trên giao diện Streamlit bằng st.dataframe.
+    """
     if not trend_data:
-        return ""
+        return
     
     dates = trend_data["dates"]
     rows = trend_data["rows"]
     title = trend_data.get("title")
 
-    # Bảng màu tương thích giao diện
-    bg_main = "#ece9d8"
-    bg_header = "#d4d0c8"
-    bg_row_alt = "#f4f3eb" # Nhạt hơn nền chính 1 chút để tạo vệt sọc dễ đọc
-    border_color = "#c8c6b7"
-
-    # Giữ nguyên khung div có border-radius: 6px để bo tròn góc
-    html = f"<div style='overflow-x: auto; margin: 8px 0; border: 1px solid {border_color}; border-radius: 6px; background-color: {bg_main}; overflow: hidden;'>"
+    # Tạo tiêu đề bảng nếu có
     if title:
-        html += f"<div style='background-color: {bg_header}; padding: 6px 12px; font-weight: 600; font-size: 0.88rem; border-bottom: 1px solid {border_color}; color: #1e293b;'>{title.upper()}</div>"
-    
-    # Bảng sử dụng font sans-serif mặc định, không kẻ viền dọc chắp vá
-    html += "<table style='width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.84rem;'>"
-    html += f"<thead><tr style='background-color: {bg_header}; border-bottom: 1px solid {border_color}; color: #1e293b; text-align: left;'>"
-    html += "<th style='padding: 8px 10px; font-weight: 600;'>Chỉ số</th>"
-    
-    # Render các cột mốc ngày (Không có cột Động học)
-    for d in dates:
-        html += f"<th style='padding: 8px 10px; text-align: center; font-weight: 600;'>{d}</th>"
-    html += "</tr></thead><tbody>"
+        st.markdown(f"**📈 {title.upper()} (THEO DÕI DIỄN TIẾN):**")
 
-    for idx, r in enumerate(rows):
-        bg = bg_main if idx % 2 == 0 else bg_row_alt
-        border_bottom = f"1px solid {border_color}" if idx < len(rows) - 1 else "none"
-        
-        html += f"<tr style='background-color: {bg}; border-bottom: {border_bottom};'>"
-        html += f"<td style='padding: 7px 10px; font-weight: 500; color: #0f172a;'>{r['param']}</td>"
-        
-        for v in r["values"]:
-            html += f"<td style='padding: 7px 10px; text-align: center; color: #334155;'>{v}</td>"
-        
-        html += "</tr>"
+    # Xây dựng danh sách dòng dữ liệu cho DataFrame
+    table_rows = []
+    for r in rows:
+        row_dict = {"Chỉ số": r["param"]}
+        for d, v in zip(dates, r["values"]):
+            row_dict[d] = v
+        table_rows.append(row_dict)
 
-    html += "</tbody></table></div>"
-    return html
+    df_trend = pd.DataFrame(table_rows)
+
+    # Hiển thị bằng bảng tương tác Streamlit dạng Excel (có thể lọc, sắp xếp, tìm kiếm)
+    st.dataframe(
+        df_trend,
+        use_container_width=True,
+        hide_index=True
+    )
 
 def set_cell_background(cell, fill_hex):
     """Tô màu nền cho ô trong bảng docx."""
@@ -2322,7 +2310,7 @@ def ui_cls(num_dx, num_kq):
             kq_hientai = str(st.session_state.get(f"cls_kq_{i}", "")).strip()
             parsed_trend = parse_trend_data(kq_hientai)
             if parsed_trend:
-                st.markdown(render_trend_table_streamlit(parsed_trend), unsafe_allow_html=True)
+                render_trend_table_streamlit(parsed_trend)
 
             img = st.file_uploader(f"Đính kèm ảnh cho hàng {i + 1}:", type=["png", "jpg", "jpeg"], key=f"uploader_cls_img_{i}")
             if img:
