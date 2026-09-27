@@ -1,3 +1,4 @@
+import pandas as pd
 import mammoth
 import base64
 import hashlib
