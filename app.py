@@ -2186,44 +2186,6 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
 
-def handle_move_cls(source_idx):
-    """
-    Callback xử lý di chuyển hàng CLS trước chu kỳ render.
-    Tránh lỗi StreamlitWidgetAlreadyInstantiatedError.
-    """
-    target_idx = st.session_state.get(f"select_move_cls_{source_idx}")
-    if target_idx is None or target_idx == source_idx:
-        return
-
-    total = int(st.session_state.get("so_hang_cls", 1))
-    
-    # 1. Thu thập toàn bộ dữ liệu của tất cả các hàng hiện tại
-    rows_data = []
-    for i in range(total):
-        kq = st.session_state.get(f"cls_kq_{i}", "")
-        pg = st.session_state.get(f"cls_pg_{i}", "")
-        img = st.session_state.get("uploaded_imgs", {}).get(f"cls_img_{i}")
-        rows_data.append({"kq": kq, "pg": pg, "img": img})
-
-    # 2. Rút hàng được chọn ra và chèn vào vị trí đích
-    moved_item = rows_data.pop(source_idx)
-    rows_data.insert(target_idx, moved_item)
-
-    # 3. Ghi đè lại dữ liệu theo thứ tự mới vào session_state
-    if "uploaded_imgs" not in st.session_state:
-        st.session_state["uploaded_imgs"] = {}
-
-    for i, item in enumerate(rows_data):
-        st.session_state[f"cls_kq_{i}"] = item["kq"]
-        st.session_state[f"cls_pg_{i}"] = item["pg"]
-        if item["img"] is not None:
-            st.session_state["uploaded_imgs"][f"cls_img_{i}"] = item["img"]
-        else:
-            st.session_state["uploaded_imgs"].pop(f"cls_img_{i}", None)
-
-    # 4. Xóa cache của các selectbox để lượt render tiếp theo tự nhận lại index=i
-    for i in range(total):
-        st.session_state.pop(f"select_move_cls_{i}", None)
 def xoa_hang_cls(target_idx):
     """
     Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
@@ -2456,33 +2418,20 @@ def ui_cls(num_dx, num_kq):
 
     so_hang_cls = int(st.session_state.get("so_hang_cls", 1))
     for i in range(so_hang_cls):
-        # Header gồm: Tên hàng, Hộp chọn chuyển đến vị trí bất kỳ, Nút Xóa
-        col_h_title, col_move, col_h_del = st.columns([2.5, 2.2, 1])
-        
+        # Header mỗi hàng gồm Tiêu đề bên trái và Nút xóa [✖ Xóa hàng] bên phải
+        col_h_title, col_h_del = st.columns([4, 1])
         with col_h_title:
             st.markdown(f"**Hàng {i + 1}:**")
-
-        with col_move:
-            target_options = list(range(so_hang_cls))
-            st.selectbox(
-                f"Chuyển hàng {i + 1} tới:",
-                options=target_options,
-                index=i,
-                format_func=lambda x: f"➡️ Đặt tại Hàng {x + 1}",
-                key=f"select_move_cls_{i}",
-                label_visibility="collapsed",
-                on_change=handle_move_cls,
-                args=(i,)
-            )
         with col_h_del:
             st.button(
-                "✖ Xóa",
+                "✖ Xóa hàng",
                 key=f"btn_del_cls_{i}",
                 help=f"Xóa kết quả hàng {i + 1}",
                 on_click=xoa_hang_cls,
                 args=(i,),
                 use_container_width=True
             )
+
         col_left, col_right = st.columns([1, 1])
         with col_left:
             st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=100)
