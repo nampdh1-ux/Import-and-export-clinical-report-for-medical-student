@@ -2186,12 +2186,13 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
 
-def move_hang_cls(source_idx, target_idx):
+def handle_move_cls(source_idx):
     """
-    Di chuyển một hàng CLS từ vị trí source_idx sang target_idx
-    và tự động dồn các hàng còn lại, bao gồm cả nội dung và hình ảnh.
+    Callback xử lý di chuyển hàng CLS trước chu kỳ render.
+    Tránh lỗi StreamlitWidgetAlreadyInstantiatedError.
     """
-    if source_idx == target_idx:
+    target_idx = st.session_state.get(f"select_move_cls_{source_idx}")
+    if target_idx is None or target_idx == source_idx:
         return
 
     total = int(st.session_state.get("so_hang_cls", 1))
@@ -2219,6 +2220,10 @@ def move_hang_cls(source_idx, target_idx):
             st.session_state["uploaded_imgs"][f"cls_img_{i}"] = item["img"]
         else:
             st.session_state["uploaded_imgs"].pop(f"cls_img_{i}", None)
+
+    # 4. Xóa cache của các selectbox để lượt render tiếp theo tự nhận lại index=i
+    for i in range(total):
+        st.session_state.pop(f"select_move_cls_{i}", None)
 def xoa_hang_cls(target_idx):
     """
     Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
@@ -2458,21 +2463,17 @@ def ui_cls(num_dx, num_kq):
             st.markdown(f"**Hàng {i + 1}:**")
 
         with col_move:
-            # Tạo danh sách các hàng có thể chuyển tới: ['Vị trí 1', 'Vị trí 2', ...]
             target_options = list(range(so_hang_cls))
-            selected_pos = st.selectbox(
+            st.selectbox(
                 f"Chuyển hàng {i + 1} tới:",
                 options=target_options,
                 index=i,
                 format_func=lambda x: f"➡️ Đặt tại Hàng {x + 1}",
                 key=f"select_move_cls_{i}",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
+                on_change=handle_move_cls,
+                args=(i,)
             )
-            # Khi người dùng chọn một hàng khác với vị trí hiện tại -> tự động di chuyển
-            if selected_pos != i:
-                move_hang_cls(i, selected_pos)
-                st.rerun()
-
         with col_h_del:
             st.button(
                 "✖ Xóa",
