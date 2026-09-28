@@ -2535,7 +2535,7 @@ with tab1:
                 if len(raw_text) < 100:
                     st.warning("⚠️ Lượng chữ trích xuất quá ít (có thể là PDF dạng ảnh scan). Vui lòng chuyển sang tab 'Ảnh chụp / Scan bệnh án' bên cạnh để AI đọc trực tiếp.")
                 else:
-                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm, chờ xíu..."):
+                    with st.spinner("AI đang phân tích ngữ nghĩa và cấu trúc hóa chỉ số xét nghiệm, chờ xíu file càng nặng càng lâu..."):
                         success, result = auto_fill_from_emr_text(raw_text)
                         if success:
                             fields_mapping = [
@@ -2615,7 +2615,7 @@ with tab1:
         # --- TAB CON 2: XỬ LÝ ẢNH CHỤP / TÀI LIỆU SCAN (CHỌN NHIỀU ẢNH CÙNG LÚC) ---
         with tab_import_img:
             emr_photos = st.file_uploader(
-                "Tải lên ảnh chụp / scan bệnh án (Chọn nhiều ảnh một lần):",
+                "Tải lên ảnh chụp / scan bệnh án (Chọn nhiều ảnh một lần, tối đa 15 ảnh):",
                 type=["png", "jpg", "jpeg"],
                 accept_multiple_files=True,
                 key="emr_photos_batch_uploader"
@@ -2624,7 +2624,7 @@ with tab1:
             if emr_photos:
                 st.caption(f"Đã chọn {len(emr_photos)} file ảnh.")
                 if st.button("⚡ Phân tích & Tự điền từ ảnh scan", type="primary", use_container_width=True, key="btn_run_scan_images"):
-                    with st.spinner(f"AI Vision đang đọc {len(emr_photos)} ảnh bệnh án và trích xuất chỉ số (khoảng 5-10 giây)..."):
+                    with st.spinner(f"AI Vision đang đọc {len(emr_photos)} ảnh bệnh án và trích xuất chỉ số (khoảng vài phút tùy số lượng ảnh)..."):
                         success, result = auto_fill_from_emr_images(emr_photos)
                         if success:
                             fields_mapping = [
