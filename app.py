@@ -2185,37 +2185,40 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 3: Biện luận chẩn đoán sơ bộ
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
-def swap_hang_cls(idx1, idx2):
-    """Hoán đổi vị trí và dữ liệu giữa hai hàng cận lâm sàng."""
-    total = int(st.session_state.get("so_hang_cls", 1))
-    if not (0 <= idx1 < total and 0 <= idx2 < total):
+
+def move_hang_cls(source_idx, target_idx):
+    """
+    Di chuyển một hàng CLS từ vị trí source_idx sang target_idx
+    và tự động dồn các hàng còn lại, bao gồm cả nội dung và hình ảnh.
+    """
+    if source_idx == target_idx:
         return
 
-    # 1. Tráo dữ liệu Kết quả và Biện giải
-    k1 = st.session_state.get(f"cls_kq_{idx1}", "")
-    p1 = st.session_state.get(f"cls_pg_{idx1}", "")
-    k2 = st.session_state.get(f"cls_kq_{idx2}", "")
-    p2 = st.session_state.get(f"cls_pg_{idx2}", "")
+    total = int(st.session_state.get("so_hang_cls", 1))
+    
+    # 1. Thu thập toàn bộ dữ liệu của tất cả các hàng hiện tại
+    rows_data = []
+    for i in range(total):
+        kq = st.session_state.get(f"cls_kq_{i}", "")
+        pg = st.session_state.get(f"cls_pg_{i}", "")
+        img = st.session_state.get("uploaded_imgs", {}).get(f"cls_img_{i}")
+        rows_data.append({"kq": kq, "pg": pg, "img": img})
 
-    st.session_state[f"cls_kq_{idx1}"] = k2
-    st.session_state[f"cls_pg_{idx1}"] = p2
-    st.session_state[f"cls_kq_{idx2}"] = k1
-    st.session_state[f"cls_pg_{idx2}"] = p1
+    # 2. Rút hàng được chọn ra và chèn vào vị trí đích
+    moved_item = rows_data.pop(source_idx)
+    rows_data.insert(target_idx, moved_item)
 
-    # 2. Tráo ảnh đính kèm nếu có
-    if "uploaded_imgs" in st.session_state:
-        img1 = st.session_state["uploaded_imgs"].get(f"cls_img_{idx1}")
-        img2 = st.session_state["uploaded_imgs"].get(f"cls_img_{idx2}")
+    # 3. Ghi đè lại dữ liệu theo thứ tự mới vào session_state
+    if "uploaded_imgs" not in st.session_state:
+        st.session_state["uploaded_imgs"] = {}
 
-        if img2:
-            st.session_state["uploaded_imgs"][f"cls_img_{idx1}"] = img2
+    for i, item in enumerate(rows_data):
+        st.session_state[f"cls_kq_{i}"] = item["kq"]
+        st.session_state[f"cls_pg_{i}"] = item["pg"]
+        if item["img"] is not None:
+            st.session_state["uploaded_imgs"][f"cls_img_{i}"] = item["img"]
         else:
-            st.session_state["uploaded_imgs"].pop(f"cls_img_{idx1}", None)
-
-        if img1:
-            st.session_state["uploaded_imgs"][f"cls_img_{idx2}"] = img1
-        else:
-            st.session_state["uploaded_imgs"].pop(f"cls_img_{idx2}", None)
+            st.session_state["uploaded_imgs"].pop(f"cls_img_{i}", None)
 def xoa_hang_cls(target_idx):
     """
     Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
@@ -2448,34 +2451,28 @@ def ui_cls(num_dx, num_kq):
 
     so_hang_cls = int(st.session_state.get("so_hang_cls", 1))
     for i in range(so_hang_cls):
-        # Header chia 4 cột: Tiêu đề hàng, Nút ⬆️, Nút ⬇️ và Nút ✖ Xóa
-        col_h_title, col_up, col_down, col_h_del = st.columns([3, 0.7, 0.7, 1.2])
+        # Header gồm: Tên hàng, Hộp chọn chuyển đến vị trí bất kỳ, Nút Xóa
+        col_h_title, col_move, col_h_del = st.columns([2.5, 2.2, 1])
         
         with col_h_title:
             st.markdown(f"**Hàng {i + 1}:**")
-            
-        with col_up:
-            if i > 0:
-                st.button(
-                    "⬆️",
-                    key=f"btn_up_cls_{i}",
-                    help=f"Di chuyển hàng {i + 1} lên trên",
-                    on_click=swap_hang_cls,
-                    args=(i, i - 1),
-                    use_container_width=True
-                )
-                
-        with col_down:
-            if i < so_hang_cls - 1:
-                st.button(
-                    "⬇️",
-                    key=f"btn_down_cls_{i}",
-                    help=f"Di chuyển hàng {i + 1} xuống dưới",
-                    on_click=swap_hang_cls,
-                    args=(i, i + 1),
-                    use_container_width=True
-                )
-                
+
+        with col_move:
+            # Tạo danh sách các hàng có thể chuyển tới: ['Vị trí 1', 'Vị trí 2', ...]
+            target_options = list(range(so_hang_cls))
+            selected_pos = st.selectbox(
+                f"Chuyển hàng {i + 1} tới:",
+                options=target_options,
+                index=i,
+                format_func=lambda x: f"➡️ Đặt tại Hàng {x + 1}",
+                key=f"select_move_cls_{i}",
+                label_visibility="collapsed"
+            )
+            # Khi người dùng chọn một hàng khác với vị trí hiện tại -> tự động di chuyển
+            if selected_pos != i:
+                move_hang_cls(i, selected_pos)
+                st.rerun()
+
         with col_h_del:
             st.button(
                 "✖ Xóa",
@@ -2485,7 +2482,6 @@ def ui_cls(num_dx, num_kq):
                 args=(i,),
                 use_container_width=True
             )
-
         col_left, col_right = st.columns([1, 1])
         with col_left:
             st.text_area(f"Kết quả cận lâm sàng {i + 1}:", key=f"cls_kq_{i}", height=100)
