@@ -2185,7 +2185,37 @@ def ui_cdsb(num_sb, num_pb, num_bl):
     # Hàng 3: Biện luận chẩn đoán sơ bộ
     st.markdown(f"**{num_bl}. Biện luận chẩn đoán sơ bộ:**")
     st.text_area(f"{num_bl}. Biện luận chẩn đoán sơ bộ:", key="bien_luan", height=130, label_visibility="collapsed")
+def swap_hang_cls(idx1, idx2):
+    """Hoán đổi vị trí và dữ liệu giữa hai hàng cận lâm sàng."""
+    total = int(st.session_state.get("so_hang_cls", 1))
+    if not (0 <= idx1 < total and 0 <= idx2 < total):
+        return
 
+    # 1. Tráo dữ liệu Kết quả và Biện giải
+    k1 = st.session_state.get(f"cls_kq_{idx1}", "")
+    p1 = st.session_state.get(f"cls_pg_{idx1}", "")
+    k2 = st.session_state.get(f"cls_kq_{idx2}", "")
+    p2 = st.session_state.get(f"cls_pg_{idx2}", "")
+
+    st.session_state[f"cls_kq_{idx1}"] = k2
+    st.session_state[f"cls_pg_{idx1}"] = p2
+    st.session_state[f"cls_kq_{idx2}"] = k1
+    st.session_state[f"cls_pg_{idx2}"] = p1
+
+    # 2. Tráo ảnh đính kèm nếu có
+    if "uploaded_imgs" in st.session_state:
+        img1 = st.session_state["uploaded_imgs"].get(f"cls_img_{idx1}")
+        img2 = st.session_state["uploaded_imgs"].get(f"cls_img_{idx2}")
+
+        if img2:
+            st.session_state["uploaded_imgs"][f"cls_img_{idx1}"] = img2
+        else:
+            st.session_state["uploaded_imgs"].pop(f"cls_img_{idx1}", None)
+
+        if img1:
+            st.session_state["uploaded_imgs"][f"cls_img_{idx2}"] = img1
+        else:
+            st.session_state["uploaded_imgs"].pop(f"cls_img_{idx2}", None)
 def xoa_hang_cls(target_idx):
     """
     Xóa một hàng CLS cụ thể và dồn các hàng phía sau lên,
@@ -2418,13 +2448,37 @@ def ui_cls(num_dx, num_kq):
 
     so_hang_cls = int(st.session_state.get("so_hang_cls", 1))
     for i in range(so_hang_cls):
-        # Header mỗi hàng gồm Tiêu đề bên trái và Nút xóa [✖ Xóa hàng] bên phải
-        col_h_title, col_h_del = st.columns([4, 1])
+        # Header chia 4 cột: Tiêu đề hàng, Nút ⬆️, Nút ⬇️ và Nút ✖ Xóa
+        col_h_title, col_up, col_down, col_h_del = st.columns([3, 0.7, 0.7, 1.2])
+        
         with col_h_title:
             st.markdown(f"**Hàng {i + 1}:**")
+            
+        with col_up:
+            if i > 0:
+                st.button(
+                    "⬆️",
+                    key=f"btn_up_cls_{i}",
+                    help=f"Di chuyển hàng {i + 1} lên trên",
+                    on_click=swap_hang_cls,
+                    args=(i, i - 1),
+                    use_container_width=True
+                )
+                
+        with col_down:
+            if i < so_hang_cls - 1:
+                st.button(
+                    "⬇️",
+                    key=f"btn_down_cls_{i}",
+                    help=f"Di chuyển hàng {i + 1} xuống dưới",
+                    on_click=swap_hang_cls,
+                    args=(i, i + 1),
+                    use_container_width=True
+                )
+                
         with col_h_del:
             st.button(
-                "✖ Xóa hàng",
+                "✖ Xóa",
                 key=f"btn_del_cls_{i}",
                 help=f"Xóa kết quả hàng {i + 1}",
                 on_click=xoa_hang_cls,
